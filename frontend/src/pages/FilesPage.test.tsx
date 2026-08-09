@@ -1,0 +1,262 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '../test/server'
+import { renderApp } from '../test/renderApp'
+
+describe('file browser', () => {
+  it('shows an icon-only clear action only while the search field has text', async () => {
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const search = await screen.findByRole('textbox', { name: 'Search this folder' })
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+    await user.type(search, 'notes')
+    const clear = screen.getByRole('button', { name: 'Clear search' })
+    expect(clear).not.toHaveTextContent('Clear search')
+    await user.click(clear)
+    expect(search).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+  })
+
+  it('refetches entries with the explicit hidden-file filter', async () => {
+    const hiddenQueries: string[] = []
+    const visibleEntries = [
+      { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+      { name: 'dev', path: '/dev', type: 'special', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+    ]
+    const settings = { theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30, advancedMode: true, root: '/', secureTransport: true }
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const hidden = new URL(request.url).searchParams.get('hidden') ?? ''
+        hiddenQueries.push(hidden)
+        return HttpResponse.json({
+          path: '/', advancedMode: true,
+          entries: hidden === 'true' ? [...visibleEntries, { name: '.zenfm.db', path: '/.zenfm.db', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z', hidden: true }] : visibleEntries,
+        })
+      }),
+      http.get('http://localhost/api/v1/settings', () => HttpResponse.json(settings)),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    expect(await screen.findByText('Books')).toBeInTheDocument()
+    expect(screen.getByText('Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted.')).toBeInTheDocument()
+    expect(screen.queryByText('.zenfm.db')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('switch', { name: 'Show hidden files' }))
+    expect(await screen.findByText('.zenfm.db')).toBeInTheDocument()
+    expect(hiddenQueries).toContain('false')
+    expect(hiddenQueries).toContain('true')
+    expect(screen.getByRole('button', { name: 'Actions for dev' })).toBeInTheDocument()
+  })
+
+  it('sends CSRF when creating a directory and refreshes the listing', async () => {
+    let csrf = ''
+    let created = false
+    server.use(
+      http.get('http://localhost/api/v1/session', () => HttpResponse.json({ authenticated: true, setupRequired: false, csrfToken: 'directory-csrf-token-value-1234567' })),
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({ path: '/', advancedMode: false, entries: created ? [{ name: 'Notes', path: '/Notes', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }] : [] })),
+      http.post('http://localhost/api/v1/files/directory', ({ request }) => {
+        csrf = request.headers.get('X-ZenFM-CSRF') ?? ''
+        created = true
+        return new HttpResponse(null, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    await user.click(screen.getByRole('button', { name: 'New folder' }))
+    await user.type(screen.getByLabelText('Folder name'), 'Notes')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(csrf).toBe('directory-csrf-token-value-1234567'))
+    expect(await screen.findByText('Notes')).toBeInTheDocument()
+  })
+
+  it('starts in list view, opens only on double click, and shows actions on right click', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'manual.bin', path: '/manual.bin', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'notes.bin', path: '/notes.bin', type: 'file', size: 256, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const item = await screen.findByRole('listitem', { name: 'manual.bin' })
+    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(item)
+    expect(item).toHaveClass('selected')
+    const otherItem = screen.getByRole('listitem', { name: 'notes.bin' })
+    await user.click(otherItem)
+    expect(item).not.toHaveClass('selected')
+    expect(otherItem).toHaveClass('selected')
+    await user.click(item)
+    expect(screen.queryByRole('dialog', { name: 'manual.bin' })).not.toBeInTheDocument()
+
+    fireEvent.contextMenu(item)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.dblClick(item)
+    expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
+  })
+
+  it('opens folders on double click', async () => {
+    server.use(http.get('http://localhost/api/v1/files', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path')
+      return HttpResponse.json(path === '/Books'
+        ? { path, advancedMode: false, entries: [{ name: 'chapter.txt', path: '/Books/chapter.txt', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }] }
+        : { path: '/', advancedMode: false, entries: [{ name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }] })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const folder = await screen.findByRole('listitem', { name: 'Books' })
+    expect(within(folder).getByText('folder')).toBeInTheDocument()
+    expect(within(folder).queryByText('directory')).not.toBeInTheDocument()
+    await user.click(folder)
+    expect(screen.queryByText('chapter.txt')).not.toBeInTheDocument()
+    await user.dblClick(folder)
+    expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
+  })
+
+  it('uploads host files to the shown folder or a hovered child folder', async () => {
+    const uploadedPaths: string[] = []
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [{ name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }],
+      })),
+      http.put('http://localhost/api/v1/files/content', ({ request }) => {
+        uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderApp('/files')
+
+    const folder = await screen.findByRole('listitem', { name: 'Books' })
+    const rootTransfer = { types: ['Files'], files: [new File(['root'], 'root.txt', { type: 'text/plain' })], dropEffect: 'none' }
+    fireEvent.dragOver(window, { dataTransfer: rootTransfer })
+    expect(document.querySelector('.file-drop-zone')).toHaveClass('drop-active')
+    fireEvent.drop(window, { dataTransfer: rootTransfer })
+    await waitFor(() => expect(uploadedPaths).toContain('/root.txt'))
+
+    const folderTransfer = { types: ['Files'], files: [new File(['nested'], 'nested.txt', { type: 'text/plain' })], dropEffect: 'none' }
+    fireEvent.dragOver(folder, { dataTransfer: folderTransfer })
+    expect(folder).toHaveClass('drop-target')
+    fireEvent.drop(folder, { dataTransfer: folderTransfer })
+    await waitFor(() => expect(uploadedPaths).toContain('/Books/nested.txt'))
+    expect(folder).not.toHaveClass('drop-target')
+  })
+
+  it('creates a new text file without overwriting and opens the editor', async () => {
+    let csrf = ''
+    let condition = ''
+    let body = 'not-empty'
+    server.use(
+      http.put('http://localhost/api/v1/files/content', async ({ request }) => {
+        csrf = request.headers.get('X-ZenFM-CSRF') ?? ''
+        condition = request.headers.get('If-None-Match') ?? ''
+        body = await request.text()
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('')),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    await user.click(screen.getByRole('button', { name: 'New file' }))
+    await user.type(screen.getByLabelText('File name'), 'notes.txt')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Text editor · notes.txt')).toBeInTheDocument()
+    expect(csrf).toBe('a'.repeat(32))
+    expect(condition).toBe('*')
+    expect(body).toBe('')
+  })
+
+  it('never overwrites an upload until the owner explicitly chooses replace', async () => {
+    const conditions: string[] = []
+    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+      conditions.push(request.headers.get('If-None-Match') ?? '')
+      if (conditions.length === 1) return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+      return new HttpResponse(null, { status: 204 })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, new File(['new content'], 'notes.txt', { type: 'text/plain' }))
+
+    expect(await screen.findByRole('heading', { name: 'File already exists' })).toBeInTheDocument()
+    expect(conditions).toEqual(['*'])
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload with new name' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Replace' }))
+    await waitFor(() => expect(conditions).toEqual(['*', '']))
+  })
+
+  it('shows lazy bounded image thumbnails in grid view', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'cover.tiff', path: '/cover.tiff', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'image/tiff' }],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const thumbnail = await screen.findByRole('img', { name: 'cover.tiff' })
+    expect(thumbnail).toHaveAttribute('loading', 'lazy')
+    expect(thumbnail.getAttribute('src')).toContain('/api/v1/files/preview?path=%2Fcover.tiff')
+  })
+
+  it('does not offer SVG files as raster thumbnails', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'vector.svg', path: '/vector.svg', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'image/svg+xml' }],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    expect(await screen.findByText('vector.svg')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'vector.svg' })).not.toBeInTheDocument()
+  })
+
+  it('archives selected regular entries and never offers special entries for selection', async () => {
+    let archived: string[] = []
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: true,
+        entries: [
+          { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'socket', path: '/run/socket', type: 'special', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })),
+      http.post('http://localhost/api/v1/files/archive-tickets', async ({ request }) => {
+        archived = ((await request.json()) as { paths: string[] }).paths
+        return HttpResponse.json({ url: '/api/v1/files/archive/zfm_archive_test' }, { status: 201 })
+      }),
+    )
+    let downloadURL = ''
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloadURL = this.href })
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Select Books' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select notes.txt' }))
+    expect(screen.queryByRole('checkbox', { name: 'Select socket' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Download ZIP' }))
+    await waitFor(() => expect(archived).toEqual(['/Books', '/notes.txt']))
+    await waitFor(() => expect(downloadURL).toContain('/api/v1/files/archive/'))
+    expect(new URL(downloadURL).pathname).toBe('/api/v1/files/archive/zfm_archive_test')
+    expect(downloadURL).not.toContain('blob:')
+  })
+})
