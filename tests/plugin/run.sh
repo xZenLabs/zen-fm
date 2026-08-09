@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
+lua "$ROOT/tests/plugin/daemon_test.lua" "$ROOT"
+"$ROOT/tests/plugin/supervisor_test.sh" "$ROOT"
+"$ROOT/tests/plugin/package_test.sh" "$ROOT"
+"$ROOT/tests/release_evidence_test.sh" "$ROOT"

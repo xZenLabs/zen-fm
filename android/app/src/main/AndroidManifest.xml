@@ -1,0 +1,45 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <!-- ZenFM is an owner-operated general file manager; MediaStore cannot provide its root view. -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/backup_rules"
+        android:fullBackupContent="false"
+        android:icon="@drawable/zenfm_icon"
+        android:label="ZenFM Backend"
+        android:roundIcon="@drawable/zenfm_icon"
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="m">
+        <activity
+            android:name=".ZenFMActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog" />
+        <service
+            android:name=".ZenFMService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Owner-requested local KOReader file server that remains available while KOReader is closed, asleep, or temporarily offline" />
+        </service>
+        <provider
+            android:name=".ZenFMUpdateProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

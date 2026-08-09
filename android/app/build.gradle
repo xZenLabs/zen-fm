@@ -1,0 +1,69 @@
+plugins { id 'com.android.application' }
+
+def zenfmVersion = file('../../VERSION').text.trim().replaceFirst('^v', '')
+def core = zenfmVersion.tokenize('-')[0].tokenize('.')
+if (core.size() != 3) throw new GradleException("VERSION must be major.minor.patch")
+def prerelease = (zenfmVersion =~ /-beta(\d+)$/)
+def prereleaseCode = prerelease.find() ? prerelease.group(1).toInteger() : 999
+def zenfmVersionCode = core[0].toInteger() * 10000000 + core[1].toInteger() * 100000 +
+    core[2].toInteger() * 1000 + prereleaseCode
+def releaseKeystore = System.getenv('ANDROID_KEYSTORE_PATH')
+def devUnsigned = System.getenv('ZENFM_ANDROID_DEV_UNSIGNED') == '1'
+def releasePublicKey = System.getenv('ZENFM_RELEASE_PUBLIC_KEY_HEX') ?: 'UNCONFIGURED'
+if (!devUnsigned && !releaseKeystore) {
+    throw new GradleException('ANDROID_KEYSTORE_PATH is required for a release APK (set ZENFM_ANDROID_DEV_UNSIGNED=1 only for local development)')
+}
+if (!devUnsigned && !(releasePublicKey ==~ /[0-9a-fA-F]{64}/)) {
+    throw new GradleException('ZENFM_RELEASE_PUBLIC_KEY_HEX must contain the pinned Ed25519 public key')
+}
+
+android {
+    namespace 'org.zenlabs.zenfm'
+    compileSdk 34
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    defaultConfig {
+        applicationId 'org.zenlabs.zenfm'
+        minSdk 19
+        targetSdk 34
+        versionCode zenfmVersionCode
+        versionName zenfmVersion
+        ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+        buildConfigField 'String', 'ZENFM_RELEASE_PUBLIC_KEY', '"' + releasePublicKey.toLowerCase() + '"'
+    }
+    signingConfigs {
+        release {
+            if (releaseKeystore) {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release { signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.debug }
+    }
+    buildFeatures { buildConfig true }
+    packaging { jniLibs { useLegacyPackaging true } }
+}
+
+dependencies {
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.85.1'
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.register('buildZenFMNative', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'sh', 'build-native.sh'
+    inputs.file(rootProject.file('build-native.sh'))
+    inputs.file(rootProject.file('../VERSION'))
+    inputs.file(rootProject.file('../go.mod'))
+    inputs.file(rootProject.file('../go.sum'))
+    inputs.dir(rootProject.file('../cmd'))
+    inputs.dir(rootProject.file('../internal'))
+    outputs.dir(rootProject.file('app/src/main/jniLibs'))
+}
+preBuild.dependsOn tasks.named('buildZenFMNative')

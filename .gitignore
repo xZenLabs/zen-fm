@@ -27,6 +27,33 @@ go.work.sum
 # env file
 .env
 
+# Frontend dependencies and generated assets
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+playwright-report/
+test-results/
+
+# Release and platform build output
+/zenfm
+/dist/
+.build/
+.toolchains/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/src/main/jniLibs/
+
+# Runtime state
+*.db
+*.db.lock
+*.log
+*.pid
+*.pem
+
+# Operating-system metadata
+.DS_Store
+
 # Editor/IDE
 # .idea/
 # .vscode/

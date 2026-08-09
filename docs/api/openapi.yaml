@@ -1,0 +1,1500 @@
+openapi: 3.1.0
+info:
+  title: ZenFM API
+  version: 0.1.0
+  description: |
+    The local, single-owner ZenFM HTTP API. Browser requests authenticate with
+    an opaque `zenfm_session` cookie and send the session-bound value returned
+    as `csrfToken` in `X-ZenFM-CSRF` for every mutation. Personal API tokens use
+    `Authorization: Bearer`; their restricted scope excludes owner security,
+    token management, update, and lifecycle operations.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Redacted liveness information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /api/v1/session:
+    get:
+      operationId: validateSession
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The validated browser session. Validation does not extend its absolute lifetime.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login succeeded and a secure session cookie was set.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HttpOnly, SameSite=Strict session cookie; Secure under HTTPS.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/UniformLoginFailure'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    delete:
+      operationId: logout
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      responses:
+        '204':
+          description: The current session was revoked and its cookie cleared.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/owner/password:
+    put:
+      operationId: changeOwnerPassword
+      description: Changes the sole owner's password and revokes every session and API token.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+      responses:
+        '200':
+          description: Password changed; a replacement browser session was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/tokens:
+    get:
+      operationId: listPersonalTokens
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Token metadata. Token secrets are never returned here.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createPersonalToken
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePersonalToken'
+      responses:
+        '201':
+          description: The plaintext token is returned exactly once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PersonalToken'
+                  - type: object
+                    required: [token]
+                    properties:
+                      token:
+                        type: string
+                        writeOnly: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/tokens/{tokenId}:
+    delete:
+      operationId: revokePersonalToken
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+        - $ref: '#/components/parameters/TokenId'
+      responses:
+        '204':
+          description: Token revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/settings:
+    get:
+      operationId: getSettings
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      responses:
+        '200':
+          description: Owner preferences and redacted effective server settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      operationId: updatePreferences
+      description: Updates owner presentation preferences. Personal tokens cannot change settings.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferenceUpdate'
+      responses:
+        '200':
+          description: Updated settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/files:
+    get:
+      operationId: listFiles
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+        - $ref: '#/components/parameters/Hidden'
+      responses:
+        '200':
+          description: One directory. Special entries are metadata-only.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteFile
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - $ref: '#/components/parameters/Path'
+        - in: query
+          name: recursive
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: Target deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/files/directory:
+    post:
+      operationId: createDirectory
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [path]
+              properties:
+                path:
+                  $ref: '#/components/schemas/Path'
+      responses:
+        '201':
+          description: Directory created.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/files/content:
+    get:
+      operationId: getFileContent
+      description: Returns exact, bounded UTF-8 source for the text editor; unlike preview output, HTML is not transformed.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+      responses:
+        '200':
+          description: Exact editable text, limited to 4 MiB.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/Unsupported'
+    put:
+      operationId: putFile
+      description: Atomically creates or explicitly replaces a regular file. Symlinks and special files are rejected.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - $ref: '#/components/parameters/Path'
+        - in: header
+          name: If-None-Match
+          schema:
+            type: string
+          description: Use `*` to reject overwrite conflicts.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: File created.
+        '204':
+          description: File replaced.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+  /api/v1/files/move:
+    post:
+      operationId: moveFile
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transfer'
+      responses:
+        '204':
+          description: Target moved or renamed.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/files/copy:
+    post:
+      operationId: copyFile
+      description: Recursion skips symlinks, pseudo-filesystems, and non-regular entries.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transfer'
+      responses:
+        '204':
+          description: Target copied.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/files/raw:
+    get:
+      operationId: readFile
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+      responses:
+        '200':
+          description: Streamed regular-file content with range support.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/files/preview:
+    get:
+      operationId: previewFile
+      description: Returns a bounded, safe preview representation for a regular file.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+        - in: query
+          name: width
+          schema:
+            type: integer
+            minimum: 16
+            maximum: 4096
+        - in: query
+          name: height
+          schema:
+            type: integer
+            minimum: 16
+            maximum: 4096
+      responses:
+        '200':
+          description: Preview stream.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+            text/html:
+              schema:
+                type: string
+              description: Sanitized HTML only; scripts, event handlers, and external resources are removed.
+            text/csv:
+              schema:
+                type: string
+            text/markdown:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            audio/*:
+              schema:
+                type: string
+                format: binary
+            video/*:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/Unsupported'
+  /api/v1/files/checksum:
+    get:
+      operationId: checksumFile
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+        - in: query
+          name: algorithm
+          schema:
+            type: string
+            enum: [sha256, sha512]
+            default: sha256
+      responses:
+        '200':
+          description: Digest of the regular file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Checksum'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/files/archive:
+    post:
+      operationId: downloadArchive
+      description: Streams an archive whose entry names are canonical and traversal-safe.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+      responses:
+        '200':
+          description: Archive stream.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+            application/gzip:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/files/archive-tickets:
+    post:
+      operationId: createArchiveDownloadTicket
+      description: Creates a one-time, session-bound browser download URL that expires after one minute.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+      responses:
+        '201':
+          description: Short-lived archive download URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchiveTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/files/archive/{ticket}:
+    get:
+      operationId: downloadArchiveWithTicket
+      description: Consumes a one-time archive ticket and streams through browser-native download handling without JavaScript buffering.
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: ticket
+          required: true
+          schema:
+            type: string
+            pattern: '^zfm_archive_[A-Za-z0-9_-]+$'
+      responses:
+        '200':
+          description: Archive stream.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+            application/gzip:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/search:
+    get:
+      operationId: searchFiles
+      description: Recursively searches regular files/directories, skipping pseudo-filesystems and special entries.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/Path'
+        - $ref: '#/components/parameters/Hidden'
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 250
+      responses:
+        '200':
+          description: Bounded search result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '408':
+          $ref: '#/components/responses/TimedOut'
+  /api/v1/usage:
+    get:
+      operationId: diskUsage
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      responses:
+        '200':
+          description: Filesystem capacity for the configured root.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/uploads:
+    options:
+      operationId: tusCapabilities
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      responses:
+        '204':
+          description: TUS protocol capability response.
+          headers:
+            Tus-Resumable:
+              $ref: '#/components/headers/TusResumable'
+            Tus-Version:
+              $ref: '#/components/headers/TusVersionList'
+            Tus-Extension:
+              $ref: '#/components/headers/TusExtensionList'
+            Tus-Max-Size:
+              $ref: '#/components/headers/TusMaxSize'
+    post:
+      operationId: createResumableUpload
+      description: TUS 1.0 creation endpoint. Upload-Length and metadata are validated before allocation.
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - in: header
+          name: Tus-Resumable
+          required: true
+          schema:
+            type: string
+            const: 1.0.0
+        - in: header
+          name: Upload-Length
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - in: header
+          name: Upload-Metadata
+          required: true
+          description: >-
+            Comma-separated TUS metadata. `path` is required and contains the base64-encoded
+            absolute capability path. `overwrite` contains base64-encoded `false` for an
+            initial attempt or `true` only after the owner explicitly chooses Replace.
+          schema:
+            type: string
+            maxLength: 8192
+          example: path L0Jvb2tzL25vdGVzLnR4dA==,overwrite ZmFsc2U=
+      responses:
+        '201':
+          description: Upload resource created.
+          headers:
+            Tus-Resumable:
+              $ref: '#/components/headers/TusResumable'
+            Tus-Max-Size:
+              $ref: '#/components/headers/TusMaxSize'
+            Location:
+              $ref: '#/components/headers/UploadLocation'
+            Upload-Expires:
+              $ref: '#/components/headers/UploadExpires'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/Unsupported'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /api/v1/uploads/{uploadId}:
+    head:
+      operationId: inspectResumableUpload
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/TusVersion'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '200':
+          description: Current TUS offset and length.
+          headers:
+            Tus-Resumable:
+              $ref: '#/components/headers/TusResumable'
+            Tus-Max-Size:
+              $ref: '#/components/headers/TusMaxSize'
+            Upload-Length:
+              $ref: '#/components/headers/UploadLength'
+            Upload-Offset:
+              $ref: '#/components/headers/UploadOffset'
+            Upload-Expires:
+              $ref: '#/components/headers/UploadExpires'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+    patch:
+      operationId: appendResumableUpload
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - $ref: '#/components/parameters/TusVersion'
+        - $ref: '#/components/parameters/UploadId'
+        - $ref: '#/components/parameters/UploadOffset'
+      requestBody:
+        required: true
+        content:
+          application/offset+octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Chunk committed or upload atomically completed.
+          headers:
+            Tus-Resumable:
+              $ref: '#/components/headers/TusResumable'
+            Tus-Max-Size:
+              $ref: '#/components/headers/TusMaxSize'
+            Upload-Offset:
+              $ref: '#/components/headers/UploadOffset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The supplied offset does not match the server state, or the completed target conflicts.
+          headers:
+            Upload-Offset:
+              $ref: '#/components/headers/UploadOffset'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+    delete:
+      operationId: cancelResumableUpload
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - $ref: '#/components/parameters/TusVersion'
+        - $ref: '#/components/parameters/UploadId'
+      responses:
+        '204':
+          description: Upload metadata and temporary content deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /api/v1/shares:
+    get:
+      operationId: listShares
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      responses:
+        '200':
+          description: Active owner shares without password hashes or raw secret digests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Share'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createShare
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShare'
+      responses:
+        '201':
+          description: Share created; its capability URL is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Share'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/shares/{shareId}:
+    get:
+      operationId: getShare
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/ShareId'
+      responses:
+        '200':
+          description: One share.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Share'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: revokeShare
+      security:
+        - sessionCookie: []
+        - personalToken: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfOptionalForBearer'
+        - $ref: '#/components/parameters/ShareId'
+      responses:
+        '204':
+          description: Share and its public sessions revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/public/shares/{secret}:
+    get:
+      operationId: inspectPublicShare
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ShareSecret'
+        - $ref: '#/components/parameters/PublicPath'
+      responses:
+        '200':
+          description: Public metadata, or a password challenge without secret details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicShare'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    post:
+      operationId: unlockPublicShare
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ShareSecret'
+        - $ref: '#/components/parameters/PublicPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  maxLength: 1024
+      responses:
+        '200':
+          description: A scoped, 30-minute public-share session was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicShare'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UniformLoginFailure'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/public/shares/{secret}/raw:
+    get:
+      operationId: readPublicShare
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ShareSecret'
+        - $ref: '#/components/parameters/PublicPath'
+      responses:
+        '200':
+          description: Shared regular-file stream.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '415':
+          $ref: '#/components/responses/Unsupported'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zenfm_session
+    personalToken:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque ZenFM personal token
+  parameters:
+    Csrf:
+      in: header
+      name: X-ZenFM-CSRF
+      required: true
+      schema:
+        type: string
+        minLength: 32
+      description: Session-bound CSRF value. Required for browser mutations.
+    CsrfOptionalForBearer:
+      in: header
+      name: X-ZenFM-CSRF
+      required: false
+      schema:
+        type: string
+      description: Required for cookie-authenticated mutations; ignored for bearer authentication.
+    Path:
+      in: query
+      name: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Path'
+    Hidden:
+      in: query
+      name: hidden
+      required: false
+      description: Overrides the stored hidden-file preference for this listing or search.
+      schema:
+        type: boolean
+    PublicPath:
+      in: query
+      name: path
+      required: false
+      description: Capability-relative descendant path. `/` addresses the share root and never reveals its owner path.
+      schema:
+        $ref: '#/components/schemas/Path'
+    TokenId:
+      in: path
+      name: tokenId
+      required: true
+      schema:
+        $ref: '#/components/schemas/OpaqueId'
+    ShareId:
+      in: path
+      name: shareId
+      required: true
+      schema:
+        $ref: '#/components/schemas/OpaqueId'
+    ShareSecret:
+      in: path
+      name: secret
+      required: true
+      schema:
+        type: string
+        minLength: 22
+        maxLength: 128
+    UploadId:
+      in: path
+      name: uploadId
+      required: true
+      schema:
+        $ref: '#/components/schemas/OpaqueId'
+    TusVersion:
+      in: header
+      name: Tus-Resumable
+      required: true
+      schema:
+        type: string
+        const: 1.0.0
+    UploadOffset:
+      in: header
+      name: Upload-Offset
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  headers:
+    TusResumable:
+      required: true
+      schema:
+        type: string
+        const: 1.0.0
+    TusVersionList:
+      required: true
+      schema:
+        type: string
+        example: 1.0.0
+    TusExtensionList:
+      required: true
+      schema:
+        type: string
+        example: creation,termination
+    TusMaxSize:
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    UploadLocation:
+      required: true
+      schema:
+        type: string
+        format: uri-reference
+    UploadLength:
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    UploadOffset:
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    UploadExpires:
+      required: true
+      description: RFC 9110 HTTP-date after which unfinished upload state is discarded.
+      schema:
+        type: string
+        example: Sat, 08 Aug 2026 22:00:00 GMT
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, expired, or revoked credentials.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UniformLoginFailure:
+      description: Credentials were not accepted. Account existence is not disclosed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated principal lacks access, setup is incomplete, CSRF failed, or origin was rejected.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Target or upload state conflicts with the request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionFailed:
+      description: The required TUS protocol version was not supplied.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooLarge:
+      description: A configured body, upload, preview, or archive bound was exceeded.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unsupported:
+      description: The target cannot be safely previewed or opened as regular content.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Authentication or public-share attempt limit exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TimedOut:
+      description: Server-side operation deadline elapsed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Path:
+      type: string
+      minLength: 1
+      maxLength: 4096
+      pattern: '^/'
+      examples: [/Books]
+    OpaqueId:
+      type: string
+      minLength: 16
+      maxLength: 128
+      pattern: '^[A-Za-z0-9_-]+$'
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 128
+        password:
+          type: string
+          maxLength: 1024
+    PasswordChange:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          maxLength: 1024
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 1024
+    Session:
+      type: object
+      additionalProperties: false
+      required: [authenticated, setupRequired]
+      properties:
+        authenticated:
+          type: boolean
+        username:
+          type: string
+          const: koreader
+        setupRequired:
+          type: boolean
+        csrfToken:
+          type: string
+          description: Kept only in browser memory by the official client.
+        idleExpiresAt:
+          type: string
+          format: date-time
+        absoluteExpiresAt:
+          type: string
+          format: date-time
+    PersonalToken:
+      type: object
+      additionalProperties: false
+      required: [id, name, createdAt, expiresAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/OpaqueId'
+        name:
+          type: string
+          maxLength: 100
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+    CreatePersonalToken:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        expiresInSeconds:
+          type: integer
+          minimum: 60
+          maximum: 31536000
+          default: 2592000
+    PreferenceUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        theme:
+          type: string
+          enum: [light, dark, system]
+        locale:
+          type: string
+          minLength: 2
+          maxLength: 32
+        showHidden:
+          type: boolean
+        clientTimeoutSeconds:
+          type: integer
+          minimum: 0
+          maximum: 86400
+    Settings:
+      allOf:
+        - $ref: '#/components/schemas/PreferenceUpdate'
+        - type: object
+          required: [theme, locale, showHidden, clientTimeoutSeconds, advancedMode, root, secureTransport]
+          properties:
+            advancedMode:
+              type: boolean
+            root:
+              type: string
+            secureTransport:
+              type: boolean
+    FileEntry:
+      type: object
+      additionalProperties: false
+      required: [name, path, type, size, modifiedAt]
+      properties:
+        name:
+          type: string
+        path:
+          $ref: '#/components/schemas/Path'
+        type:
+          type: string
+          enum: [file, directory, symlink, special]
+        size:
+          type: integer
+          minimum: 0
+        modifiedAt:
+          type: string
+          format: date-time
+        mimeType:
+          type: string
+        hidden:
+          type: boolean
+        writable:
+          type: boolean
+    FileListing:
+      type: object
+      additionalProperties: false
+      required: [path, entries, advancedMode]
+      properties:
+        path:
+          $ref: '#/components/schemas/Path'
+        entries:
+          type: array
+          maxItems: 100000
+          items:
+            $ref: '#/components/schemas/FileEntry'
+        advancedMode:
+          type: boolean
+        disk:
+          $ref: '#/components/schemas/Usage'
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [entries, truncated]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileEntry'
+        truncated:
+          type: boolean
+    Transfer:
+      type: object
+      additionalProperties: false
+      required: [source, destination]
+      properties:
+        source:
+          $ref: '#/components/schemas/Path'
+        destination:
+          $ref: '#/components/schemas/Path'
+    Checksum:
+      type: object
+      additionalProperties: false
+      required: [algorithm, value]
+      properties:
+        algorithm:
+          type: string
+          enum: [sha256, sha512]
+        value:
+          type: string
+          pattern: '^[0-9a-f]+$'
+    ArchiveRequest:
+      type: object
+      additionalProperties: false
+      required: [paths, format]
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Path'
+        format:
+          type: string
+          enum: [zip, tar, tar.gz]
+    ArchiveTicket:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          description: Same-origin one-time download path, valid for one minute and only in the creating browser session.
+          pattern: '^/api/v1/files/archive/zfm_archive_[A-Za-z0-9_-]+$'
+    Usage:
+      type: object
+      additionalProperties: false
+      required: [used, total]
+      properties:
+        used:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+    CreateShare:
+      type: object
+      additionalProperties: false
+      required: [path]
+      properties:
+        path:
+          $ref: '#/components/schemas/Path'
+        name:
+          type: string
+          maxLength: 200
+        password:
+          type: string
+          maxLength: 1024
+        expiresInSeconds:
+          type: integer
+          minimum: 60
+          maximum: 31536000
+    Share:
+      type: object
+      additionalProperties: false
+      required: [id, path, passwordProtected, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/OpaqueId'
+        path:
+          $ref: '#/components/schemas/Path'
+        name:
+          type: string
+        url:
+          type: string
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        passwordProtected:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    PublicShare:
+      type: object
+      additionalProperties: false
+      required: [name, path]
+      properties:
+        name:
+          type: string
+        path:
+          $ref: '#/components/schemas/Path'
+        entry:
+          $ref: '#/components/schemas/FileEntry'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileEntry'
+        passwordRequired:
+          type: boolean
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          const: ok
+        version:
+          type: string
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference

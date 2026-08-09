@@ -1,0 +1,99 @@
+name: Physical Kindle qualification
+run-name: Physical ${{ inputs.device }} qualification for ${{ inputs.release_ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Existing stable release tag to qualify (for example v1.0.0)
+        required: true
+        type: string
+      device:
+        description: Physical device attached to the protected runner
+        required: true
+        type: choice
+        options:
+          - kindle4
+          - kindle5
+          - paperwhite1
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  qualify:
+    name: Smoke test ${{ inputs.device }} hardware
+    environment: stable-release-qualification
+    runs-on: [self-hosted, linux, x64, zenfm-physical-kindle]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve immutable commit
+        id: source
+        shell: bash
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n '1p' VERSION)
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$RELEASE_REF" = "v$version"
+          git show-ref --verify --quiet "refs/tags/$RELEASE_REF"
+          commit=$(git rev-parse 'HEAD^{commit}')
+          test "$commit" = "$(git rev-parse "$RELEASE_REF^{commit}")"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Build and stage the frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+      - run: sh scripts/stage-webui.sh
+      - name: Verify and bootstrap the pinned patched compiler
+        run: |
+          sh scripts/verify-legacy-toolchain.sh
+          sh toolchains/legacy/bootstrap.sh "$RUNNER_TEMP/go1.26.5-kindle"
+      - name: Build both legacy ARM ABIs
+        env:
+          VERSION: ${{ inputs.release_ref }}
+        run: |
+          set -eu
+          version=${VERSION#v}
+          mkdir -p "$RUNNER_TEMP/zenfm-kindle"
+          GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+            "$RUNNER_TEMP/go1.26.5-kindle/bin/go" build -trimpath \
+            -ldflags "-s -w -buildid= -X main.version=$version" \
+            -o "$RUNNER_TEMP/zenfm-kindle/zenfm-hf" ./cmd/zenfm
+          GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=0 \
+            "$RUNNER_TEMP/go1.26.5-kindle/bin/go" build -trimpath \
+            -ldflags "-s -w -buildid= -X main.version=$version" \
+            -o "$RUNNER_TEMP/zenfm-kindle/zenfm-sf" ./cmd/zenfm
+      - name: Run the externally maintained physical-device harness
+        run: |
+          sh scripts/run-physical-kindle-smoke.sh \
+            '${{ inputs.device }}' \
+            "$RUNNER_TEMP/zenfm-kindle/zenfm-hf" \
+            "$RUNNER_TEMP/zenfm-kindle/zenfm-sf" \
+            '${{ steps.source.outputs.commit }}' \
+            "$RUNNER_TEMP/${{ inputs.device }}.json"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/${{ inputs.device }}.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: physical-${{ inputs.device }}-evidence-${{ steps.source.outputs.commit }}
+          path: ${{ runner.temp }}/${{ inputs.device }}.json
+          if-no-files-found: error
+          retention-days: 90
