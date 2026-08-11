@@ -1,5 +1,5 @@
 export type ThemePreference = 'light' | 'dark' | 'system'
-export type SortField = 'name' | 'size' | 'modified'
+export type SortField = 'name' | 'size' | 'created' | 'modified'
 export type SortDirection = 'asc' | 'desc'
 export type FileKind = 'file' | 'directory' | 'symlink' | 'special'
 
@@ -27,6 +27,7 @@ export interface FileEntry {
   path: string
   type: FileKind
   size: number
+  createdAt?: string
   modifiedAt: string
   mimeType?: string
   hidden?: boolean

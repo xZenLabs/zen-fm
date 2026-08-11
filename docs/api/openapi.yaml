@@ -349,6 +349,7 @@ paths:
   /api/v1/files/move:
     post:
       operationId: moveFile
+      description: Moves or renames a path. Existing targets are replaced only when explicitly requested.
       security:
         - sessionCookie: []
         - personalToken: []
@@ -374,7 +375,7 @@ paths:
   /api/v1/files/copy:
     post:
       operationId: copyFile
-      description: Recursion skips symlinks, pseudo-filesystems, and non-regular entries.
+      description: Recursion skips symlinks, pseudo-filesystems, and non-regular entries. Existing targets are replaced only when explicitly requested.
       security:
         - sessionCookie: []
         - personalToken: []
@@ -1365,6 +1366,9 @@ components:
           $ref: '#/components/schemas/Path'
         destination:
           $ref: '#/components/schemas/Path'
+        overwrite:
+          type: boolean
+          default: false
     Checksum:
       type: object
       additionalProperties: false

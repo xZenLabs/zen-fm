@@ -16,8 +16,7 @@ TypeScript/React/MUI frontend and revocable server-side sessions.
   localization.
 - One owner account, opaque browser sessions, CSRF protection, and separate
   expiring personal API tokens.
-- HTTPS by default with a per-device certificate and a fingerprint displayed
-  by the KOReader plugin.
+- HTTPS by default with a per-device certificate.
 - Optional 30-minute server auto-stop and an explicit HTTP fallback.
 - Advanced `/` mode for owners who intentionally need the entire device
   filesystem, including ZenFM's own state and certificates.
@@ -31,9 +30,8 @@ TypeScript/React/MUI frontend and revocable server-side sessions.
    password. File and token APIs remain disabled until that change succeeds.
 
 HTTPS uses a locally generated certificate, so a browser may require the owner
-to confirm it. Compare the certificate public-key fingerprint with the value
-shown in KOReader. HTTP can be selected explicitly for incompatible setups,
-but it exposes credentials and files to the local network.
+to confirm it. HTTP can be selected explicitly for incompatible setups, but it
+exposes credentials and files to the local network.
 
 ## Runtime defaults
 
@@ -112,11 +110,16 @@ npm test
 npm run build
 ```
 
-Build release packages with:
+Build an unsigned e-reader development bundle with:
 
 ```sh
-sh build.sh
+sh build.sh --dev
 ```
+
+This builds only the e-reader backends and does not require the Android or
+macOS build toolchains. Run `sh build.sh` for all local packages.
+CI supplies the release public key and signing credentials when producing
+signed release packages.
 
 The API contract is under `docs/api/`; architecture and security decisions are
 documented under `docs/` and in [SECURITY.md](SECURITY.md).

@@ -66,6 +66,14 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: zenfm <serve|reset-login|verify-manifest|version> [options]")
 }
 
+func listenNetwork(address string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err == nil && net.ParseIP(host).To4() != nil {
+		return "tcp4"
+	}
+	return "tcp"
+}
+
 func runServe(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -133,7 +141,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer api.Close()
-	listener, err := net.Listen("tcp", *listenAddress)
+	listener, err := net.Listen(listenNetwork(*listenAddress), *listenAddress)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}

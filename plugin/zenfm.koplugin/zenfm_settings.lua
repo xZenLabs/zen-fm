@@ -1,4 +1,5 @@
-local Util = require("util")
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
+local Util = require("zenfm_util")
 
 local Settings = {}
 Settings.__index = Settings

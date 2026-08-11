@@ -50,7 +50,10 @@ beforeAll(() => {
     return interceptedFetch(resolved, compatibleInit)
   }
 })
-afterEach(() => server.resetHandlers())
+afterEach(() => {
+  server.resetHandlers()
+  localStorage.clear()
+})
 afterAll(() => {
   globalThis.fetch = interceptedFetch
   server.close()

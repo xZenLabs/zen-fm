@@ -32,6 +32,10 @@ runtime_id=$(basename "$(dirname "$pid_file")" | tr -cd '[:alnum:]' | awk '{ val
 [ -n "$runtime_id" ] || { echo "could not derive firewall ownership identity" >&2; exit 2; }
 firewall_chain=ZFM$runtime_id$port
 
+pause() {
+    usleep "$1" 2>/dev/null || sleep 1
+}
+
 process_start() {
     pid=$1
     if [ -r "/proc/$pid/stat" ]; then
@@ -108,14 +112,14 @@ terminate_recorded_child() {
     kill "$recorded_pid" 2>/dev/null || true
     attempt=0
     while process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected" && [ "$attempt" -lt 50 ]; do
-        sleep 0.1
+        pause 100000
         attempt=$((attempt + 1))
     done
     if process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected"; then
         kill -9 "$recorded_pid" 2>/dev/null || true
         attempt=0
         while process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected" && [ "$attempt" -lt 20 ]; do
-            sleep 0.1
+            pause 100000
             attempt=$((attempt + 1))
         done
     fi
@@ -134,7 +138,7 @@ cleanup() {
         kill "$child" 2>/dev/null || true
         attempt=0
         while kill -0 "$child" 2>/dev/null && ! process_zombie "$child" && [ "$attempt" -lt 50 ]; do
-            sleep 0.1
+            pause 100000
             attempt=$((attempt + 1))
         done
         if kill -0 "$child" 2>/dev/null; then kill -9 "$child" 2>/dev/null || true; fi
@@ -174,7 +178,7 @@ if ! mkdir "$lock_dir" 2>/dev/null; then
         if [ -n "$owner" ] && [ -n "$recorded_owner_start" ] && [ -n "$recorded_owner_exe" ]; then
             break
         fi
-        sleep 0.02
+        pause 20000
         attempt=$((attempt + 1))
     done
     owner=${owner:-}
@@ -238,7 +242,7 @@ child_exe=
 while kill -0 "$child" 2>/dev/null && [ "$attempt" -lt 20 ]; do
     child_exe=$(process_exe "$child")
     [ "$child_exe" = "$expected_exe" ] && break
-    sleep 0.01
+    pause 10000
     attempt=$((attempt + 1))
 done
 [ -n "$child_exe" ] || { echo "could not identify ZenFM child executable" >&2; exit 1; }

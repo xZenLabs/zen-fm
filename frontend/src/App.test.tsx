@@ -13,8 +13,15 @@ describe('authentication flow', () => {
     const user = userEvent.setup()
     renderApp('/login')
 
-    await user.type(await screen.findByLabelText(/Username/), 'koreader')
-    await user.type(screen.getByLabelText(/Password/), 'temporary password')
+    const username = await screen.findByLabelText(/Username/)
+    const password = screen.getByLabelText(/Password/)
+    expect(username).toHaveAttribute('name', 'username')
+    expect(username).toHaveAttribute('autocomplete', 'username')
+    expect(password).toHaveAttribute('name', 'password')
+    expect(password).toHaveAttribute('autocomplete', 'current-password')
+
+    await user.type(username, 'koreader')
+    await user.type(password, 'temporary password')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
     expect(await screen.findByRole('heading', { name: 'Choose a private password' })).toBeInTheDocument()

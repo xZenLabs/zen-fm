@@ -1,3 +1,4 @@
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
 local Control = {}
 
 local function luasocket_request(path, command, timeout)

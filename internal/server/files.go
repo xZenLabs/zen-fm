@@ -149,6 +149,7 @@ func (s *Server) deleteFile(w http.ResponseWriter, r *http.Request) {
 type transferRequest struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
+	Overwrite   bool   `json:"overwrite"`
 }
 
 func (s *Server) moveFile(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +162,7 @@ func (s *Server) moveFile(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusBadRequest, "Invalid Request", "invalid move request")
 		return
 	}
-	if _, err := s.cfg.Files.MoveWithProgress(r.Context(), request.Source, request.Destination, false, s.touch); err != nil {
+	if _, err := s.cfg.Files.MoveWithProgress(r.Context(), request.Source, request.Destination, request.Overwrite, s.touch); err != nil {
 		mapError(w, r, err)
 		return
 	}
@@ -183,7 +184,7 @@ func (s *Server) copyFile(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusBadRequest, "Invalid Request", "invalid copy request")
 		return
 	}
-	if _, err := s.cfg.Files.CopyWithProgress(r.Context(), request.Source, request.Destination, false, s.touch); err != nil {
+	if _, err := s.cfg.Files.CopyWithProgress(r.Context(), request.Source, request.Destination, request.Overwrite, s.touch); err != nil {
 		mapError(w, r, err)
 		return
 	}

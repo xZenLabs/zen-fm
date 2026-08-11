@@ -9,12 +9,13 @@ a { color: inherit; }
 .bottom-nav { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; min-height: 68px; padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); backdrop-filter: blur(18px); background: color-mix(in srgb, Canvas 88%, transparent); border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
 .bottom-nav-button { flex: 1; display: flex !important; flex-direction: column; gap: 2px; min-width: 0 !important; font-size: .7rem !important; }
 .bottom-nav-button.active { color: var(--zenfm-accent-blue); }
+.page-header { min-height: 88px; }
 .file-card, .file-row { transition: transform .15s ease, border-color .15s ease, background-color .15s ease; }
 .file-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, currentColor 24%, transparent); }
 .file-card.selected, .file-row.selected { background-color: color-mix(in srgb, var(--zenfm-accent-blue) 26%, transparent); }
 .file-card.selected { border-color: color-mix(in srgb, var(--zenfm-accent-blue) 72%, transparent); }
-.file-drop-zone { transition: outline-color .15s ease, background-color .15s ease; }
-.file-drop-zone.drop-active { outline: 2px dashed color-mix(in srgb, var(--zenfm-accent-blue) 75%, transparent); outline-offset: -8px; background-color: color-mix(in srgb, var(--zenfm-accent-blue) 5%, transparent); }
+.file-drop-zone { border-radius: 16px; transition: outline-color .15s ease, background-color .15s ease; }
+.file-drop-zone.drop-active { outline: 2px dashed color-mix(in srgb, var(--zenfm-accent-blue) 75%, transparent); outline-offset: -2px; background-color: color-mix(in srgb, var(--zenfm-accent-blue) 12%, transparent); }
 .file-card.drop-target, .file-row.drop-target { background-color: color-mix(in srgb, var(--zenfm-accent-blue) 36%, transparent); box-shadow: inset 0 0 0 2px var(--zenfm-accent-blue); }
 .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-thumbnail { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 6px; object-fit: cover; background: color-mix(in srgb, currentColor 6%, transparent); }

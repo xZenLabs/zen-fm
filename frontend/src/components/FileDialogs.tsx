@@ -7,7 +7,7 @@ import {
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api/client'
+import { api, isConflictError } from '../api/client'
 import type { CreateShareInput, FileEntry } from '../api/types'
 import { ErrorPane, LoadingPane } from './Feedback'
 import { renderMarkdown } from '../markdown'
@@ -86,13 +86,13 @@ export function FilePreviewDialog({ entry, onClose }: { entry: FileEntry | null;
     else if (['html', 'htm'].includes(ext)) preview = <Box className="html-preview" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text.data ?? '', { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'img', 'link', 'meta', 'base'], FORBID_ATTR: ['style'] }) }} />
     else if (['md', 'markdown'].includes(ext)) preview = <Box className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(text.data ?? '') }} />
     else if (ext === 'csv' && csv) preview = <Box className="csv-preview" sx={{ overflow: 'auto' }}><table><thead>{csv.rows[0] && <tr>{csv.rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr>}</thead><tbody>{csv.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table>{csv.truncated && <Typography variant="caption" color="text.secondary">Preview truncated.</Typography>}</Box>
-    else preview = <Box component="pre" sx={{ p: 2, m: 0, overflow: 'auto', fontSize: '.86rem', whiteSpace: 'pre-wrap', bgcolor: 'action.hover', borderRadius: 1 }}>{text.data}</Box>
+    else preview = <Box component="pre" sx={{ p: 2, m: 0, overflow: 'auto', fontSize: '.86rem', whiteSpace: 'pre-wrap', bgcolor: '#010409', color: '#e6edf3', border: '1px solid #30363d', borderRadius: 1, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>{text.data}</Box>
   }
 
   return (
-    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg">
+    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" slotProps={{ paper: { sx: { bgcolor: '#0d1117', color: '#e6edf3', backgroundImage: 'none' } } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></DialogTitle>
-      <DialogContent dividers sx={{ minHeight: 240 }}>{preview}</DialogContent>
+      <DialogContent dividers sx={{ minHeight: 240, borderColor: '#30363d' }}>{preview}</DialogContent>
       <DialogActions>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}</DialogActions>
     </Dialog>
   )
@@ -142,26 +142,29 @@ export function PathActionDialog({ action, entry, onClose, onDone }: { action: P
   }, [action, entry])
 
   const mutate = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overwrite: boolean) => {
       if (!entry || !action) return
       const target = action === 'rename'
         ? `${entry.path.slice(0, Math.max(0, entry.path.lastIndexOf('/')))}/${destination}`.replaceAll('//', '/')
         : destination
-      if (action === 'copy') await api.files.copy(entry.path, target)
-      else await api.files.move(entry.path, target)
+      if (action === 'copy') await api.files.copy(entry.path, target, overwrite)
+      else await api.files.move(entry.path, target, overwrite)
     },
     onSuccess: () => { onDone(); onClose() },
   })
+  const resetMutation = mutate.reset
+  useEffect(() => { resetMutation() }, [action, entry, resetMutation])
 
-  const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate() }
+  const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate(false) }
+  const conflict = isConflictError(mutate.error)
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
         <DialogTitle>{action ? t(`files.${action}`) : ''}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : t('files.destination')} value={destination} onChange={(event) => setDestination(event.target.value)} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
+          <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
         </DialogContent>
-        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" variant="contained" disabled={!destination || mutate.isPending}>{t('common.confirm')}</Button></DialogActions>
+        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>
     </Dialog>
   )

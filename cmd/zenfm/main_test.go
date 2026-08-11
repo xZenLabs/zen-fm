@@ -39,6 +39,19 @@ func TestServeRejectsNonPositiveSessionLifetimes(t *testing.T) {
 	}
 }
 
+func TestListenNetworkUsesIPv4ForIPv4Addresses(t *testing.T) {
+	for address, want := range map[string]string{
+		"0.0.0.0:8443":      "tcp4",
+		"192.168.1.50:8443": "tcp4",
+		"[::]:8443":         "tcp",
+		"example.test:8443": "tcp",
+	} {
+		if got := listenNetwork(address); got != want {
+			t.Errorf("listenNetwork(%q) = %q, want %q", address, got, want)
+		}
+	}
+}
+
 func TestResetLoginCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	dataDir := filepath.Join(t.TempDir(), "state")

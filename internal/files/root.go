@@ -733,7 +733,11 @@ func (r *Root) MoveWithProgress(ctx context.Context, source, destination string,
 		return Entry{}, err
 	}
 	defer destinationParent.Close()
-	if destinationInfo, statErr := destinationParent.Lstat(destinationBase); statErr == nil {
+	var destinationInfo os.FileInfo
+	destinationExists := false
+	if existing, statErr := destinationParent.Lstat(destinationBase); statErr == nil {
+		destinationInfo = existing
+		destinationExists = true
 		if r.isExcludedObject(destinationInfo) || r.pseudoInfo(destinationInfo) {
 			return Entry{}, ErrPseudoFile
 		}
@@ -743,7 +747,11 @@ func (r *Root) MoveWithProgress(ctx context.Context, source, destination string,
 	} else if !errors.Is(statErr, fs.ErrNotExist) {
 		return Entry{}, statErr
 	}
-	err = r.renameForMove(sourceParent, sourceBase, destinationParent, destinationBase, overwrite)
+	if overwrite && destinationExists && (sourceInfo.IsDir() || destinationInfo.IsDir()) {
+		err = r.replaceByRenameLocked(sourceParent, sourceBase, destinationParent, destinationBase)
+	} else {
+		err = r.renameForMove(sourceParent, sourceBase, destinationParent, destinationBase, overwrite)
+	}
 	if !overwrite {
 		if errors.Is(err, errRenameNoReplaceUnsupported) && !sourceInfo.IsDir() {
 			err = linkNoReplace(sourceParent, sourceBase, destinationParent, destinationBase)
@@ -769,6 +777,26 @@ func defaultMoveRename(sourceParent *os.Root, source string, destinationParent *
 		return renameReplace(sourceParent, source, destinationParent, destination)
 	}
 	return renameNoReplace(sourceParent, source, destinationParent, destination)
+}
+
+// replaceByRenameLocked moves an existing destination aside before publishing
+// a directory replacement. Plain rename cannot replace a non-empty directory.
+// The caller holds publishMu, and a failed publish restores the old target.
+func (r *Root) replaceByRenameLocked(sourceParent *os.Root, source string, destinationParent *os.Root, destination string) error {
+	backup, err := auth.RandomToken(".zenfm-replaced-", 128)
+	if err != nil {
+		return err
+	}
+	if err := destinationParent.Rename(destination, backup); err != nil {
+		return err
+	}
+	if err := r.renameForMove(sourceParent, source, destinationParent, destination, true); err != nil {
+		return errors.Join(err, destinationParent.Rename(backup, destination))
+	}
+	// Publication has succeeded. A cleanup failure must not report the
+	// replacement itself as failed or put the old tree back into service.
+	_ = destinationParent.RemoveAll(backup)
+	return nil
 }
 
 // moveAcrossDevicesLocked stages a bounded private copy on the destination
@@ -917,9 +945,20 @@ func (r *Root) commitDirectoryLocked(parent *os.Root, temporary, destination str
 		if !overwrite {
 			return ErrConflict
 		}
-		if err := parent.RemoveAll(destination); err != nil {
+		backup, err := auth.RandomToken(".zenfm-replaced-", 128)
+		if err != nil {
 			return err
 		}
+		if err := parent.Rename(destination, backup); err != nil {
+			return err
+		}
+		if err := parent.Rename(temporary, destination); err != nil {
+			return errors.Join(err, parent.Rename(backup, destination))
+		}
+		// The complete staged tree is now live. Do not turn successful
+		// publication into a client-visible failure if old-tree cleanup fails.
+		_ = parent.RemoveAll(backup)
+		return nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}

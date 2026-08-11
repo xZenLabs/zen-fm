@@ -1,3 +1,4 @@
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
 local Util = {}
 
 local ok_lfs, lfs = pcall(require, "libs/libkoreader-lfs")

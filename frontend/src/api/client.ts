@@ -218,13 +218,13 @@ export const api = {
     remove: (path: string, recursive: boolean) => request<void>(`${API_ROOT}/files${query({ path, recursive })}`, {
       method: 'DELETE',
     }),
-    move: (source: string, destination: string) => request<void>(`${API_ROOT}/files/move`, {
+    move: (source: string, destination: string, overwrite = false) => request<void>(`${API_ROOT}/files/move`, {
       method: 'POST',
-      body: { source, destination },
+      body: { source, destination, overwrite },
     }),
-    copy: (source: string, destination: string) => request<void>(`${API_ROOT}/files/copy`, {
+    copy: (source: string, destination: string, overwrite = false) => request<void>(`${API_ROOT}/files/copy`, {
       method: 'POST',
-      body: { source, destination },
+      body: { source, destination, overwrite },
     }),
     rawUrl: (path: string) => `${API_ROOT}/files/raw${query({ path })}`,
     previewUrl: (path: string, width = 1600, height = 1200) => `${API_ROOT}/files/preview${query({ path, width, height })}`,

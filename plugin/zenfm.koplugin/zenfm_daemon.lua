@@ -1,6 +1,7 @@
-local Control = require("control")
-local Settings = require("settings")
-local Util = require("util")
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
+local Control = require("zenfm_control")
+local Settings = require("zenfm_settings")
+local Util = require("zenfm_util")
 
 local ok_android, android = pcall(require, "android")
 local ok_lfs, lfs = pcall(require, "libs/libkoreader-lfs")
@@ -12,7 +13,7 @@ Daemon.__index = Daemon
 
 local function source_plugin_dir()
     local source = debug.getinfo(1, "S").source or ""
-    return source:match("^@(.+)/daemon%.lua$") or "."
+    return source:match("^@(.+)/zenfm_daemon%.lua$") or "."
 end
 
 local function file_signature(path)
@@ -409,6 +410,10 @@ function Daemon:local_ip()
     local route = self.output("ip -4 route get 1.1.1.1 2>/dev/null")
     local address = route:match("%ssrc%s+([0-9]+%.[0-9]+%.[0-9]+%.[0-9]+)")
     if address then return address end
+    local interfaces = self.output("ip -4 addr 2>/dev/null")
+    for candidate in interfaces:gmatch("%sinet%s+([0-9]+%.[0-9]+%.[0-9]+%.[0-9]+)") do
+        if candidate ~= "127.0.0.1" and candidate ~= "0.0.0.0" then return candidate end
+    end
     local hosts = self.output("hostname -I 2>/dev/null")
     for candidate in hosts:gmatch("([0-9]+%.[0-9]+%.[0-9]+%.[0-9]+)") do
         if candidate ~= "127.0.0.1" and candidate ~= "0.0.0.0" then return candidate end
@@ -425,12 +430,15 @@ function Daemon:status_details()
     local running, raw = self:status()
     if not running then return { running = false, detail = raw or "stopped" } end
     local scheme, listen, fingerprint = raw:match("^ok running (https?)://([^ ]+) ([^ ]+)")
-    local host, port = listen and listen:match("^(.+):([0-9]+)$")
-    if host == "0.0.0.0" or host == "[::]" or host == "::" then host = self:local_ip() or host end
+    local host, port
+    if listen then host, port = listen:match("^(.+):([0-9]+)$") end
+    if host == "0.0.0.0" or host == "[::]" or host == "::" then host = self:local_ip() end
     return {
         running = true,
         scheme = scheme,
         listen = listen,
+        address = host,
+        port = port,
         fingerprint = fingerprint ~= "-" and fingerprint or nil,
         url = scheme and host and port and (scheme .. "://" .. host .. ":" .. port) or nil,
         detail = raw,

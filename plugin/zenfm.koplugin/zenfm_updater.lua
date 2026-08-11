@@ -1,6 +1,7 @@
-local Util = require("util")
-local Signature = require("signature")
-local pinned_public_key = require("release_public_key")
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
+local Util = require("zenfm_util")
+local Signature = require("zenfm_signature")
+local pinned_public_key = require("zenfm_release_public_key")
 local ok_lfs, lfs = pcall(require, "libs/libkoreader-lfs")
 if not ok_lfs then ok_lfs, lfs = pcall(require, "lfs") end
 
@@ -269,7 +270,7 @@ local function validate_stage(daemon, directory, version)
     local root = directory .. "/zenfm.koplugin"
     if not Util.is_directory(root) then return nil, "update has an invalid plugin layout" end
     if plugin_version(root) ~= version then return nil, "update version does not match release metadata" end
-    for _, required in ipairs({ "_meta.lua", "main.lua", "daemon.lua" }) do
+    for _, required in ipairs({ "_meta.lua", "main.lua", "zenfm_daemon.lua" }) do
         if not Util.path_exists(root .. "/" .. required) then return nil, "update is missing " .. required end
     end
     local syntax_ok, syntax_err = Updater.validate_lua_tree(root)

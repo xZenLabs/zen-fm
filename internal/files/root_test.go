@@ -108,6 +108,57 @@ func TestCRUDSearchCopyAndChecksum(t *testing.T) {
 	}
 }
 
+func TestCopyAndMoveCanExplicitlyReplaceDirectories(t *testing.T) {
+	r, directory := testRoot(t, Options{})
+	for _, name := range []string{"copy-source", "copy-target", "move-source", "move-target"} {
+		if _, err := r.Mkdir(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := r.Write("copy-source/new.txt", strings.NewReader("copied"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Write("copy-target/old.txt", strings.NewReader("old"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Copy(context.Background(), "copy-source", "copy-target", false); !errors.Is(err, ErrConflict) {
+		t.Fatalf("non-overwrite copy returned %v", err)
+	}
+	if _, err := r.Copy(context.Background(), "copy-source", "copy-target", true); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := r.ReadContent("copy-target/new.txt"); err != nil || string(data) != "copied" {
+		t.Fatalf("copied replacement = %q, %v", data, err)
+	}
+	if _, err := r.Entry("copy-target/old.txt"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("old copy target survived: %v", err)
+	}
+	if _, err := r.Write("move-source/new.txt", strings.NewReader("moved"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Write("move-target/old.txt", strings.NewReader("old"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Move("move-source", "move-target", true); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := r.ReadContent("move-target/new.txt"); err != nil || string(data) != "moved" {
+		t.Fatalf("moved replacement = %q, %v", data, err)
+	}
+	if _, err := r.Entry("move-source"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("move source survived: %v", err)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".zenfm-replaced-") {
+			t.Fatalf("replacement backup leaked: %s", entry.Name())
+		}
+	}
+}
+
 func TestCopyRejectsSamePathAndDirectoryDescendant(t *testing.T) {
 	r, _ := testRoot(t, Options{})
 	if _, err := r.Mkdir("tree"); err != nil {

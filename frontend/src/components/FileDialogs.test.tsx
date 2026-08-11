@@ -1,8 +1,9 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, createTheme } from '@mui/material'
 import { http, HttpResponse } from 'msw'
-import { canEdit, FileEditorDialog, FilePreviewDialog } from './FileDialogs'
+import { canEdit, FileEditorDialog, FilePreviewDialog, PathActionDialog } from './FileDialogs'
 import TextEditor from './TextEditor'
 import { server } from '../test/server'
 import type { FileEntry } from '../api/types'
@@ -113,6 +114,17 @@ it('places preview close in the title bar and download in the footer', () => {
   expect(download.closest('.MuiDialogActions-root')).toBeInTheDocument()
 })
 
+it('uses a dark editor-like surface for opened text files', async () => {
+  server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('Readable text', { headers: { 'Content-Type': 'text/plain' } })))
+  const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+
+  const text = await screen.findByText('Readable text')
+  expect(text).toHaveStyle({ backgroundColor: '#010409', color: '#e6edf3' })
+  expect(screen.getByRole('dialog', { name: 'notes.txt' })).toHaveStyle({ backgroundColor: '#0d1117' })
+})
+
 it('uses a full-height dark CodeMirror theme in dark mode', () => {
   const view = render(<ThemeProvider theme={createTheme({ palette: { mode: 'dark' } })}><TextEditor name="notes.txt" value="Readable text" onChange={() => undefined} /></ThemeProvider>)
 
@@ -150,4 +162,34 @@ it('refuses to load oversized files into the text editor', () => {
   render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider>)
 
   expect(screen.getByText('This file is too large or unsupported for safe editing.')).toBeInTheDocument()
+})
+
+it('offers an explicit replacement after a copy destination conflict', async () => {
+  const overwriteRequests: boolean[] = []
+  server.use(http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+    const body = await request.json() as { overwrite: boolean }
+    overwriteRequests.push(body.overwrite)
+    if (!body.overwrite) {
+      return HttpResponse.json({ title: 'Conflict', status: 409, detail: 'destination already exists' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+    }
+    return new HttpResponse(null, { status: 204 })
+  }))
+  const entry: FileEntry = { name: 'zenfm.koplugin', path: '/Downloads/zenfm.koplugin', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const onClose = vi.fn()
+  const onDone = vi.fn()
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entry={entry} onClose={onClose} onDone={onDone} /></QueryClientProvider>)
+
+  const destination = screen.getByLabelText('Destination path')
+  await user.clear(destination)
+  await user.type(destination, '/koreader/plugins/zenfm.koplugin')
+  await user.click(screen.getByRole('button', { name: 'Confirm' }))
+
+  expect(await screen.findByRole('button', { name: 'Replace' })).toBeInTheDocument()
+  expect(overwriteRequests).toEqual([false])
+  await user.click(screen.getByRole('button', { name: 'Replace' }))
+  await waitFor(() => expect(overwriteRequests).toEqual([false, true]))
+  expect(onDone).toHaveBeenCalledOnce()
+  expect(onClose).toHaveBeenCalledOnce()
 })

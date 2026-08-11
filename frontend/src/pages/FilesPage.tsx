@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type MouseEvent } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent, Checkbox, Chip, Container,
-  Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, InputAdornment,
-  LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Select, Snackbar, Stack, Switch, TextField,
-  Tooltip, Typography,
+  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent, Checkbox,
+  Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment,
+  LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Switch, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TableSortLabel, TextField, Tooltip, Typography,
 } from '@mui/material'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import InsertDriveFileRounded from '@mui/icons-material/InsertDriveFileRounded'
@@ -15,7 +15,7 @@ import CreateNewFolderRounded from '@mui/icons-material/CreateNewFolderRounded'
 import GridViewRounded from '@mui/icons-material/GridViewRounded'
 import ViewListRounded from '@mui/icons-material/ViewListRounded'
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded'
-import VisibilityRounded from '@mui/icons-material/VisibilityRounded'
+import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded'
 import EditRounded from '@mui/icons-material/EditRounded'
 import DriveFileMoveRounded from '@mui/icons-material/DriveFileMoveRounded'
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded'
@@ -33,12 +33,32 @@ import type { FileEntry, SortDirection, SortField } from '../api/types'
 import { filesRoute, formatBytes, formatDate, joinPath, publicShareUrl } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { canEdit, CreateShareDialog, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
+import { PageHeader } from '../components/PageHeader'
 
 type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
 type ConflictChoice = { action: 'replace' | 'skip' } | { action: 'rename'; name: string }
 
 const thumbnailExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff'])
+const sortPreferenceKey = 'zenfm.files.sort'
+const sortFields: SortField[] = ['name', 'size', 'modified']
+const defaultSortPreference: { sort: SortField; direction: SortDirection } = { sort: 'name', direction: 'asc' }
+
+function storedSortPreference(): { sort: SortField; direction: SortDirection } {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(sortPreferenceKey) ?? '')
+    if (typeof value === 'object' && value !== null) {
+      const preference = value as { sort?: unknown; direction?: unknown }
+      if (typeof preference.sort === 'string' && sortFields.includes(preference.sort as SortField)
+        && (preference.direction === 'asc' || preference.direction === 'desc')) {
+        return { sort: preference.sort as SortField, direction: preference.direction }
+      }
+    }
+  } catch {
+    return defaultSortPreference
+  }
+  return defaultSortPreference
+}
 
 function hasDraggedFiles(dataTransfer: DataTransfer | null) {
   return Boolean(dataTransfer && Array.from(dataTransfer.types).includes('Files'))
@@ -66,12 +86,13 @@ export function FilesPage() {
   const uploadInput = useRef<HTMLInputElement>(null)
   const path = `/${params['*'] ?? ''}`.replaceAll('//', '/')
   const [view, setView] = useState<ViewMode>('list')
-  const [sort, setSort] = useState<SortField>('name')
-  const [direction, setDirection] = useState<SortDirection>('asc')
+  const [sortPreference, setSortPreference] = useState(storedSortPreference)
+  const { sort, direction } = sortPreference
   const [showHidden, setShowHidden] = useState(false)
   const [searchDraft, setSearchDraft] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const [selected, setSelected] = useState<FileEntry | null>(null)
   const [preview, setPreview] = useState<FileEntry | null>(null)
   const [editor, setEditor] = useState<FileEntry | null>(null)
@@ -103,6 +124,26 @@ export function FilesPage() {
   useEffect(() => {
     if (preferences.data) setShowHidden(preferences.data.showHidden)
   }, [preferences.data])
+
+  useEffect(() => {
+    try { localStorage.setItem(sortPreferenceKey, JSON.stringify(sortPreference)) } catch {
+      // Private browsing may disable persistent storage.
+    }
+  }, [sortPreference])
+
+  useEffect(() => {
+    const openPageContextMenu = (event: globalThis.MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element) || !target.closest('.app-shell') || target.closest('.file-drop-zone')) return
+      if (target.closest('header, nav, a, button, input, textarea, [contenteditable="true"]')) return
+      event.preventDefault()
+      setSelected(null)
+      setMenuAnchor(null)
+      setMenuPosition({ top: event.clientY, left: event.clientX })
+    }
+    document.addEventListener('contextmenu', openPageContextMenu)
+    return () => document.removeEventListener('contextmenu', openPageContextMenu)
+  }, [])
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['files', path] })
   const entries = useMemo(() => {
@@ -142,9 +183,17 @@ export function FilesPage() {
     else if (entry.type === 'file') setPreview(entry)
   }
   const openMenu = (event: MouseEvent<HTMLElement>, entry: FileEntry) => {
-    event.preventDefault(); event.stopPropagation(); setSelected(entry); setMenuAnchor(event.currentTarget)
+    event.preventDefault(); event.stopPropagation(); setSelected(entry); setMenuPosition(null); setMenuAnchor(event.currentTarget)
   }
-  const closeMenu = () => setMenuAnchor(null)
+  const openContextMenu = (event: MouseEvent<HTMLElement>, entry: FileEntry) => {
+    event.preventDefault(); event.stopPropagation(); setSelected(entry); setMenuAnchor(null); setMenuPosition({ top: event.clientY, left: event.clientX })
+  }
+  const openFolderMenu = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target
+    if (target instanceof Element && target.closest('a, button, input, textarea, [contenteditable="true"]')) return
+    event.preventDefault(); setSelected(null); setMenuAnchor(null); setMenuPosition({ top: event.clientY, left: event.clientX })
+  }
+  const closeMenu = () => { setMenuAnchor(null); setMenuPosition(null) }
   const beginAction = (action: PathAction) => { setPathAction(action); closeMenu() }
 
   const askAboutConflict = (file: File, destination: string) => new Promise<ConflictChoice>((resolve) => {
@@ -288,39 +337,37 @@ export function FilesPage() {
     setSearchTerm(searchDraft.trim())
   }
 
+  const sortBy = (field: SortField) => {
+    setSortPreference((current) => current.sort === field
+      ? { ...current, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { sort: field, direction: 'asc' })
+  }
+
   const breadcrumbs = path.split('/').filter(Boolean)
   const disk = listing.data?.disk ?? usage.data
 
   return (
-    <Container component="main" maxWidth="xl" className={`file-drop-zone${dropTarget === path ? ' drop-active' : ''}`} onDragOver={(event) => prepareDrop(event, path)} onDrop={(event) => acceptDrop(event, path)} sx={{ py: { xs: 2.5, sm: 4 }, minHeight: 'calc(100dvh - 64px)' }}>
+    <Box className={`file-drop-zone${dropTarget === path ? ' drop-active' : ''}`} onContextMenu={openFolderMenu} onDragOver={(event) => prepareDrop(event, path)} onDrop={(event) => acceptDrop(event, path)} sx={{ flex: 1, minWidth: 0 }}>
       <Stack gap={2.5}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'center' }}>
-          <Box minWidth={0}>
-            <Typography variant="h1" mb={0.75}>{searchTerm ? t('files.searchResults') : t('nav.files')}</Typography>
-            <Breadcrumbs aria-label="Breadcrumb">
-              <Link component={RouterLink} underline="hover" color="inherit" to="/files">Home</Link>
-              {breadcrumbs.map((part, index) => {
-                const target = `/${breadcrumbs.slice(0, index + 1).join('/')}`
-                return <Link key={target} component={RouterLink} underline="hover" color={index === breadcrumbs.length - 1 ? 'text.primary' : 'inherit'} to={filesRoute(target)}>{part}</Link>
-              })}
-            </Breadcrumbs>
-          </Box>
-          <Stack direction="row" gap={1} flexWrap="wrap">
+        <PageHeader title={searchTerm ? t('files.searchResults') : t('nav.files')} actions={<Stack direction="row" gap={1} flexWrap="wrap">
             <input ref={uploadInput} type="file" multiple hidden onChange={(event) => void chooseUploadFiles(event)} />
             <Button variant="contained" startIcon={<UploadRounded />} onClick={() => uploadInput.current?.click()}>{t('files.upload')}</Button>
             <Button variant="outlined" startIcon={<NoteAddRounded />} onClick={() => setNewFileOpen(true)}>{t('files.newFile')}</Button>
             <Button variant="outlined" startIcon={<CreateNewFolderRounded />} onClick={() => setNewFolderOpen(true)}>{t('files.newFolder')}</Button>
-          </Stack>
-        </Stack>
+          </Stack>}>
+          <Breadcrumbs aria-label="Breadcrumb">
+            <Link component={RouterLink} underline="hover" color="inherit" to="/files">Home</Link>
+            {breadcrumbs.map((part, index) => {
+              const target = `/${breadcrumbs.slice(0, index + 1).join('/')}`
+              return <Link key={target} component={RouterLink} underline="hover" color={index === breadcrumbs.length - 1 ? 'text.primary' : 'inherit'} to={filesRoute(target)}>{part}</Link>
+            })}
+          </Breadcrumbs>
+        </PageHeader>
 
         <Card variant="outlined"><CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} gap={1.5} alignItems={{ lg: 'center' }}>
             <TextField component="form" onSubmit={submitSearch} value={searchDraft} onChange={(event) => { setSearchDraft(event.target.value); if (!event.target.value) setSearchTerm('') }} placeholder={t('files.search')} sx={{ flex: 1, minWidth: 220 }} inputProps={{ 'aria-label': t('files.search') }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRounded /></InputAdornment>, endAdornment: searchDraft ? <InputAdornment position="end"><IconButton edge="end" size="small" aria-label={t('files.clearSearch')} onClick={() => { setSearchDraft(''); setSearchTerm('') }} sx={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}><CloseRounded /></IconButton></InputAdornment> : undefined }} />
             <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
-              <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort by" sx={{ minWidth: 115 }}>
-                <MenuItem value="name">{t('files.name')}</MenuItem><MenuItem value="size">{t('files.size')}</MenuItem><MenuItem value="modified">{t('files.modified')}</MenuItem>
-              </Select>
-              <Button variant="text" onClick={() => setDirection((current) => current === 'asc' ? 'desc' : 'asc')}>{direction === 'asc' ? 'A → Z' : 'Z → A'}</Button>
               <FormControlLabel control={<Switch checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />} label={t('files.hidden')} />
               <Tooltip title={t('files.refresh')}><IconButton onClick={refresh}><RefreshRounded /></IconButton></Tooltip>
               <Box role="group" aria-label="View" sx={{ display: 'flex', gap: 0.25, p: 0.375, borderRadius: 999, bgcolor: 'action.hover' }}>
@@ -334,38 +381,55 @@ export function FilesPage() {
         {upload && <Alert icon={<UploadRounded />}><Stack width="100%" gap={0.5}><Typography>{t('files.uploading', { name: upload.name, progress: upload.progress })}</Typography><LinearProgress variant="determinate" value={upload.progress} /></Stack></Alert>}
         {selectedPaths.size > 0 && <Card variant="outlined"><CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}><Stack direction="row" gap={1} alignItems="center"><Typography flex={1}>{t('files.selected', { count: selectedPaths.size })}</Typography><Button startIcon={<DownloadRounded />} onClick={() => void archiveSelected()}>{t('files.downloadZip')}</Button><Button onClick={() => setSelectedPaths(new Set())}>{t('files.clearSelection')}</Button></Stack></CardContent></Card>}
         {disk && <Typography variant="caption" color="text.secondary">{formatBytes(disk.used)} of {formatBytes(disk.total)} used</Typography>}
-        {(listing.isPending || search.isFetching) ? <LoadingPane /> : listing.error ? <ErrorPane error={listing.error} retry={refresh} /> : search.error ? <ErrorPane error={search.error} /> : entries.length === 0 ? (
-          <Box textAlign="center" py={10}><FolderRounded sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} /><Typography variant="h2">{t('files.empty')}</Typography><Typography color="text.secondary" mt={0.5}>{t('files.emptyHint')}</Typography></Box>
-        ) : view === 'grid' ? (
-          <Box role="list" display="grid" gridTemplateColumns="repeat(auto-fill, minmax(190px, 1fr))" gap={1.5}>
-            {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
-              <CardActionArea component="div" onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
-                <CardContent><Stack direction="row" alignItems="flex-start" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type === 'directory' ? 'Folder' : formatBytes(entry.size)}</Typography></Box>{(entry.type === 'file' || entry.type === 'directory') && <Checkbox size="small" checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}<IconButton size="small" aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
-              </CardActionArea>
-            </Card>)}
-          </Box>
-        ) : (
-          <Card role="list" variant="outlined">
-            {entries.map((entry, index) => <Box key={entry.path}>{index > 0 && <Divider />}<Stack role="listitem" aria-label={entry.name} className={`file-row${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} direction="row" alignItems="center" gap={1.5} px={2} py={1} onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined} sx={{ minHeight: 64, cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>{(entry.type === 'file' || entry.type === 'directory') && <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}{iconFor(entry)}<Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name">{entry.name}</Typography><Typography variant="caption" color="text.secondary">{formatBytes(entry.size)} · {formatDate(entry.modifiedAt)}</Typography></Box><Chip label={entry.type === 'directory' ? 'folder' : entry.type} size="small" variant="outlined" /><IconButton aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></Box>)}
-          </Card>
-        )}
+        <Box className="file-listing" minHeight="calc(100dvh - 370px)">
+          {(listing.isPending || search.isFetching) ? <LoadingPane /> : listing.error ? <ErrorPane error={listing.error} retry={refresh} /> : search.error ? <ErrorPane error={search.error} /> : entries.length === 0 ? (
+            <Box textAlign="center" py={10}><FolderRounded sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} /><Typography variant="h2">{t('files.empty')}</Typography><Typography color="text.secondary" mt={0.5}>{t('files.emptyHint')}</Typography></Box>
+          ) : view === 'grid' ? (
+            <Box role="list" display="grid" gridTemplateColumns="repeat(auto-fill, minmax(190px, 1fr))" gap={1.5}>
+              {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
+                <CardActionArea component="div" onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
+                  <CardContent><Stack direction="row" alignItems="flex-start" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type === 'directory' ? 'Folder' : formatBytes(entry.size)}</Typography></Box>{(entry.type === 'file' || entry.type === 'directory') && <Checkbox size="small" checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}<IconButton size="small" aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
+                </CardActionArea>
+              </Card>)}
+            </Box>
+          ) : (
+            <Card variant="outlined"><TableContainer><Table size="small" aria-label={t('nav.files')} sx={{ minWidth: 640 }}>
+              <TableHead onContextMenu={(event) => event.stopPropagation()}><TableRow>
+                <TableCell padding="checkbox" />
+                <TableCell sortDirection={sort === 'name' ? direction : false}><TableSortLabel active={sort === 'name'} direction={sort === 'name' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('name')}>{t('files.name')}</TableSortLabel></TableCell>
+                <TableCell align="right" sortDirection={sort === 'size' ? direction : false}><TableSortLabel active={sort === 'size'} direction={sort === 'size' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('size')}>{t('files.size')}</TableSortLabel></TableCell>
+                <TableCell sortDirection={sort === 'modified' ? direction : false}><TableSortLabel active={sort === 'modified'} direction={sort === 'modified' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('modified')}>{t('files.modified')}</TableSortLabel></TableCell>
+                <TableCell aria-label="Actions" />
+              </TableRow></TableHead>
+              <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover selected={selected?.path === entry.path} className={`file-row${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>
+                <TableCell padding="checkbox">{(entry.type === 'file' || entry.type === 'directory') && <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}</TableCell>
+                <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(entry.modifiedAt)}</TableCell>
+                <TableCell align="right"><IconButton aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></TableCell>
+              </TableRow>)}</TableBody>
+            </Table></TableContainer></Card>
+          )}
+        </Box>
       </Stack>
 
-      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
-        {selected?.type === 'file' && <MenuItem onClick={() => { setPreview(selected); closeMenu() }}><ListItemIcon><VisibilityRounded /></ListItemIcon><ListItemText>{t('files.preview')}</ListItemText></MenuItem>}
+      <Menu anchorEl={menuAnchor} anchorReference={menuPosition ? 'anchorPosition' : 'anchorEl'} anchorPosition={menuPosition ?? undefined} open={Boolean(menuAnchor || menuPosition)} onClose={closeMenu}>
+        {!selected && <MenuItem onClick={() => { setNewFileOpen(true); closeMenu() }}><ListItemIcon><NoteAddRounded /></ListItemIcon><ListItemText>{t('files.newFile')}</ListItemText></MenuItem>}
+        {!selected && <MenuItem onClick={() => { setNewFolderOpen(true); closeMenu() }}><ListItemIcon><CreateNewFolderRounded /></ListItemIcon><ListItemText>{t('files.newFolder')}</ListItemText></MenuItem>}
+        {selected?.type === 'file' && <MenuItem onClick={() => { setPreview(selected); closeMenu() }}><ListItemIcon><OpenInNewRounded /></ListItemIcon><ListItemText>{t('files.preview')}</ListItemText></MenuItem>}
         {selected && canEdit(selected) && <MenuItem onClick={() => { setEditor(selected); closeMenu() }}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.edit')}</ListItemText></MenuItem>}
         {selected?.type === 'file' && <MenuItem component="a" href={api.files.rawUrl(selected.path)} download onClick={closeMenu}><ListItemIcon><DownloadRounded /></ListItemIcon><ListItemText>{t('files.download')}</ListItemText></MenuItem>}
         {selected?.type === 'directory' && <MenuItem onClick={() => { const item = selected; closeMenu(); void startArchiveDownload([item.path], `${item.name}.zip`) }}><ListItemIcon><DownloadRounded /></ListItemIcon><ListItemText>{t('files.download')}</ListItemText></MenuItem>}
-        {selected?.type !== 'special' && <MenuItem onClick={() => beginAction('rename')}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.rename')}</ListItemText></MenuItem>}
-        {selected?.type !== 'special' && <MenuItem onClick={() => beginAction('move')}><ListItemIcon><DriveFileMoveRounded /></ListItemIcon><ListItemText>{t('files.move')}</ListItemText></MenuItem>}
-        {selected?.type !== 'special' && <MenuItem onClick={() => beginAction('copy')}><ListItemIcon><ContentCopyRounded /></ListItemIcon><ListItemText>{t('files.copy')}</ListItemText></MenuItem>}
-        {selected?.type !== 'special' && <MenuItem onClick={() => { setSharing(selected); closeMenu() }}><ListItemIcon><LinkRounded /></ListItemIcon><ListItemText>{t('files.share')}</ListItemText></MenuItem>}
+        {selected && selected.type !== 'special' && <MenuItem onClick={() => beginAction('rename')}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.rename')}</ListItemText></MenuItem>}
+        {selected && selected.type !== 'special' && <MenuItem onClick={() => beginAction('move')}><ListItemIcon><DriveFileMoveRounded /></ListItemIcon><ListItemText>{t('files.move')}</ListItemText></MenuItem>}
+        {selected && selected.type !== 'special' && <MenuItem onClick={() => beginAction('copy')}><ListItemIcon><ContentCopyRounded /></ListItemIcon><ListItemText>{t('files.copy')}</ListItemText></MenuItem>}
+        {selected && selected.type !== 'special' && <MenuItem onClick={() => { setSharing(selected); closeMenu() }}><ListItemIcon><LinkRounded /></ListItemIcon><ListItemText>{t('files.share')}</ListItemText></MenuItem>}
         {selected?.type === 'file' && <MenuItem onClick={() => { void api.files.checksum(selected.path).then((result) => setNotice(`${result.algorithm}: ${result.value}`)).catch((error: unknown) => setNotice(error instanceof Error ? error.message : t('common.error'))); closeMenu() }}><ListItemIcon><FingerprintRounded /></ListItemIcon><ListItemText>{t('files.checksum')}</ListItemText></MenuItem>}
-        {selected?.type !== 'special' && <MenuItem onClick={() => { setDeleting(selected); closeMenu() }} sx={{ color: 'error.main' }}><ListItemIcon><DeleteOutlineRounded color="error" /></ListItemIcon><ListItemText>{t('files.delete')}</ListItemText></MenuItem>}
+        {selected && selected.type !== 'special' && <MenuItem onClick={() => { setDeleting(selected); closeMenu() }} sx={{ color: 'error.main' }}><ListItemIcon><DeleteOutlineRounded color="error" /></ListItemIcon><ListItemText>{t('files.delete')}</ListItemText></MenuItem>}
       </Menu>
 
-      <Dialog open={newFileOpen} onClose={() => setNewFileOpen(false)} maxWidth="xs"><DialogTitle>{t('files.newFile')}</DialogTitle><DialogContent><TextField fullWidth autoFocus label={t('files.fileName')} value={fileName} onChange={(event) => setFileName(event.target.value)} error={Boolean(createFile.error)} helperText={createFile.error instanceof Error ? createFile.error.message : ''} /></DialogContent><DialogActions><Button onClick={() => setNewFileOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!fileName || fileName.includes('/') || createFile.isPending} onClick={() => createFile.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
-      <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} maxWidth="xs"><DialogTitle>{t('files.newFolder')}</DialogTitle><DialogContent><TextField fullWidth autoFocus label={t('files.folderName')} value={folderName} onChange={(event) => setFolderName(event.target.value)} error={Boolean(createFolder.error)} helperText={createFolder.error instanceof Error ? createFolder.error.message : ''} /></DialogContent><DialogActions><Button onClick={() => setNewFolderOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!folderName || folderName.includes('/') || createFolder.isPending} onClick={() => createFolder.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
+      <Dialog open={newFileOpen} onClose={() => setNewFileOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFile')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.fileName')} value={fileName} onChange={(event) => setFileName(event.target.value)} error={Boolean(createFile.error)} helperText={createFile.error instanceof Error ? createFile.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFileOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!fileName || fileName.includes('/') || createFile.isPending} onClick={() => createFile.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
+      <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFolder')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.folderName')} value={folderName} onChange={(event) => setFolderName(event.target.value)} error={Boolean(createFolder.error)} helperText={createFolder.error instanceof Error ? createFolder.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFolderOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!folderName || folderName.includes('/') || createFolder.isPending} onClick={() => createFolder.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
       <Dialog open={Boolean(deleting)} onClose={() => setDeleting(null)} maxWidth="xs"><DialogTitle>{t('files.delete')} {deleting?.name}?</DialogTitle><DialogContent><Typography color="text.secondary">This cannot be undone.</Typography>{remove.error && <Box mt={2}><ErrorPane error={remove.error} /></Box>}</DialogContent><DialogActions><Button onClick={() => setDeleting(null)}>{t('common.cancel')}</Button><Button color="error" variant="contained" disabled={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>{t('files.delete')}</Button></DialogActions></Dialog>
       <Dialog open={Boolean(conflict)} maxWidth="xs"><DialogTitle>{t('files.conflictTitle')}</DialogTitle><DialogContent><Stack gap={2} pt={0.5}><Typography>{t('files.conflictBody', { name: conflict?.file.name })}</Typography><TextField fullWidth label={t('files.name')} value={conflictName} onChange={(event) => setConflictName(event.target.value)} /></Stack></DialogContent><DialogActions><Button onClick={() => resolveConflict({ action: 'skip' })}>{t('files.skip')}</Button><Button disabled={!conflictName || conflictName.includes('/') || joinPath(path, conflictName) === conflict?.destination} onClick={() => resolveConflict({ action: 'rename', name: conflictName })}>{t('files.renameUpload')}</Button><Button color="warning" variant="contained" onClick={() => resolveConflict({ action: 'replace' })}>{t('files.replace')}</Button></DialogActions></Dialog>
       <FilePreviewDialog entry={preview} onClose={() => setPreview(null)} />
@@ -373,6 +437,6 @@ export function FilesPage() {
       <PathActionDialog action={pathAction} entry={selected} onClose={() => setPathAction(null)} onDone={refresh} />
       <CreateShareDialog entry={sharing} onClose={() => setSharing(null)} onCreated={(url) => { if (url) void navigator.clipboard.writeText(publicShareUrl(url)); setNotice(url ? t('common.copied') : t('shares.create')) }} />
       <Snackbar open={Boolean(notice)} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} />
-    </Container>
+    </Box>
   )
 }

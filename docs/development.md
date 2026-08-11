@@ -83,6 +83,15 @@ frontend.
 
 ## Building development bundles
 
+Build only the unsigned e-reader bundle with:
+
+```sh
+sh build.sh --dev
+```
+
+This produces `dist/ZenFM-koreader-ereader-<version>.zip` without requiring
+the Android SDK, Gradle, or `lipo`.
+
 The release-like development build produces the four KOReader ZIPs and the
 Android companion APK. It is unsigned, so in-plugin updates deliberately stay
 disabled.
@@ -103,10 +112,14 @@ export ANDROID_HOME=/absolute/path/to/android-sdk
 export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/25.2.9519653"
 export GRADLE_BIN=gradle
 
-sh build.sh --dev-unsigned
+sh build.sh
 version="$(sed -n '1p' VERSION)"
 sh scripts/verify-release-assets.sh dist "$version" --allow-unsigned
 ```
+
+Without `ZENFM_RELEASE_PUBLIC_KEY_HEX`, `build.sh` automatically creates an
+unsigned development build. CI supplies the public key and signing credentials
+for signed release builds.
 
 The first e-reader build bootstraps the pinned, patched Go 1.26.5 compiler for
 old ARM kernels. Set `ZENFM_GO_SOURCE_ARCHIVE` to an already downloaded
@@ -260,9 +273,8 @@ shared storage.
 ## Running and diagnosing on a device
 
 In KOReader, open **ZenFM > Start ZenFM**, followed by
-**ZenFM > Status and address**. The status dialog shows the LAN URL and the TLS
-public-key fingerprint. Compare that fingerprint with the browser certificate
-before accepting the generated certificate warning.
+**ZenFM > Status and address**. The status dialog shows the device's LAN IP and
+the active ZenFM listening port.
 
 The default server is HTTPS on port 8443. Initial login is
 `koreader` / `koreader123456789`; file APIs remain locked until the password is

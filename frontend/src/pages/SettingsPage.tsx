@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
-  Alert, Box, Button, Card, CardContent, Container, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, MenuItem, Snackbar, Stack, Switch, TextField, Typography,
 } from '@mui/material'
 import KeyRounded from '@mui/icons-material/KeyRounded'
@@ -15,6 +15,7 @@ import { useThemeMode } from '../theme'
 import { useAuth } from '../auth/AuthProvider'
 import { formatDate } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
+import { PageHeader } from '../components/PageHeader'
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation()
@@ -52,13 +53,12 @@ export function SettingsPage() {
 
   const passwordSubmit = (event: FormEvent) => { event.preventDefault(); if (Array.from(newPassword).length >= 12) changePassword.mutate() }
 
-  if (settings.isPending) return <Container maxWidth="lg" sx={{ py: 5 }}><LoadingPane /></Container>
-  if (settings.error) return <Container maxWidth="lg" sx={{ py: 5 }}><ErrorPane error={settings.error} /></Container>
+  if (settings.isPending) return <Stack gap={2.5}><PageHeader title={t('settings.title')} /><LoadingPane /></Stack>
+  if (settings.error) return <Stack gap={2.5}><PageHeader title={t('settings.title')} /><ErrorPane error={settings.error} /></Stack>
 
   return (
-    <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
-      <Stack gap={3}>
-        <Typography variant="h1">{t('settings.title')}</Typography>
+    <Stack gap={2.5}>
+      <PageHeader title={t('settings.title')} />
         <Card variant="outlined"><CardContent><Stack gap={2.5}>
           <Box><Typography variant="h2">{t('settings.appearance')}</Typography><Typography variant="body2" color="text.secondary">Root: {settings.data.root}</Typography></Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
@@ -82,9 +82,8 @@ export function SettingsPage() {
           {createToken.error && <ErrorPane error={createToken.error} />}
           {tokens.isPending ? <LoadingPane /> : tokens.error ? <ErrorPane error={tokens.error} /> : tokens.data.map((token) => <Stack key={token.id} direction="row" alignItems="center" gap={2} py={1} borderTop={1} borderColor="divider"><Box flex={1}><Typography fontWeight={600}>{token.name}</Typography><Typography variant="caption" color="text.secondary">Expires {formatDate(token.expiresAt)}</Typography></Box><Button color="error" startIcon={<DeleteOutlineRounded />} onClick={() => revokeToken.mutate(token.id)}>{t('settings.revokeToken')}</Button></Stack>)}
         </Stack></CardContent></Card>
-      </Stack>
       <Dialog open={Boolean(createdToken)} onClose={() => setCreatedToken('')} maxWidth="sm"><DialogTitle>Personal API token</DialogTitle><DialogContent><Alert severity="warning" sx={{ mb: 2 }}>Copy this token now. It will not be shown again.</Alert><TextField fullWidth value={createdToken} InputProps={{ readOnly: true }} /></DialogContent><DialogActions><Button startIcon={<ContentCopyRounded />} onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setNotice(t('common.copied')))}>Copy token</Button><Button onClick={() => setCreatedToken('')}>{t('common.close')}</Button></DialogActions></Dialog>
       <Snackbar open={Boolean(notice)} autoHideDuration={4500} onClose={() => setNotice('')} message={notice} />
-    </Container>
+    </Stack>
   )
 }

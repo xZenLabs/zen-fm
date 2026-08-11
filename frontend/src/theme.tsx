@@ -39,18 +39,18 @@ export function ZenThemeProvider({ children }: PropsWithChildren) {
       MuiFormControlLabel: { styleOverrides: { root: { gap: 10, marginLeft: 0, marginRight: 0 } } },
       MuiSwitch: {
         styleOverrides: {
-          root: { width: 64, height: 28, padding: 0, overflow: 'visible' },
+          root: { width: 48, height: 24, padding: 0, overflow: 'visible' },
           switchBase: {
             padding: 3,
             transitionDuration: '180ms',
             '&.Mui-checked': {
               color: '#fff',
-              transform: 'translateX(36px)',
+              transform: 'translateX(24px)',
               '& + .MuiSwitch-track': { backgroundColor: accentBlue, opacity: 1 },
             },
           },
-          thumb: { width: 22, height: 22, boxShadow: '0 1px 3px rgba(0,0,0,.35)' },
-          track: { borderRadius: 14, backgroundColor: dark ? '#3a414d' : '#c7c7cc', opacity: 1 },
+          thumb: { width: 18, height: 18, boxShadow: '0 1px 3px rgba(0,0,0,.35)' },
+          track: { borderRadius: 12, backgroundColor: dark ? '#3a414d' : '#c7c7cc', opacity: 1 },
         },
       },
       MuiTextField: { defaultProps: { size: 'small' } },

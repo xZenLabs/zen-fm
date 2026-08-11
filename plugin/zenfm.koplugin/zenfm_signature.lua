@@ -1,3 +1,4 @@
+-- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
 local Signature = {}
 
 local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

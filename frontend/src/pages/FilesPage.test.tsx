@@ -85,24 +85,42 @@ describe('file browser', () => {
     const user = userEvent.setup()
     renderApp('/files')
 
-    const item = await screen.findByRole('listitem', { name: 'manual.bin' })
+    const item = await screen.findByRole('row', { name: /manual\.bin/ })
     expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(item)
     expect(item).toHaveClass('selected')
-    const otherItem = screen.getByRole('listitem', { name: 'notes.bin' })
+    const otherItem = screen.getByRole('row', { name: /notes\.bin/ })
     await user.click(otherItem)
     expect(item).not.toHaveClass('selected')
     expect(otherItem).toHaveClass('selected')
     await user.click(item)
     expect(screen.queryByRole('dialog', { name: 'manual.bin' })).not.toBeInTheDocument()
 
-    fireEvent.contextMenu(item)
-    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.contextMenu(item, { clientX: 246, clientY: 135 })
+    const menu = screen.getByRole('menu')
+    expect(menu).toBeInTheDocument()
+    expect(menu.parentElement).toHaveStyle({ top: '135px', left: '246px' })
+    expect(screen.getByRole('menuitem', { name: 'Open' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
 
     await user.dblClick(item)
     expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
+  })
+
+  it('shows current-folder creation actions when right-clicking outside the file table', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'notes.txt', path: '/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' }],
+    })))
+    renderApp('/files')
+
+    await screen.findByRole('row', { name: /notes\.txt/ })
+    expect(fireEvent.contextMenu(document.querySelector('.app-shell')!, { clientX: 246, clientY: 135 })).toBe(false)
+
+    expect(screen.getByRole('menuitem', { name: 'New file' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'New folder' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Rename' })).not.toBeInTheDocument()
   })
 
   it('opens folders on double click', async () => {
@@ -115,8 +133,8 @@ describe('file browser', () => {
     const user = userEvent.setup()
     renderApp('/files')
 
-    const folder = await screen.findByRole('listitem', { name: 'Books' })
-    expect(within(folder).getByText('folder')).toBeInTheDocument()
+    const folder = await screen.findByRole('row', { name: /Books/ })
+    expect(within(folder).queryByText('folder')).not.toBeInTheDocument()
     expect(within(folder).queryByText('directory')).not.toBeInTheDocument()
     await user.click(folder)
     expect(screen.queryByText('chapter.txt')).not.toBeInTheDocument()
@@ -138,7 +156,7 @@ describe('file browser', () => {
     )
     renderApp('/files')
 
-    const folder = await screen.findByRole('listitem', { name: 'Books' })
+    const folder = await screen.findByRole('row', { name: /Books/ })
     const rootTransfer = { types: ['Files'], files: [new File(['root'], 'root.txt', { type: 'text/plain' })], dropEffect: 'none' }
     fireEvent.dragOver(window, { dataTransfer: rootTransfer })
     expect(document.querySelector('.file-drop-zone')).toHaveClass('drop-active')
@@ -151,6 +169,45 @@ describe('file browser', () => {
     fireEvent.drop(folder, { dataTransfer: folderTransfer })
     await waitFor(() => expect(uploadedPaths).toContain('/Books/nested.txt'))
     expect(folder).not.toHaveClass('drop-target')
+  })
+
+  it('sorts list entries from their table headers', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 100, modifiedAt: '2026-01-03T00:00:00Z' },
+        { name: 'zebra.txt', path: '/zebra.txt', type: 'file', size: 10, modifiedAt: '2026-01-04T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await screen.findByRole('row', { name: /alpha\.txt/ })
+    expect(screen.queryByRole('button', { name: 'Date created' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Date modified' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Size' }))
+    expect(screen.getAllByRole('row').slice(1).map((row) => row.textContent)).toEqual([
+      expect.stringContaining('zebra.txt'),
+      expect.stringContaining('alpha.txt'),
+    ])
+  })
+
+  it('restores the saved file sort preference', async () => {
+    localStorage.setItem('zenfm.files.sort', JSON.stringify({ sort: 'size', direction: 'desc' }))
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'small.txt', path: '/small.txt', type: 'file', size: 10, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'large.txt', path: '/large.txt', type: 'file', size: 100, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    renderApp('/files')
+
+    await screen.findByRole('row', { name: /large\.txt/ })
+    expect(screen.getAllByRole('row').slice(1).map((row) => row.textContent)).toEqual([
+      expect.stringContaining('large.txt'),
+      expect.stringContaining('small.txt'),
+    ])
   })
 
   it('creates a new text file without overwriting and opens the editor', async () => {

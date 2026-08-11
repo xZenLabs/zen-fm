@@ -304,6 +304,34 @@ func TestFileWorkflowAndTraversalRegression(t *testing.T) {
 	}
 }
 
+func TestTransferRequiresAndHonorsExplicitDirectoryReplacement(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	for _, name := range []string{"incoming", "installed"} {
+		if _, err := a.files.Mkdir(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := a.files.Write("incoming/VERSION", strings.NewReader("new"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.files.Write("installed/VERSION", strings.NewReader("old"), false); err != nil {
+		t.Fatal(err)
+	}
+
+	request := `{"source":"/incoming","destination":"/installed"}`
+	if response := a.request(http.MethodPost, "/api/v1/files/copy", strings.NewReader(request), cookie, csrf, ""); response.Code != http.StatusConflict {
+		t.Fatalf("implicit replacement: %d %s", response.Code, response.Body.String())
+	}
+	request = `{"source":"/incoming","destination":"/installed","overwrite":true}`
+	if response := a.request(http.MethodPost, "/api/v1/files/copy", strings.NewReader(request), cookie, csrf, ""); response.Code != http.StatusNoContent {
+		t.Fatalf("explicit replacement: %d %s", response.Code, response.Body.String())
+	}
+	if data, err := a.files.ReadContent("installed/VERSION"); err != nil || string(data) != "new" {
+		t.Fatalf("installed replacement = %q, %v", data, err)
+	}
+}
+
 func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, _ := a.finishSetup()

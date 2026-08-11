@@ -6,19 +6,21 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
-local Daemon = require("daemon")
-local Updater = require("updater")
+local Daemon = require("zenfm_daemon")
+local Updater = require("zenfm_updater")
 
 local ZenFM = WidgetContainer:extend{
     name = "zenfm",
     is_doc_only = false,
 }
 
-local function notice(text, warning)
+local function notice(text, warning, persistent)
+    local timeout = warning and 6 or 3
+    if persistent then timeout = false end
     UIManager:show(InfoMessage:new{
         text = text,
         icon = warning and "notice-warning" or nil,
-        timeout = warning and 6 or 3,
+        timeout = timeout,
     })
 end
 
@@ -51,26 +53,33 @@ function ZenFM:onToggleZenFM()
     if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
     if self.daemon:is_android() then success = tostring(detail) end
-    notice(ok and success or tostring(detail), not ok)
+    if ok and not running then
+        self:onShowZenFMStatus()
+    else
+        notice(ok and success or tostring(detail), not ok)
+    end
     return ok
 end
 
 function ZenFM:onShowZenFMStatus()
     local status = self.daemon:status_details()
     if not status.running then
-        notice(_("ZenFM is stopped.") .. (status.detail and "\n" .. status.detail or ""))
+        notice(_("ZenFM is stopped.") .. (status.detail and "\n" .. status.detail or ""), false, true)
         return
     end
-    local lines = { _("ZenFM is running."), status.url or (status.scheme .. "://" .. status.listen) }
-    if status.fingerprint then
-        table.insert(lines, _("TLS public-key fingerprint:") .. "\n" .. status.fingerprint)
-    else
+    local lines = { _("ZenFM is running.") }
+    if status.url then
+        table.insert(lines, status.url)
+    elseif status.port then
+        table.insert(lines, _("Listening port:") .. " " .. status.port)
+    end
+    if status.scheme == "http" then
         table.insert(lines, _("Warning: unencrypted HTTP is enabled."))
     end
     if self.daemon.settings.values.advanced_root then
         table.insert(lines, _("Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."))
     end
-    notice(table.concat(lines, "\n\n"), not status.fingerprint or self.daemon.settings.values.advanced_root)
+    notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root, true)
 end
 
 local function input_dialog(owner, title, value, input_type, save)

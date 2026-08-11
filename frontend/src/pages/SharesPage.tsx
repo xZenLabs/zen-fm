@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Container, Dialog, DialogActions, DialogContent,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, MenuItem, Snackbar, Stack, TextField, Tooltip, Typography,
 } from '@mui/material'
 import AddLinkRounded from '@mui/icons-material/AddLinkRounded'
@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { formatDate, publicShareUrl } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
+import { PageHeader } from '../components/PageHeader'
 
 export function SharesPage() {
   const { t } = useTranslation()
@@ -46,12 +47,10 @@ export function SharesPage() {
   }
 
   return (
-    <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
-      <Stack gap={3}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'end' }} gap={2}>
-          <Box><Typography variant="h1">{t('shares.title')}</Typography><Typography color="text.secondary" mt={0.75}>{t('shares.intro')}</Typography></Box>
-          <Button variant="contained" startIcon={<AddLinkRounded />} onClick={() => setOpen(true)}>{t('shares.create')}</Button>
-        </Stack>
+    <Stack gap={2.5}>
+      <PageHeader title={t('shares.title')} actions={<Button variant="contained" startIcon={<AddLinkRounded />} onClick={() => setOpen(true)}>{t('shares.create')}</Button>}>
+        <Typography color="text.secondary">{t('shares.intro')}</Typography>
+      </PageHeader>
         {shares.isPending ? <LoadingPane /> : shares.error ? <ErrorPane error={shares.error} retry={() => void shares.refetch()} /> : shares.data.length === 0 ? (
           <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: 8 }}><AddLinkRounded sx={{ fontSize: 44, color: 'text.disabled' }} /><Typography variant="h2" mt={1}>{t('shares.empty')}</Typography></CardContent></Card>
         ) : (
@@ -62,7 +61,6 @@ export function SharesPage() {
             </Stack></CardContent></Card>
           ))}</Stack>
         )}
-      </Stack>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs"><Stack component="form" onSubmit={submit}><DialogTitle>{t('shares.create')}</DialogTitle><DialogContent><Stack gap={2} pt={0.5}>
         <TextField required autoFocus label={t('shares.path')} placeholder="/Books" value={path} onChange={(event) => setPath(event.target.value)} />
@@ -73,6 +71,6 @@ export function SharesPage() {
       </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button type="submit" variant="contained" disabled={!path.startsWith('/') || create.isPending}>{t('common.create')}</Button></DialogActions></Stack></Dialog>
       <Dialog open={Boolean(createdUrl)} onClose={() => setCreatedUrl('')} maxWidth="sm"><DialogTitle>{t('shares.create')}</DialogTitle><DialogContent><Alert severity="info" sx={{ mb: 2 }}>Copy this capability link now. ZenFM may not show its secret again.</Alert><TextField fullWidth value={createdUrl} InputProps={{ readOnly: true }} /></DialogContent><DialogActions><Button onClick={() => void copy(createdUrl)} startIcon={<ContentCopyRounded />}>{t('shares.copy')}</Button><Button onClick={() => setCreatedUrl('')}>{t('common.close')}</Button></DialogActions></Dialog>
       <Snackbar open={Boolean(notice)} autoHideDuration={3500} onClose={() => setNotice('')} message={notice} />
-    </Container>
+    </Stack>
   )
 }

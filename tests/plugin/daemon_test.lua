@@ -1,10 +1,20 @@
 local root = assert(arg[1], "repository root required")
 package.path = root .. "/plugin/zenfm.koplugin/?.lua;" .. package.path
 
-local Daemon = require("daemon")
-local Settings = require("settings")
-local Updater = require("updater")
-local Util = require("util")
+local generic_modules = {}
+for _, name in ipairs({ "control", "daemon", "release_public_key", "settings", "signature", "updater", "util" }) do
+    generic_modules[name] = { occupied_by_another_plugin = true }
+    package.loaded[name] = generic_modules[name]
+end
+
+local Daemon = require("zenfm_daemon")
+local Settings = require("zenfm_settings")
+local Updater = require("zenfm_updater")
+local Util = require("zenfm_util")
+
+for name, module in pairs(generic_modules) do
+    assert(package.loaded[name] == module, "ZenFM replaced shared module " .. name)
+end
 
 local count = 0
 local function test(name, callback)
@@ -149,10 +159,28 @@ test("status address falls back to ifconfig without choosing loopback", function
     equal(daemon:local_ip(), "192.168.4.12")
 end)
 
+test("status address falls back to an assigned IPv4 address without a default route", function()
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "host",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+        command_output = function(command)
+            if command:find("ip %-4 addr") then
+                return "3: wlan0    inet 192.168.4.12/24 brd 192.168.4.255 scope global wlan0"
+            end
+            return ""
+        end,
+    }
+    equal(daemon:local_ip(), "192.168.4.12")
+end)
+
 test("control status protocol", function()
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "host",
         settings = fake_settings(defaults), path_exists = function() return false end,
+        command_output = function(command)
+            if command:find("ip %-4 route") then return "1.1.1.1 via 192.168.4.1 dev wlan0 src 192.168.4.12" end
+            return ""
+        end,
         control_request = function(_, command)
             equal(command, "status")
             return "ok running https://0.0.0.0:8443 sha256:abc"
@@ -162,7 +190,25 @@ test("control status protocol", function()
     assert(details.running)
     equal(details.scheme, "https")
     equal(details.listen, "0.0.0.0:8443")
+    equal(details.address, "192.168.4.12")
+    equal(details.port, "8443")
+    equal(details.url, "https://192.168.4.12:8443")
     equal(details.fingerprint, "sha256:abc")
+end)
+
+test("status never presents a wildcard listener as the device address", function()
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "host",
+        settings = fake_settings(defaults), path_exists = function() return false end,
+        command_output = function() return "" end,
+        control_request = function()
+            return "ok running http://0.0.0.0:8080 -"
+        end,
+    }
+    local details = daemon:status_details()
+    equal(details.address, nil)
+    equal(details.port, "8080")
+    equal(details.url, nil)
 end)
 
 test("start waits for control-socket health", function()
@@ -491,6 +537,47 @@ end)
 
 test("shell quoting does not create a second command", function()
     equal(Util.sh_quote("x'; touch /tmp/owned; '"), "'x'\\''; touch /tmp/owned; '\\'''" )
+end)
+
+test("status notice shows the device address and port without the TLS fingerprint or wildcard listener", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, shown = {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function(_, message) shown = message end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner = setmetatable({
+        daemon = {
+            settings = { values = { advanced_root = false } },
+            status_details = function()
+                return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
+            end,
+        },
+    }, { __index = ZenFM })
+    owner:onShowZenFMStatus()
+    equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
+    assert(not shown.text:find("sha256:secret", 1, true))
+
+    owner.daemon.status_details = function()
+        return { running = true, scheme = "http", listen = "0.0.0.0:8080", port = "8080" }
+    end
+    owner:onShowZenFMStatus()
+    contains(shown.text, "Listening port: 8080")
+    contains(shown.text, "Warning: unencrypted HTTP is enabled.")
+    assert(not shown.text:find("0.0.0.0", 1, true))
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
 io.stdout:write(string.format("ok - %d plugin tests\n", count))

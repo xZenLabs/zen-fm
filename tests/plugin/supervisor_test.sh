@@ -6,13 +6,17 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/zenfm-supervisor.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
 printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" >> "$ZENFM_FIREWALL_LOG"' > "$TMP/iptables"
-printf '%s\n' '#!/bin/sh' '[ -z "${ZENFM_BACKEND_LOG:-}" ] || printf "%s\\n" "$$" >> "$ZENFM_BACKEND_LOG"' 'exec sleep "${ZENFM_BACKEND_SLEEP:-0.05}"' > "$TMP/backend"
+printf '%s\n' '#!/bin/sh' '[ -z "${ZENFM_BACKEND_LOG:-}" ] || printf "%s\\n" "$$" >> "$ZENFM_BACKEND_LOG"' 'exec /bin/sleep "${ZENFM_BACKEND_SLEEP:-0.05}"' > "$TMP/backend"
+printf '%s\n' '#!/bin/sh' 'case "$1" in *.*) echo "sleep: invalid number '\''$1'\''" >&2; exit 1 ;; esac' 'exec /bin/sleep "$@"' > "$TMP/sleep"
+printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "$1" >> "$ZENFM_USLEEP_LOG"' > "$TMP/usleep"
 chmod +x "$TMP/iptables" "$TMP/backend" "$ROOT/plugin/zenfm.koplugin/supervisor.sh"
+chmod +x "$TMP/sleep" "$TMP/usleep"
 runtime_id=$(basename "$TMP" | tr -cd '[:alnum:]' | awk '{ value=$0; if (length(value) > 12) value=substr(value, length(value)-11); print value }')
 chain_8443=ZFM${runtime_id}8443
 chain_9443=ZFM${runtime_id}9443
 
 ZENFM_IPTABLES="$TMP/iptables" ZENFM_FIREWALL_LOG="$TMP/firewall.log" \
+    ZENFM_USLEEP_LOG="$TMP/usleep.log" PATH="$TMP:$PATH" \
     "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
     --pid-file "$TMP/server.pid" --socket-file "$TMP/server.sock" --port 8443 --kindle -- "$TMP/backend"
 
@@ -23,6 +27,7 @@ grep -q -- "-A $chain_8443 -p tcp --dport 8443 -j ACCEPT" "$TMP/firewall.log"
 grep -q -- "-I INPUT -j $chain_8443" "$TMP/firewall.log"
 grep -q -- "-D INPUT -j $chain_8443" "$TMP/firewall.log"
 grep -q -- "-X $chain_8443" "$TMP/firewall.log"
+grep -qx '10000' "$TMP/usleep.log"
 
 mkdir "$TMP/install-one" "$TMP/install-two"
 : > "$TMP/firewall-installs.log"
