@@ -263,12 +263,13 @@ adb push "$ANDROID_STAGE/zenfm.koplugin" /sdcard/koreader/plugins/
 ```
 
 Restart KOReader, select **ZenFM > Start ZenFM**, then approve the companion's
-pairing and all-files-access prompts. The APK is headless and has no normal
-launcher screen. A debug-signed development APK cannot replace a release-signed
-installation; Android will require the differently signed app to be removed
-first, which clears its app-private ZenFM database, certificate, control
-socket, and pairing state. Shared KOReader plugin settings and logs remain on
-shared storage.
+pairing and all-files-access prompts. The APK has a launcher entry so Android
+and BOOX expose its app-management controls, but no standalone UI; opening the
+entry goes to Android's app-info screen. A debug-signed development APK cannot
+replace a release-signed installation; Android will require the differently
+signed app to be removed first, which clears its app-private ZenFM database,
+certificate, control socket, and pairing state. Shared KOReader plugin settings
+and logs remain on shared storage.
 
 ## Running and diagnosing on a device
 

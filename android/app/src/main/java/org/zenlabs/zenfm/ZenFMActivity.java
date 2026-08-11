@@ -47,7 +47,17 @@ public final class ZenFMActivity extends Activity {
             continueUpdateInstall();
             return;
         }
-        Uri uri = getIntent() == null ? null : getIntent().getData();
+        Intent incoming = getIntent();
+        Uri uri = incoming == null ? null : incoming.getData();
+        if (uri == null && incoming != null && Intent.ACTION_MAIN.equals(incoming.getAction())) {
+            // Keep a normal launcher entry so BOOX exposes the companion in
+            // App Info, Auto Start, and App Freeze. Tapping it opens the
+            // system management page; KOReader still starts the backend.
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName())));
+            finish();
+            return;
+        }
         String action = uri == null ? null : uri.getHost();
         String token = uri == null ? null : uri.getQueryParameter("token");
         if (action != null && ControlAuth.authorize(this, action, token)) {

@@ -68,6 +68,11 @@ requests remain confirmation-gated because KOReader settings may be on shared
 storage. ZenFM requests storage access before launching the server; denying it
 leaves the server stopped.
 
+On BOOX devices, **ZenFM Backend** appears under Apps. Turn off **App Freeze**
+for it under **Apps > App Management**, because a frozen companion cannot
+receive KOReader's start request. Opening the entry goes to Android's app-info
+screen; ZenFM itself is still started from KOReader.
+
 KOReader plugin updates activate atomically and roll back automatically after a
 failed health check. Companion APK updates are signature/hash checked,
 journaled across Android's Package Installer, and health-gated after

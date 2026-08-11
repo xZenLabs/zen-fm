@@ -20,6 +20,8 @@ public final class ManifestPolicyTest {
         assertTrue(manifest.contains("android:dataExtractionRules=\"@xml/backup_rules\""));
         assertTrue(manifest.contains("android:fullBackupContent=\"false\""));
         assertTrue(manifest.contains("android:icon=\"@drawable/zenfm_icon\""));
+        assertTrue(manifest.contains("android.intent.action.MAIN"));
+        assertTrue(manifest.contains("android.intent.category.LAUNCHER"));
         assertTrue(Files.size(source("src/main/res/drawable-nodpi/zenfm_icon.png")) > 0);
         assertFalse(manifest.contains("android.permission.FOREGROUND_SERVICE_DATA_SYNC"));
         assertFalse(manifest.contains("android:foregroundServiceType=\"dataSync\""));
@@ -38,6 +40,11 @@ public final class ManifestPolicyTest {
         assertTrue(service.contains("CommandRequest.liveStatus(control(\"status\"), requestId)"));
         assertTrue(service.contains("CompanionLog.status(this, home, \"stopping\")"));
         assertTrue(service.contains("Config saved = config == null ? Config.load(this) : config"));
+
+        String activity = new String(Files.readAllBytes(source(
+            "src/main/java/org/zenlabs/zenfm/ZenFMActivity.java")), StandardCharsets.UTF_8);
+        assertTrue(activity.contains("Intent.ACTION_MAIN.equals(incoming.getAction())"));
+        assertTrue(activity.contains("Settings.ACTION_APPLICATION_DETAILS_SETTINGS"));
 
         String build = new String(Files.readAllBytes(source("build.gradle")), StandardCharsets.UTF_8);
         assertTrue(build.contains("inputs.file(rootProject.file('../VERSION'))"));

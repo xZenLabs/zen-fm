@@ -315,8 +315,11 @@ function Daemon:open_android(action)
     if not uri then return false, request_id end
     -- Always address the companion explicitly. An implicit custom-scheme intent
     -- would allow another installed application to intercept the control secret.
+    -- Keep ActivityManager output off KOReader's external-storage log descriptor:
+    -- some BOOX SELinux policies reject that descriptor and fail the Binder call.
     local command = "/system/bin/am start -W -n org.zenlabs.zenfm/.ZenFMActivity"
         .. " -a android.intent.action.VIEW -d " .. Util.sh_quote(uri)
+        .. " </dev/null >/dev/null 2>&1"
     if self.execute(command) ~= 0 then return false, "ZenFM Android companion is not installed" end
     if action == "update" then
         return true, "Update request sent to the Android companion; approve it on the device when prompted."
