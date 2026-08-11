@@ -171,6 +171,43 @@ describe('file browser', () => {
     expect(folder).not.toHaveClass('drop-target')
   })
 
+  it('confirms a table drag before moving a file into a folder', async () => {
+    const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [
+          { name: 'report.txt', path: '/report.txt', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'Archive', path: '/Archive', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })),
+      http.post('http://localhost/api/v1/files/move', async ({ request }) => {
+        moves.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const file = await screen.findByRole('row', { name: /report\.txt/ })
+    const folder = screen.getByRole('row', { name: /Archive/ })
+    const transfer = { types: [], files: [], effectAllowed: 'none', dropEffect: 'none', setData: vi.fn() }
+    fireEvent.dragStart(file, { dataTransfer: transfer })
+    expect(file).toHaveAttribute('draggable', 'true')
+    expect(folder).toHaveAttribute('draggable', 'true')
+    fireEvent.dragOver(folder, { dataTransfer: transfer })
+    expect(folder).toHaveClass('drop-target')
+    fireEvent.drop(folder, { dataTransfer: transfer })
+
+    const dialog = screen.getByRole('dialog', { name: 'Move' })
+    expect(dialog).toHaveTextContent('Are you sure you want to move report.txt to Archive?')
+    expect(within(dialog).getByText('report.txt')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(within(dialog).getByText('Archive')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(moves).toEqual([])
+    await user.click(screen.getByRole('button', { name: 'Move' }))
+    await waitFor(() => expect(moves).toEqual([{ source: '/report.txt', destination: '/Archive/report.txt', overwrite: false }]))
+  })
+
   it('sorts list entries from their table headers', async () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,

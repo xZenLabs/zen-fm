@@ -27,7 +27,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { api, isConflictError, uploadResumable } from '../api/client'
 import type { FileEntry, SortDirection, SortField } from '../api/types'
 import { filesRoute, formatBytes, formatDate, joinPath, publicShareUrl } from '../utils'
@@ -38,6 +38,7 @@ import { PageHeader } from '../components/PageHeader'
 type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
 type ConflictChoice = { action: 'replace' | 'skip' } | { action: 'rename'; name: string }
+type DroppedMove = { entry: FileEntry; destination: string }
 
 const thumbnailExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff'])
 const sortPreferenceKey = 'zenfm.files.sort'
@@ -62,6 +63,10 @@ function storedSortPreference(): { sort: SortField; direction: SortDirection } {
 
 function hasDraggedFiles(dataTransfer: DataTransfer | null) {
   return Boolean(dataTransfer && Array.from(dataTransfer.types).includes('Files'))
+}
+
+function folderLabel(path: string) {
+  return path === '/' ? 'Home' : path.replace(/^\/+/, '')
 }
 
 function FileArtwork({ entry }: { entry: FileEntry }) {
@@ -106,10 +111,12 @@ export function FilesPage() {
   const [notice, setNotice] = useState('')
   const [upload, setUpload] = useState<{ name: string; progress: number } | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [droppedMove, setDroppedMove] = useState<DroppedMove | null>(null)
   const [conflict, setConflict] = useState<{ file: File; destination: string } | null>(null)
   const [conflictName, setConflictName] = useState('')
   const conflictResolver = useRef<((choice: ConflictChoice) => void) | null>(null)
   const droppedFilesHandler = useRef<(files: File[], destination: string) => void>(() => undefined)
+  const draggedEntry = useRef<FileEntry | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(() => new Set())
 
   const listing = useQuery({ queryKey: ['files', path, showHidden], queryFn: () => api.files.list(path, showHidden) })
@@ -176,6 +183,10 @@ export function FilesPage() {
   const remove = useMutation({
     mutationFn: (entry: FileEntry) => api.files.remove(entry.path, entry.type === 'directory'),
     onSuccess: () => { setDeleting(null); refresh() },
+  })
+  const moveDroppedEntry = useMutation({
+    mutationFn: ({ entry, destination, overwrite }: DroppedMove & { overwrite: boolean }) => api.files.move(entry.path, joinPath(destination, entry.name), overwrite),
+    onSuccess: () => { setDroppedMove(null); refresh() },
   })
 
   const openEntry = (entry: FileEntry) => {
@@ -289,7 +300,41 @@ export function FilesPage() {
     }
   }, [path])
 
+  const canMoveTo = (entry: FileEntry, destination: string) => entry.type !== 'special'
+    && joinPath(destination, entry.name) !== entry.path
+    && (entry.type !== 'directory' || destination !== entry.path && !destination.startsWith(`${entry.path}/`))
+
+  const startMoveDrag = (event: ReactDragEvent<HTMLElement>, entry: FileEntry) => {
+    draggedEntry.current = entry
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('application/x-zenfm-entry', entry.path)
+  }
+
+  const endMoveDrag = () => {
+    draggedEntry.current = null
+    setDropTarget(null)
+  }
+
+  const rejectMoveDrop = (event: ReactDragEvent<HTMLElement>) => {
+    if (!draggedEntry.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    setDropTarget(null)
+  }
+
   const prepareDrop = (event: ReactDragEvent<HTMLElement>, destination: string) => {
+    const entry = draggedEntry.current
+    if (entry) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (!canMoveTo(entry, destination)) {
+        setDropTarget(null)
+        return
+      }
+      event.dataTransfer.dropEffect = 'move'
+      setDropTarget(destination)
+      return
+    }
     if (!hasDraggedFiles(event.dataTransfer)) return
     event.preventDefault()
     event.stopPropagation()
@@ -298,6 +343,18 @@ export function FilesPage() {
   }
 
   const acceptDrop = (event: ReactDragEvent<HTMLElement>, destination: string) => {
+    const entry = draggedEntry.current
+    if (entry) {
+      event.preventDefault()
+      event.stopPropagation()
+      draggedEntry.current = null
+      setDropTarget(null)
+      if (canMoveTo(entry, destination)) {
+        moveDroppedEntry.reset()
+        setDroppedMove({ entry, destination })
+      }
+      return
+    }
     if (!hasDraggedFiles(event.dataTransfer)) return
     event.preventDefault()
     event.stopPropagation()
@@ -401,7 +458,7 @@ export function FilesPage() {
                 <TableCell sortDirection={sort === 'modified' ? direction : false}><TableSortLabel active={sort === 'modified'} direction={sort === 'modified' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('modified')}>{t('files.modified')}</TableSortLabel></TableCell>
                 <TableCell aria-label="Actions" />
               </TableRow></TableHead>
-              <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover selected={selected?.path === entry.path} className={`file-row${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>
+              <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover draggable={entry.type !== 'special'} selected={selected?.path === entry.path} className={`file-row${selected?.path === entry.path ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={() => setSelected(entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragStart={(event) => startMoveDrag(event, entry)} onDragEnd={endMoveDrag} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : rejectMoveDrop} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : rejectMoveDrop} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default', '&[draggable="true"]': { cursor: 'grab' } }}>
                 <TableCell padding="checkbox">{(entry.type === 'file' || entry.type === 'directory') && <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}</TableCell>
                 <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</TableCell>
@@ -431,6 +488,7 @@ export function FilesPage() {
       <Dialog open={newFileOpen} onClose={() => setNewFileOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFile')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.fileName')} value={fileName} onChange={(event) => setFileName(event.target.value)} error={Boolean(createFile.error)} helperText={createFile.error instanceof Error ? createFile.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFileOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!fileName || fileName.includes('/') || createFile.isPending} onClick={() => createFile.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
       <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFolder')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.folderName')} value={folderName} onChange={(event) => setFolderName(event.target.value)} error={Boolean(createFolder.error)} helperText={createFolder.error instanceof Error ? createFolder.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFolderOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!folderName || folderName.includes('/') || createFolder.isPending} onClick={() => createFolder.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
       <Dialog open={Boolean(deleting)} onClose={() => setDeleting(null)} maxWidth="xs"><DialogTitle>{t('files.delete')} {deleting?.name}?</DialogTitle><DialogContent><Typography color="text.secondary">This cannot be undone.</Typography>{remove.error && <Box mt={2}><ErrorPane error={remove.error} /></Box>}</DialogContent><DialogActions><Button onClick={() => setDeleting(null)}>{t('common.cancel')}</Button><Button color="error" variant="contained" disabled={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>{t('files.delete')}</Button></DialogActions></Dialog>
+      <Dialog open={Boolean(droppedMove)} onClose={moveDroppedEntry.isPending ? undefined : () => { setDroppedMove(null); moveDroppedEntry.reset() }} maxWidth="xs"><DialogTitle>{t('files.move')}</DialogTitle><DialogContent><Typography><Trans i18nKey="files.confirmMove" values={{ name: droppedMove?.entry.name, destination: folderLabel(droppedMove?.destination ?? '') }} components={{ filename: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />, path: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} /> }} /></Typography>{moveDroppedEntry.error && <Box mt={2}><ErrorPane error={moveDroppedEntry.error} /></Box>}</DialogContent><DialogActions><Button disabled={moveDroppedEntry.isPending} onClick={() => { setDroppedMove(null); moveDroppedEntry.reset() }}>{t('common.cancel')}</Button>{isConflictError(moveDroppedEntry.error) ? <Button color="warning" variant="contained" disabled={moveDroppedEntry.isPending} onClick={() => droppedMove && moveDroppedEntry.mutate({ ...droppedMove, overwrite: true })}>{t('files.replace')}</Button> : <Button variant="contained" disabled={moveDroppedEntry.isPending} onClick={() => droppedMove && moveDroppedEntry.mutate({ ...droppedMove, overwrite: false })}>{t('files.move')}</Button>}</DialogActions></Dialog>
       <Dialog open={Boolean(conflict)} maxWidth="xs"><DialogTitle>{t('files.conflictTitle')}</DialogTitle><DialogContent><Stack gap={2} pt={0.5}><Typography>{t('files.conflictBody', { name: conflict?.file.name })}</Typography><TextField fullWidth label={t('files.name')} value={conflictName} onChange={(event) => setConflictName(event.target.value)} /></Stack></DialogContent><DialogActions><Button onClick={() => resolveConflict({ action: 'skip' })}>{t('files.skip')}</Button><Button disabled={!conflictName || conflictName.includes('/') || joinPath(path, conflictName) === conflict?.destination} onClick={() => resolveConflict({ action: 'rename', name: conflictName })}>{t('files.renameUpload')}</Button><Button color="warning" variant="contained" onClick={() => resolveConflict({ action: 'replace' })}>{t('files.replace')}</Button></DialogActions></Dialog>
       <FilePreviewDialog entry={preview} onClose={() => setPreview(null)} />
       <FileEditorDialog entry={editor} onClose={() => setEditor(null)} onSaved={refresh} />
