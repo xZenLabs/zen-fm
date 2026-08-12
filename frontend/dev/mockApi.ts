@@ -259,6 +259,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
 
       if (path === '/api/v1/owner/password' && method === 'PUT') {
         const input = await readJSON<{ currentPassword?: string; newPassword?: string }>(request)
+        if (input.currentPassword === undefined) return sendProblem(response, 401, 'Current password is required.')
         if (input.currentPassword !== ownerPassword) return sendProblem(response, 401, 'Current password is incorrect.')
         if (Array.from(input.newPassword ?? '').length < 12) return sendProblem(response, 422, 'New password must contain at least 12 characters.')
         ownerPassword = input.newPassword || ownerPassword

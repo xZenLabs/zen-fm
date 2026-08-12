@@ -31,7 +31,6 @@ test.describe('ZenFM real binary', () => {
     const locked = await page.request.get(`${setupURL}/api/v1/files?path=/`)
     expect(locked.status()).toBe(403)
 
-    await page.getByLabel('Temporary password').fill('koreader123456789')
     await page.getByLabel('New password').fill('zenfm-e2e-setup-password')
     await page.getByLabel('Confirm password').fill('zenfm-e2e-setup-password')
     await page.getByRole('button', { name: 'Finish setup' }).click()
@@ -226,7 +225,6 @@ test.describe('ZenFM real binary', () => {
     await page.getByLabel('Username').fill('koreader')
     await page.getByLabel('Password').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await page.getByLabel('Temporary password').fill('koreader123456789')
     await page.getByLabel('New password').fill('zenfm-e2e-https-password')
     await page.getByLabel('Confirm password').fill('zenfm-e2e-https-password')
     await page.getByRole('button', { name: 'Finish setup' }).click()

@@ -26,7 +26,7 @@ const english = {
   appName: 'ZenFM',
   nav: { files: 'Files', shares: 'Shares', settings: 'Settings', logout: 'Sign out' },
   auth: {
-    welcome: 'Your files, quietly within reach.', username: 'Username', password: 'Password',
+    welcome: 'Your files, easily accessible.', username: 'Username', password: 'Password',
     signIn: 'Sign in', signingIn: 'Signing in…', failed: 'The username or password is incorrect.',
     setupTitle: 'Choose a private password', setupBody: 'Replace the temporary password before accessing your files.',
     currentPassword: 'Temporary password', newPassword: 'New password', confirmPassword: 'Confirm password',

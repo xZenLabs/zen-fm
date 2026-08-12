@@ -3,6 +3,10 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 GRADLE_BIN=${GRADLE_BIN:-gradle}
+OUTPUT_DIR="$SCRIPT_DIR/app/build/outputs"
+NATIVE_DIR="$SCRIPT_DIR/app/src/main/jniLibs"
+
+rm -rf "$OUTPUT_DIR" "$NATIVE_DIR"
 
 command -v java >/dev/null 2>&1 || { echo "Java 17 is required" >&2; exit 2; }
 java_version=$(java -version 2>&1 | sed -n '1{s/.*version "\([^"]*\)".*/\1/p;}')

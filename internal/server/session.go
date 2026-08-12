@@ -99,7 +99,16 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	if !auth.VerifyPassword(owner.PasswordHash, request.CurrentPassword) {
+	if request.CurrentPassword == "" {
+		if !owner.SetupRequired {
+			problem(w, r, http.StatusUnauthorized, "Authentication Failed", "credentials were not accepted")
+			return
+		}
+		if auth.VerifyPassword(owner.PasswordHash, request.NewPassword) {
+			problem(w, r, http.StatusBadRequest, "Invalid Password", "new password must differ from the current password")
+			return
+		}
+	} else if !auth.VerifyPassword(owner.PasswordHash, request.CurrentPassword) {
 		problem(w, r, http.StatusUnauthorized, "Authentication Failed", "credentials were not accepted")
 		return
 	}

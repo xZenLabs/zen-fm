@@ -26,10 +26,67 @@ end
 
 function ZenFM:init()
     self.daemon = Daemon:new()
+    self.android_pending = nil
     self.ui.menu:registerToMainMenu(self)
     self:onDispatcherRegisterActions()
     local healthy, health_err = Updater.finalize_pending(self.daemon)
     if not healthy then notice(tostring(health_err), true) end
+end
+
+function ZenFM:android_cached_running()
+    local running = self.daemon:cached_android_status()
+    self.android_running = running
+    return running
+end
+
+function ZenFM:schedule_android_poll(pending)
+    if self.android_pending ~= pending or pending.scheduled then return end
+    pending.scheduled = true
+    UIManager:scheduleIn(0.1, function()
+        if self.android_pending ~= pending then return end
+        pending.scheduled = false
+        local checked, done, success, detail = pcall(
+            self.daemon.check_android_result, self.daemon, pending.action, pending.request_id)
+        if not checked then
+            done, success, detail = true, false, "Could not read the Android companion result"
+        end
+        if done then
+            self.android_pending = nil
+            pending.complete(success, detail)
+            return
+        end
+        pending.attempts = pending.attempts - 1
+        if pending.attempts <= 0 then
+            self.android_pending = nil
+            pending.complete(false,
+                "Android companion did not report a fresh " .. pending.action .. " result within 30 seconds")
+            return
+        end
+        self:schedule_android_poll(pending)
+    end)
+end
+
+function ZenFM:onResume()
+    if self.android_pending then self:schedule_android_poll(self.android_pending) end
+end
+
+function ZenFM:begin_android_action(action, complete)
+    if self.android_pending then
+        notice(_("Another ZenFM Android request is still pending."), true)
+        return false
+    end
+    local launched, result = self.daemon:begin_android(action)
+    if not launched then
+        notice(tostring(result), true)
+        return false
+    end
+    self.android_pending = {
+        action = action,
+        request_id = result,
+        attempts = self.daemon.android_poll_attempts or 300,
+        complete = complete,
+    }
+    return true
 end
 
 function ZenFM:onDispatcherRegisterActions()
@@ -48,11 +105,27 @@ function ZenFM:onDispatcherRegisterActions()
 end
 
 function ZenFM:onToggleZenFM()
+    if self.daemon:is_android() then
+        local running = self:android_cached_running()
+        local action = running and "stop" or "start"
+        return self:begin_android_action(action, function(ok, detail)
+            if not ok then
+                notice(tostring(detail), true)
+                return
+            end
+            if action == "stop" then
+                self.android_running = false
+                notice(_("ZenFM stopped."))
+                return
+            end
+            self.android_running = true
+            self:show_status(self.daemon:status_details_from_raw(detail))
+        end)
+    end
     local running = self.daemon:status()
     local ok, detail
     if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
-    if self.daemon:is_android() then success = tostring(detail) end
     if ok and not running then
         self:onShowZenFMStatus()
     else
@@ -61,8 +134,7 @@ function ZenFM:onToggleZenFM()
     return ok
 end
 
-function ZenFM:onShowZenFMStatus()
-    local status = self.daemon:status_details()
+function ZenFM:show_status(status)
     if not status.running then
         notice(_("ZenFM is stopped.") .. (status.detail and "\n" .. status.detail or ""), false, true)
         return
@@ -80,6 +152,21 @@ function ZenFM:onShowZenFMStatus()
         table.insert(lines, _("Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."))
     end
     notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root, true)
+end
+
+function ZenFM:onShowZenFMStatus()
+    if self.daemon:is_android() then
+        return self:begin_android_action("status", function(ok, detail)
+            if not ok then
+                notice(tostring(detail), true)
+                return
+            end
+            local status = self.daemon:status_details_from_raw(detail)
+            self.android_running = status.running
+            self:show_status(status)
+        end)
+    end
+    self:show_status(self.daemon:status_details())
 end
 
 local function input_dialog(owner, title, value, input_type, save)
@@ -166,9 +253,15 @@ function ZenFM:confirm_reset_login()
         text = _("Reset the owner login to the setup-only credentials and revoke every session and API token?"),
         ok_text = _("Reset login"),
         ok_callback = function()
+            if self.daemon:is_android() then
+                self:begin_android_action("reset", function(ok, detail)
+                    notice(ok and _("Login reset. Use koreader / koreader123456789 and choose a new password.")
+                        or tostring(detail), not ok)
+                end)
+                return
+            end
             local ok, err = self.daemon:reset_login()
             local success = _("Login reset. Use koreader / koreader123456789 and choose a new password.")
-            if self.daemon:is_android() then success = tostring(err) end
             notice(ok and success or tostring(err), not ok)
         end,
     })
@@ -176,17 +269,19 @@ end
 
 function ZenFM:update()
     notice(_("Checking for a verified ZenFM update…"))
-    local companion_ok, companion_result = true, nil
     if self.daemon:is_android() then
-        companion_ok, companion_result = self.daemon:open_android("update")
+        local ok, result = Updater.install_latest(self.daemon)
+        local plugin_failed = not ok and result ~= "ZenFM is up to date"
+        notice("KOReader plugin bundle: " .. tostring(result)
+            .. "\nAndroid companion APK: opening updater…", plugin_failed)
+        local companion_ok, companion_result = self.daemon:open_android("update")
+        if not companion_ok then notice(tostring(companion_result), true) end
+        return companion_ok, companion_result
     end
     local ok, result = Updater.install_latest(self.daemon)
     local plugin_failed = not ok and result ~= "ZenFM is up to date"
-    if companion_result then
-        result = "Android companion APK: " .. tostring(companion_result)
-            .. "\nKOReader plugin bundle: " .. tostring(result)
-    end
-    notice(tostring(result), not companion_ok or plugin_failed)
+    notice(tostring(result), plugin_failed)
+    return ok, result
 end
 
 function ZenFM:settings_menu()
@@ -260,6 +355,10 @@ function ZenFM:addToMainMenu(menu_items)
         sub_item_table = {
             {
                 text_func = function()
+                    if self.daemon:is_android() then
+                        if self.android_pending then return _("ZenFM request pending…") end
+                        return self:android_cached_running() and _("Stop ZenFM") or _("Start ZenFM")
+                    end
                     return self.daemon:status() and _("Stop ZenFM") or _("Start ZenFM")
                 end,
                 callback = function() self:onToggleZenFM() end,

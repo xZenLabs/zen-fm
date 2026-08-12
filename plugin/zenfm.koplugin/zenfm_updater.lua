@@ -324,6 +324,12 @@ function Updater.finalize_pending(daemon)
         return false, "update rollback marker is invalid"
     end
     if backup ~= plugin_dir .. ".rollback" then return false, "update rollback marker is invalid" end
+    if daemon:is_android() then
+        os.remove(marker)
+        local parent = plugin_dir:match("^(.*)/[^/]+$")
+        if parent then Util.remove_tree(backup, parent) end
+        return true
+    end
     local ready, err = daemon:ensure_backend()
     if ready then ready, err = daemon:start() end
     if ready then
@@ -379,9 +385,12 @@ function Updater.install_latest(daemon, options)
     if not unpacked then return false, tostring(unpack_err or "could not extract update") end
     local root, validation_err = validate_stage(daemon, stage, release.version)
     if not root then return false, validation_err end
-    local was_running = daemon:status()
-    local stopped, stop_err = daemon:stop()
-    if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
+    local was_running = false
+    if not daemon:is_android() then
+        was_running = daemon:status()
+        local stopped, stop_err = daemon:stop()
+        if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
+    end
     return install_stage(daemon, root, was_running)
 end
 

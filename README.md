@@ -62,8 +62,9 @@ controlled deployments and qualification tests; KOReader uses the defaults.
 Android requires both the plugin ZIP and companion APK. Other bundles contain
 their matching backend directly.
 
-On the first Android start, approve the native pairing prompt only when you
-just selected **Start ZenFM** in KOReader. Sensitive start, reset, and update
+On the first Android start, approve the native **Start ZenFM?** prompt only
+when you just selected **Start ZenFM** in KOReader. That first approval links
+the companion to KOReader. Sensitive start, reset, and update
 requests remain confirmation-gated because KOReader settings may be on shared
 storage. ZenFM requests storage access before launching the server; denying it
 leaves the server stopped.

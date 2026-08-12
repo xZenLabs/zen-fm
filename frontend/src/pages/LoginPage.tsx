@@ -3,20 +3,8 @@ import { Alert, Button, Stack, TextField } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthProvider'
+import { offerToSavePassword } from '../auth/passwordCredential'
 import { AuthLayout } from '../components/AuthLayout'
-
-type PasswordCredentialConstructor = new (credentials: { id: string; password: string }) => Credential
-
-async function offerToSavePassword(username: string, password: string) {
-  const PasswordCredential = (window as Window & { PasswordCredential?: PasswordCredentialConstructor }).PasswordCredential
-  if (!PasswordCredential) return
-
-  try {
-    await navigator.credentials.store(new PasswordCredential({ id: username, password }))
-  } catch {
-    // Saving credentials is optional and may be declined by the user or browser.
-  }
-}
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -46,8 +34,8 @@ export function LoginPage() {
     <AuthLayout title={t('appName')} subtitle={t('auth.welcome')}>
       <Stack component="form" gap={2} onSubmit={(event) => void submit(event)}>
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField label={t('auth.username')} name="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required />
-        <TextField label={t('auth.password')} name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+        <TextField id="username" label={t('auth.username')} name="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required />
+        <TextField id="password" label={t('auth.password')} name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="password" required />
         <Button variant="contained" size="large" type="submit" disabled={pending || !username || !password}>{pending ? t('auth.signingIn') : t('auth.signIn')}</Button>
       </Stack>
     </AuthLayout>

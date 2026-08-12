@@ -39,6 +39,8 @@ type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
 type ConflictChoice = { action: 'replace' | 'skip' } | { action: 'rename'; name: string }
 type DroppedMove = { entry: FileEntry; destination: string }
+type UploadFile = { file: File; relativePath: string }
+type UploadBatch = { directories: string[]; files: UploadFile[] }
 
 const thumbnailExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff'])
 const sortPreferenceKey = 'zenfm.files.sort'
@@ -63,6 +65,53 @@ function storedSortPreference(): { sort: SortField; direction: SortDirection } {
 
 function hasDraggedFiles(dataTransfer: DataTransfer | null) {
   return Boolean(dataTransfer && Array.from(dataTransfer.types).includes('Files'))
+}
+
+function fileUploadBatch(files: File[]): UploadBatch {
+  return { directories: [], files: files.map((file) => ({ file, relativePath: file.name })) }
+}
+
+function readFileEntry(entry: FileSystemFileEntry) {
+  return new Promise<File>((resolve, reject) => entry.file(resolve, reject))
+}
+
+function readDirectoryEntries(entry: FileSystemDirectoryEntry) {
+  const reader = entry.createReader()
+  return new Promise<FileSystemEntry[]>((resolve, reject) => {
+    const entries: FileSystemEntry[] = []
+    const readNext = () => reader.readEntries((batch) => {
+      if (batch.length === 0) {
+        resolve(entries)
+        return
+      }
+      entries.push(...batch)
+      readNext()
+    }, reject)
+    readNext()
+  })
+}
+
+async function collectDroppedEntry(entry: FileSystemEntry, parent: string, upload: UploadBatch) {
+  const relativePath = parent ? `${parent}/${entry.name}` : entry.name
+  if (entry.isDirectory) {
+    upload.directories.push(relativePath)
+    const children = await readDirectoryEntries(entry as FileSystemDirectoryEntry)
+    for (const child of children) await collectDroppedEntry(child, relativePath, upload)
+  } else if (entry.isFile) {
+    upload.files.push({ file: await readFileEntry(entry as FileSystemFileEntry), relativePath })
+  }
+}
+
+async function droppedUploadBatch(dataTransfer: DataTransfer): Promise<UploadBatch> {
+  const entries = Array.from(dataTransfer.items ?? [])
+    .filter((item) => item.kind === 'file')
+    .map((item) => typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null)
+    .filter((entry): entry is FileSystemEntry => entry !== null)
+  if (entries.length === 0) return fileUploadBatch(Array.from(dataTransfer.files))
+
+  const upload: UploadBatch = { directories: [], files: [] }
+  for (const entry of entries) await collectDroppedEntry(entry, '', upload)
+  return upload
 }
 
 function folderLabel(path: string) {
@@ -115,7 +164,7 @@ export function FilesPage() {
   const [conflict, setConflict] = useState<{ file: File; destination: string } | null>(null)
   const [conflictName, setConflictName] = useState('')
   const conflictResolver = useRef<((choice: ConflictChoice) => void) | null>(null)
-  const droppedFilesHandler = useRef<(files: File[], destination: string) => void>(() => undefined)
+  const droppedFilesHandler = useRef<(dataTransfer: DataTransfer, destination: string) => void>(() => undefined)
   const draggedEntry = useRef<FileEntry | null>(null)
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(() => new Set())
 
@@ -231,9 +280,18 @@ export function FilesPage() {
     }, overwrite))
   }
 
-  const uploadFiles = async (files: File[], destinationPath: string) => {
-    for (const file of files) {
-      let destination = joinPath(destinationPath, file.name)
+  const uploadFiles = async (upload: UploadBatch, destinationPath: string) => {
+    for (const directory of upload.directories) {
+      try {
+        await api.files.createDirectory(joinPath(destinationPath, directory))
+      } catch (error) {
+        // Dropping a folder onto an existing tree merges it; file conflicts are
+        // still resolved individually below.
+        if (!isConflictError(error)) throw error
+      }
+    }
+    for (const { file, relativePath } of upload.files) {
+      let destination = joinPath(destinationPath, relativePath)
       let overwrite = false
       setUpload({ name: file.name, progress: 0 })
       for (;;) {
@@ -257,10 +315,10 @@ export function FilesPage() {
     refresh()
   }
 
-  const safeUploadFiles = async (files: File[], destinationPath: string) => {
-    if (files.length === 0) return
+  const safeUploadFiles = async (upload: UploadBatch, destinationPath: string) => {
+    if (upload.directories.length === 0 && upload.files.length === 0) return
     try {
-      await uploadFiles(files, destinationPath)
+      await uploadFiles(upload, destinationPath)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : t('common.error'))
       setUpload(null)
@@ -270,10 +328,14 @@ export function FilesPage() {
   const chooseUploadFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
-    await safeUploadFiles(files, path)
+    await safeUploadFiles(fileUploadBatch(files), path)
   }
 
-  droppedFilesHandler.current = (files, destination) => { void safeUploadFiles(files, destination) }
+  droppedFilesHandler.current = (dataTransfer, destination) => {
+    void droppedUploadBatch(dataTransfer)
+      .then((upload) => safeUploadFiles(upload, destination))
+      .catch((error: unknown) => setNotice(error instanceof Error ? error.message : t('common.error')))
+  }
 
   useEffect(() => {
     const dragOver = (event: globalThis.DragEvent) => {
@@ -286,8 +348,7 @@ export function FilesPage() {
       if (!hasDraggedFiles(event.dataTransfer)) return
       event.preventDefault()
       setDropTarget(null)
-      const files = Array.from(event.dataTransfer?.files ?? [])
-      if (files.length > 0) droppedFilesHandler.current(files, path)
+      if (event.dataTransfer) droppedFilesHandler.current(event.dataTransfer, path)
     }
     const dragLeave = (event: globalThis.DragEvent) => {
       if (event.relatedTarget === null) setDropTarget(null)
@@ -364,7 +425,7 @@ export function FilesPage() {
     event.preventDefault()
     event.stopPropagation()
     setDropTarget(null)
-    void safeUploadFiles(Array.from(event.dataTransfer.files), destination)
+    droppedFilesHandler.current(event.dataTransfer, destination)
   }
 
   const toggleSelected = (entry: FileEntry) => {

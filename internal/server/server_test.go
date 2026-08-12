@@ -117,7 +117,7 @@ func (a *testAPI) finishSetup() (*http.Cookie, string) {
 	if !setup {
 		a.t.Fatal("initial login did not require setup")
 	}
-	body := `{"currentPassword":"` + state.SetupPassword + `","newPassword":"a secure owner password"}`
+	body := `{"newPassword":"a secure owner password"}`
 	r := a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(body), cookie, csrf, "")
 	if r.Code != http.StatusOK {
 		a.t.Fatalf("password change: %d %s", r.Code, r.Body.String())
@@ -217,6 +217,15 @@ func TestSetupGatePasswordRotationAndSessionExpiry(t *testing.T) {
 	if r.Code != http.StatusOK {
 		t.Fatalf("files after setup: %d %s", r.Code, r.Body.String())
 	}
+	r = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(`{"newPassword":"another secure owner password"}`), cookie, csrf, "")
+	if r.Code != http.StatusUnauthorized {
+		t.Fatalf("established owner changed password without current credential: %d %s", r.Code, r.Body.String())
+	}
+	r = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(`{"currentPassword":"a secure owner password","newPassword":"another secure owner password"}`), cookie, csrf, "")
+	if r.Code != http.StatusOK {
+		t.Fatalf("established owner could not change password with current credential: %d %s", r.Code, r.Body.String())
+	}
+	cookie = responseCookie(t, r, sessionCookie)
 	*a.now = a.now.Add(2*time.Hour + time.Second)
 	r = a.request(http.MethodGet, "/api/v1/session", nil, cookie, "", "")
 	if r.Code != http.StatusUnauthorized {
@@ -529,12 +538,12 @@ func TestSharePasswordThrottleAppliesAcrossClientAddresses(t *testing.T) {
 func TestSetupPasswordMustActuallyChangeAndCountsUnicodeCharacters(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf, _ := a.login(state.SetupPassword)
-	same := `{"currentPassword":"` + state.SetupPassword + `","newPassword":"` + state.SetupPassword + `"}`
+	same := `{"newPassword":"` + state.SetupPassword + `"}`
 	response := a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(same), cookie, csrf, "")
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("setup credential retained: %d %s", response.Code, response.Body.String())
 	}
-	shortUnicode := `{"currentPassword":"` + state.SetupPassword + `","newPassword":"` + strings.Repeat("🔒", 11) + `"}`
+	shortUnicode := `{"newPassword":"` + strings.Repeat("🔒", 11) + `"}`
 	response = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(shortUnicode), cookie, csrf, "")
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("11-character Unicode password accepted: %d", response.Code)

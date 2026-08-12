@@ -27,12 +27,16 @@
             android:name=".ZenFMActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:theme="@android:style/Theme.DeviceDefault.Dialog">
+            android:theme="@android:style/Theme.DeviceDefault.Dialog" />
+        <activity-alias
+            android:name=".ZenFMLauncher"
+            android:exported="true"
+            android:targetActivity=".ZenFMActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
         <service
             android:name=".ZenFMService"
             android:exported="false"

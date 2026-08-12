@@ -96,7 +96,7 @@ async function configureOwner(url, password) {
   const change = await fetch(`${url}/api/v1/owner/password`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: url, 'X-ZenFM-CSRF': session.csrfToken },
-    body: JSON.stringify({ currentPassword: 'koreader123456789', newPassword: password }),
+    body: JSON.stringify({ newPassword: password }),
   })
   if (!change.ok) throw new Error(`Could not configure E2E owner: ${change.status} ${await change.text()}`)
 }

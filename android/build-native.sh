@@ -1,9 +1,12 @@
 #!/bin/sh
 set -eu
 
-: "${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to an Android NDK installation}"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+JNI_LIBS_DIR="$SCRIPT_DIR/app/src/main/jniLibs"
+rm -rf "$JNI_LIBS_DIR"
+
+: "${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to an Android NDK installation}"
 VERSION=$(sed -n '1p' "$ROOT_DIR/VERSION")
 PREBUILT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt"
 case "$(uname -s)-$(uname -m)" in
@@ -20,7 +23,7 @@ build() {
     goarch=$2
     goarm=$3
     compiler=$4
-    output="$SCRIPT_DIR/app/src/main/jniLibs/$abi/libzenfm_exec.so"
+    output="$JNI_LIBS_DIR/$abi/libzenfm_exec.so"
     [ -x "$compiler" ] || { echo "Android NDK compiler not found: $compiler" >&2; exit 1; }
     mkdir -p "$(dirname "$output")"
     if [ -n "$goarm" ]; then

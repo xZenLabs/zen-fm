@@ -171,6 +171,59 @@ describe('file browser', () => {
     expect(folder).not.toHaveClass('drop-target')
   })
 
+  it('preserves a dropped directory tree instead of uploading the directory as a file', async () => {
+    const createdDirectories: string[] = []
+    const uploadedPaths: string[] = []
+    server.use(
+      http.post('http://localhost/api/v1/files/directory', async ({ request }) => {
+        const body = await request.json() as { path: string }
+        createdDirectories.push(body.path)
+        return new HttpResponse(null, { status: 201 })
+      }),
+      http.put('http://localhost/api/v1/files/content', ({ request }) => {
+        uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
+        return new HttpResponse(null, { status: 201 })
+      }),
+    )
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const fileEntry = (file: File): FileSystemFileEntry => ({
+      isFile: true, isDirectory: false, name: file.name, fullPath: `/${file.name}`,
+      file: (success) => success(file),
+    } as FileSystemFileEntry)
+    const directoryEntry = (name: string, children: FileSystemEntry[]): FileSystemDirectoryEntry => ({
+      isFile: false, isDirectory: true, name, fullPath: `/${name}`,
+      createReader: () => {
+        let read = false
+        return { readEntries: (success) => { const batch = read ? [] : children; read = true; success(batch) } }
+      },
+    } as FileSystemDirectoryEntry)
+    const assets = directoryEntry('assets', [fileEntry(new File(['icon'], 'icon.png', { type: 'image/png' }))])
+    const plugin = directoryEntry('zenfm.koplugin', [
+      fileEntry(new File(['return {}'], 'main.lua', { type: 'text/plain' })),
+      assets,
+      directoryEntry('empty', []),
+    ])
+    const transfer = {
+      types: ['Files'], files: [], dropEffect: 'none',
+      items: [{ kind: 'file', webkitGetAsEntry: () => plugin }],
+    }
+
+    fireEvent.drop(window, { dataTransfer: transfer })
+
+    await waitFor(() => expect(uploadedPaths).toHaveLength(2))
+    expect(createdDirectories).toEqual([
+      '/zenfm.koplugin',
+      '/zenfm.koplugin/assets',
+      '/zenfm.koplugin/empty',
+    ])
+    expect(uploadedPaths).toEqual([
+      '/zenfm.koplugin/main.lua',
+      '/zenfm.koplugin/assets/icon.png',
+    ])
+  })
+
   it('confirms a table drag before moving a file into a folder', async () => {
     const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
     server.use(

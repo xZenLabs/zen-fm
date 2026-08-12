@@ -15,6 +15,8 @@ WEBUI_DIR="$SCRIPT_DIR/internal/webui/dist"
 WEBUI_BACKUP="$BUILD_DIR/webui-fallback"
 WEBUI_PREPARED=0
 
+rm -rf "$BUILD_DIR" "$DIST_DIR"
+
 usage() {
     echo "usage: $0 [--package-only BINARY_DIR --apk APK] [--dev]" >&2
     exit 2
@@ -61,7 +63,6 @@ cleanup() {
     rm -rf "$BUILD_DIR"
 }
 trap cleanup EXIT INT TERM
-rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/bin" "$BUILD_DIR/stage" "$DIST_DIR"
 
 if [ -z "$PACKAGE_ONLY" ]; then

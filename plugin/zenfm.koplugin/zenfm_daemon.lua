@@ -1,5 +1,6 @@
 -- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
 local Control = require("zenfm_control")
+local AndroidIntent = require("zenfm_android_intent")
 local Settings = require("zenfm_settings")
 local Util = require("zenfm_util")
 
@@ -51,6 +52,9 @@ function Daemon:new(options)
     object.sleep = options.sleep or (ok_socket and socket.sleep) or function() end
     object.android_poll_attempts = options.android_poll_attempts or 300
     object.android = options.android or (ok_android and android or nil)
+    object.android_launcher = options.android_launcher or function(uri)
+        return AndroidIntent.open(object.android, uri)
+    end
     object.state_dir = options.state_dir or object:default_state_dir()
     object.settings = options.settings or Settings:new(object.state_dir)
     return object
@@ -310,42 +314,56 @@ function Daemon:android_uri(action, request_id)
     return "zenfm://" .. action .. "?" .. table.concat(query, "&"), request_id
 end
 
-function Daemon:open_android(action)
+function Daemon:begin_android(action)
     local uri, request_id = self:android_uri(action)
     if not uri then return false, request_id end
-    -- Always address the companion explicitly. An implicit custom-scheme intent
-    -- would allow another installed application to intercept the control secret.
-    -- Keep ActivityManager output off KOReader's external-storage log descriptor:
-    -- some BOOX SELinux policies reject that descriptor and fail the Binder call.
-    local command = "/system/bin/am start -W -n org.zenlabs.zenfm/.ZenFMActivity"
-        .. " -a android.intent.action.VIEW -d " .. Util.sh_quote(uri)
-        .. " </dev/null >/dev/null 2>&1"
-    if self.execute(command) ~= 0 then return false, "ZenFM Android companion is not installed" end
+    -- Launch in-process with an explicit component. Shell ActivityManager calls
+    -- fail under newer Android UID checks, while an implicit custom-scheme intent
+    -- would allow another application to intercept the control secret.
+    local called, launched = pcall(self.android_launcher, uri)
+    if not called or launched ~= true then
+        return false, "ZenFM could not open its Android companion; confirm ZenFM Backend is installed and enabled"
+    end
+    return true, request_id
+end
+
+function Daemon:check_android_result(action, request_id)
+    if type(request_id) ~= "string" or not request_id:match("^[0-9a-f]+$") or #request_id ~= 32 then
+        return true, false, "Android companion request ID is invalid"
+    end
+    local status = Util.trim(Util.read_all(self.state_dir .. "/android-companion.status", 1024) or "")
+    if not status:match(" request=" .. request_id .. "$") then return false end
+    if status:match("^error ") then return true, false, status end
+    if action == "start" and status:match("^ok running ") then return true, true, status end
+    if action == "stop" and status:match("^stopped ") then return true, true, status end
+    if action == "reset" and status:match("^reset_done ") then return true, true, status end
+    if action == "status" and (status:match("^ok running ") or status:match("^stopped ")) then
+        return true, true, status
+    end
+    return false
+end
+
+function Daemon:cached_android_status()
+    local status = Util.trim(Util.read_all(self.state_dir .. "/android-companion.status", 1024) or "")
+    if status:match("^ok running ") then return true, status end
+    return false, status ~= "" and status or "stopped"
+end
+
+function Daemon:open_android(action)
+    local launched, result = self:begin_android(action)
+    if not launched then return false, result end
     if action == "update" then
         return true, "Update request sent to the Android companion; approve it on the device when prompted."
     end
-    for _ = 1, self.android_poll_attempts do
-        local status = Util.trim(Util.read_all(self.state_dir .. "/android-companion.status", 1024) or "")
-        if status:match(" request=" .. request_id .. "$") then
-            if status:match("^error ") then return false, status end
-            if action == "start" and status:match("^ok running ") then return true, status end
-            if action == "stop" and status:match("^stopped ") then return true, status end
-            if action == "reset" and status:match("^reset_done ") then return true, status end
-            if action == "status" then
-                if status:match("^ok running ") then return true, status end
-                if status:match("^stopped ") then return false, status end
-            end
-        end
-        self.sleep(0.1)
-    end
-    return false, "Android companion did not report a fresh " .. action .. " result within 30 seconds"
+    return true, "Android companion " .. action .. " request sent."
 end
 
 function Daemon:status()
     if self:is_android() then
-        -- KOReader cannot reach the app-private control socket directly. Require
-        -- the companion to query it and bind the answer to this fresh request.
-        return self:open_android("status")
+        -- Menu rendering and updater checks must not launch another Activity or
+        -- block KOReader's Android lifecycle thread. Explicit UI status requests
+        -- use begin_android/check_android_result and validate a fresh request ID.
+        return self:cached_android_status()
     end
     local response, err = self.control_request(self:control_socket(), "status", 2)
     if response and response:match("^ok running") then return true, response end
@@ -429,8 +447,8 @@ function Daemon:local_ip()
     end
 end
 
-function Daemon:status_details()
-    local running, raw = self:status()
+function Daemon:status_details_from_raw(raw)
+    local running = type(raw) == "string" and raw:match("^ok running ") ~= nil
     if not running then return { running = false, detail = raw or "stopped" } end
     local scheme, listen, fingerprint = raw:match("^ok running (https?)://([^ ]+) ([^ ]+)")
     local host, port
@@ -446,6 +464,11 @@ function Daemon:status_details()
         url = scheme and host and port and (scheme .. "://" .. host .. ":" .. port) or nil,
         detail = raw,
     }
+end
+
+function Daemon:status_details()
+    local _, raw = self:status()
+    return self:status_details_from_raw(raw)
 end
 
 return Daemon

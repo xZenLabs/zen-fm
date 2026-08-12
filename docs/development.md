@@ -125,10 +125,11 @@ The first e-reader build bootstraps the pinned, patched Go 1.26.5 compiler for
 old ARM kernels. Set `ZENFM_GO_SOURCE_ARCHIVE` to an already downloaded
 `go1.26.5.src.tar.gz` when developing offline.
 
-Do not install the contents of `dist/` after running
-`sh tests/plugin/run.sh`: its package-layout test intentionally replaces that
-directory with tiny fake fixtures. Always run the real `build.sh` command
-after plugin tests and before installing on a device.
+The root, frontend, and Android build entry points clear their generated
+artifact directories before validation or compilation. Android native builds
+also recreate `jniLibs` from scratch. The package-layout tests use an isolated
+temporary source tree, so their tiny fake fixtures never replace installable
+packages under `dist/`.
 
 ### Targeted plugin build
 
@@ -263,7 +264,8 @@ adb push "$ANDROID_STAGE/zenfm.koplugin" /sdcard/koreader/plugins/
 ```
 
 Restart KOReader, select **ZenFM > Start ZenFM**, then approve the companion's
-pairing and all-files-access prompts. The APK has a launcher entry so Android
+first-start and all-files-access prompts. The first approval links the companion
+to KOReader. The APK has a launcher entry so Android
 and BOOX expose its app-management controls, but no standalone UI; opening the
 entry goes to Android's app-info screen. A debug-signed development APK cannot
 replace a release-signed installation; Android will require the differently

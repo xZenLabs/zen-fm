@@ -2,12 +2,13 @@ local root = assert(arg[1], "repository root required")
 package.path = root .. "/plugin/zenfm.koplugin/?.lua;" .. package.path
 
 local generic_modules = {}
-for _, name in ipairs({ "control", "daemon", "release_public_key", "settings", "signature", "updater", "util" }) do
+for _, name in ipairs({ "android_intent", "control", "daemon", "release_public_key", "settings", "signature", "updater", "util" }) do
     generic_modules[name] = { occupied_by_another_plugin = true }
     package.loaded[name] = generic_modules[name]
 end
 
 local Daemon = require("zenfm_daemon")
+local AndroidIntent = require("zenfm_android_intent")
 local Settings = require("zenfm_settings")
 local Updater = require("zenfm_updater")
 local Util = require("zenfm_util")
@@ -40,6 +41,96 @@ local function fake_settings(values)
             return storage or "/home/test"
         end,
     }
+end
+
+local function exercise_android_intent(uri, reject_start)
+    local previous_ffi = package.loaded.ffi
+    package.loaded.ffi = {
+        new = function(kind)
+            if kind == "jvalue[1]" then return { [0] = {} } end
+            if kind == "jvalue[2]" then return { [0] = {}, [1] = {} } end
+            error("unexpected FFI allocation " .. tostring(kind))
+        end,
+    }
+
+    local state = { clears = 0, pops = 0, started = false }
+    local pending_exception
+    local uri_class, intent_class, activity_class = {}, {}, {}
+    local parsed_uri, intent, activity = {}, {}, {}
+    local api = {}
+    function api.PushLocalFrame(_, capacity) equal(capacity, 16) return 0 end
+    function api.PopLocalFrame(_, result) assert(result == nil) state.pops = state.pops + 1 end
+    function api.ExceptionOccurred() return pending_exception end
+    function api.ExceptionClear() pending_exception = nil state.clears = state.clears + 1 end
+    function api.DeleteLocalRef() end
+    function api.FindClass(_, name)
+        if name == "android/net/Uri" then return uri_class end
+        if name == "android/content/Intent" then return intent_class end
+        error("unexpected Java class " .. tostring(name))
+    end
+    function api.GetStaticMethodID(_, class, name, signature)
+        assert(class == uri_class)
+        equal(name, "parse")
+        equal(signature, "(Ljava/lang/String;)Landroid/net/Uri;")
+        return "parse"
+    end
+    function api.NewStringUTF(_, value) return { value = value } end
+    function api.CallStaticObjectMethodA(_, class, method, arguments)
+        assert(class == uri_class)
+        equal(method, "parse")
+        equal(arguments[0].l.value, uri)
+        return parsed_uri
+    end
+    function api.GetMethodID(_, class, name, signature)
+        if class == intent_class and name == "<init>" then
+            equal(signature, "(Ljava/lang/String;Landroid/net/Uri;)V")
+            return "intent-constructor"
+        end
+        if class == intent_class and name == "setClassName" then
+            equal(signature, "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;")
+            return "set-class"
+        end
+        if class == activity_class and name == "startActivity" then
+            equal(signature, "(Landroid/content/Intent;)V")
+            return "start-activity"
+        end
+        error("unexpected Java method " .. tostring(name))
+    end
+    function api.NewObjectA(_, class, method, arguments)
+        assert(class == intent_class)
+        equal(method, "intent-constructor")
+        equal(arguments[0].l.value, AndroidIntent.ACTION)
+        assert(arguments[1].l == parsed_uri)
+        return intent
+    end
+    function api.CallObjectMethodA(_, object, method, arguments)
+        assert(object == intent)
+        equal(method, "set-class")
+        equal(arguments[0].l.value, AndroidIntent.PACKAGE)
+        equal(arguments[1].l.value, AndroidIntent.CLASS)
+        return intent
+    end
+    function api.GetObjectClass(_, object) assert(object == activity) return activity_class end
+    function api.CallVoidMethodA(_, object, method, arguments)
+        assert(object == activity)
+        equal(method, "start-activity")
+        assert(arguments[0].l == intent)
+        state.started = true
+        if reject_start then pending_exception = {} end
+    end
+
+    local android = {
+        app = { activity = { vm = {}, clazz = activity } },
+        jni = {
+            context = function(_, _, callback)
+                return callback({ env = { [0] = api } })
+            end,
+        },
+    }
+    local called, opened = pcall(AndroidIntent.open, android, uri)
+    package.loaded.ffi = previous_ffi
+    assert(called, tostring(opened))
+    return opened, state
 end
 
 local defaults = Settings.defaults()
@@ -250,9 +341,28 @@ test("Android handoff carries paired token and validated settings", function()
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android handoff always targets the companion explicitly", function()
+test("Android intent bridge launches the explicit companion component", function()
+    local uri = "zenfm://status?token=" .. string.rep("ab", 32)
+    local opened, state = exercise_android_intent(uri, false)
+    assert(opened)
+    assert(state.started)
+    equal(state.clears, 0)
+    equal(state.pops, 1)
+end)
+
+test("Android intent bridge clears launch exceptions without describing them", function()
+    local uri = "zenfm://status?token=" .. string.rep("cd", 32)
+    local opened, state = exercise_android_intent(uri, true)
+    assert(not opened)
+    assert(state.started)
+    equal(state.clears, 1)
+    equal(state.pops, 1)
+end)
+
+test("Android handoff launches explicitly and returns before polling", function()
     local state = os.tmpname() .. ".d"
-    local executed
+    local launched_uri
+    local shell_calls = 0
     local implicit_calls = 0
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
@@ -261,28 +371,73 @@ test("Android handoff always targets the companion explicitly", function()
             getExternalStoragePath = function() return "/storage/emulated/0" end,
             openLink = function() implicit_calls = implicit_calls + 1 return true end,
         },
-        execute = function(command)
-            executed = command
-            local request_id = assert(command:match("request_id=([0-9a-f]+)"))
-            assert(Util.write_atomic(state .. "/android-companion.status",
-                "ok running https://0.0.0.0:8443 - request=" .. request_id .. "\n", "600"))
-            return 0
-        end,
-        sleep = function() end,
+        android_launcher = function(uri) launched_uri = uri return true end,
+        execute = function() shell_calls = shell_calls + 1 return 1 end,
+        sleep = function() error("Android handoff blocked while polling") end,
         android_poll_attempts = 2,
     }
-    local ok, err = daemon:open_android("start")
-    assert(ok, tostring(err))
+    local ok, request_id = daemon:begin_android("start")
+    assert(ok, tostring(request_id))
+    assert(request_id:match("^[0-9a-f]+$") and #request_id == 32)
+    equal(AndroidIntent.ACTION, "android.intent.action.VIEW")
+    equal(AndroidIntent.PACKAGE, "org.zenlabs.zenfm")
+    equal(AndroidIntent.CLASS, "org.zenlabs.zenfm.ZenFMActivity")
     equal(implicit_calls, 0)
-    contains(executed, "-n org.zenlabs.zenfm/.ZenFMActivity")
-    contains(executed, "zenfm://start?token=")
-    contains(executed, "</dev/null >/dev/null 2>&1")
+    equal(shell_calls, 0)
+    contains(launched_uri, "zenfm://start?token=")
     os.remove(state .. "/android-control.token")
-    os.remove(state .. "/android-companion.status")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android lifecycle waits for a fresh request-bound result", function()
+test("Android launch failures are redacted and do not poll", function()
+    local state = os.tmpname() .. ".launch-failure"
+    local token = string.rep("ab", 32)
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/android-control.token", token .. "\n", "600"))
+    local polls = 0
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+        android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
+        android_launcher = function(uri) error("launch rejected: " .. uri) end,
+        execute = function() error("Android handoff used a shell") end,
+        sleep = function() polls = polls + 1 end,
+        android_poll_attempts = 2,
+    }
+    local ok, detail = daemon:begin_android("start")
+    assert(not ok)
+    equal(polls, 0)
+    assert(not detail:find(token, 1, true))
+    assert(not detail:find("zenfm://", 1, true))
+    assert(not Util.path_exists(state .. "/android-companion.status"))
+    assert(not Util.path_exists(state .. "/android-companion.log"))
+    os.remove(state .. "/android-control.token")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("Android handoff fails closed without the native intent bridge", function()
+    local state = os.tmpname() .. ".missing-bridge"
+    local implicit_calls = 0
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+        android = {
+            getExternalStoragePath = function() return "/storage/emulated/0" end,
+            openLink = function() implicit_calls = implicit_calls + 1 return true end,
+        },
+        execute = function() error("Android handoff used a shell") end,
+        sleep = function() error("failed launch was polled") end,
+        android_poll_attempts = 2,
+    }
+    local ok, detail = daemon:begin_android("status")
+    assert(not ok)
+    equal(implicit_calls, 0)
+    contains(detail, "could not open its Android companion")
+    os.remove(state .. "/android-control.token")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("Android lifecycle checks one fresh request-bound result at a time", function()
     local state = os.tmpname() .. ".fresh"
     assert(Util.ensure_dir(state))
     assert(Util.write_atomic(state .. "/android-companion.status",
@@ -292,52 +447,61 @@ test("Android lifecycle waits for a fresh request-bound result", function()
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
         android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
-        execute = function(command)
-            calls = calls + 1
-            local request_id = assert(command:match("request_id=([0-9a-f]+)"))
-            assert(Util.write_atomic(state .. "/android-companion.status",
-                "ok running https://0.0.0.0:8443 sha256:fresh request=" .. request_id .. "\n", "600"))
-            return 0
-        end,
-        sleep = function() end,
+        android_launcher = function() calls = calls + 1 return true end,
+        execute = function() error("Android handoff used a shell") end,
+        sleep = function() error("Android result check slept") end,
         android_poll_attempts = 2,
     }
-    local ok, detail = daemon:start()
-    assert(ok, tostring(detail))
+    local ok, request_id = daemon:begin_android("start")
+    assert(ok, tostring(request_id))
     equal(calls, 1)
+    local done = daemon:check_android_result("start", request_id)
+    assert(not done)
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "starting request=" .. request_id .. "\n", "600"))
+    done = daemon:check_android_result("start", request_id)
+    assert(not done)
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "ok running https://0.0.0.0:8443 sha256:fresh request=" .. request_id .. "\n", "600"))
+    local success, detail
+    done, success, detail = daemon:check_android_result("start", request_id)
+    assert(done and success, tostring(detail))
     contains(detail, "sha256:fresh")
     os.remove(state .. "/android-control.token")
     os.remove(state .. "/android-companion.status")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android cold stop carries home and waits for its terminal marker", function()
+test("Android cold stop carries home and recognizes its terminal marker", function()
     local state = os.tmpname() .. ".stop"
-    local executed
+    local launched_uri
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
         android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
-        execute = function(command)
-            executed = command
-            local request_id = assert(command:match("request_id=([0-9a-f]+)"))
+        android_launcher = function(uri)
+            launched_uri = uri
+            local request_id = assert(uri:match("request_id=([0-9a-f]+)"))
             assert(Util.write_atomic(state .. "/android-companion.status",
                 "stopped request=" .. request_id .. "\n", "600"))
-            return 0
+            return true
         end,
+        execute = function() error("Android handoff used a shell") end,
         sleep = function() end,
         android_poll_attempts = 2,
     }
-    local ok, detail = daemon:open_android("stop")
-    assert(ok, tostring(detail))
-    contains(executed, "home=" .. Util.url_encode(state))
+    local ok, request_id = daemon:begin_android("stop")
+    assert(ok, tostring(request_id))
+    contains(launched_uri, "home=" .. Util.url_encode(state))
+    local done, success, detail = daemon:check_android_result("stop", request_id)
+    assert(done and success, tostring(detail))
     contains(detail, "stopped request=")
     os.remove(state .. "/android-control.token")
     os.remove(state .. "/android-companion.status")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android status rejects stale persisted running state", function()
+test("Android result check rejects stale persisted running state", function()
     local state = os.tmpname() .. ".status-stale"
     assert(Util.ensure_dir(state))
     assert(Util.write_atomic(state .. "/android-companion.status",
@@ -347,20 +511,21 @@ test("Android status rejects stale persisted running state", function()
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
         android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
-        execute = function(command)
-            calls = calls + 1
-            contains(command, "zenfm://status?")
-            local request_id = assert(command:match("request_id=([0-9a-f]+)"))
-            assert(Util.write_atomic(state .. "/android-companion.status",
-                "stopped request=" .. request_id .. "\n", "600"))
-            return 0
-        end,
+        android_launcher = function(uri) calls = calls + 1 contains(uri, "zenfm://status?") return true end,
+        execute = function() error("Android handoff used a shell") end,
         sleep = function() end,
         android_poll_attempts = 2,
     }
-    local running, detail = daemon:status()
-    assert(not running)
+    local ok, request_id = daemon:begin_android("status")
+    assert(ok, tostring(request_id))
     equal(calls, 1)
+    local done = daemon:check_android_result("status", request_id)
+    assert(not done)
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "stopped request=" .. request_id .. "\n", "600"))
+    local success, detail
+    done, success, detail = daemon:check_android_result("status", request_id)
+    assert(done and success, tostring(detail))
     contains(detail, "stopped request=")
     assert(not detail:find("stale", 1, true))
     os.remove(state .. "/android-control.token")
@@ -368,23 +533,24 @@ test("Android status rejects stale persisted running state", function()
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android status accepts only its fresh live response", function()
+test("Android cached status never launches the companion", function()
     local state = os.tmpname() .. ".status-live"
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "ok running https://0.0.0.0:8443 sha256:fresh request=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "600"))
+    local launches = 0
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
         android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
-        execute = function(command)
-            local request_id = assert(command:match("request_id=([0-9a-f]+)"))
-            assert(Util.write_atomic(state .. "/android-companion.status",
-                "ok running https://0.0.0.0:8443 sha256:fresh request=" .. request_id .. "\n", "600"))
-            return 0
-        end,
+        android_launcher = function() launches = launches + 1 return true end,
+        execute = function() error("Android handoff used a shell") end,
         sleep = function() end,
         android_poll_attempts = 2,
     }
     local running, detail = daemon:status()
     assert(running, tostring(detail))
+    equal(launches, 0)
     contains(detail, "sha256:fresh")
     os.remove(state .. "/android-control.token")
     os.remove(state .. "/android-companion.status")
@@ -498,6 +664,7 @@ test("update health verification restores a stopped service", function()
     local running = false
     local daemon = {
         plugin_dir = plugin_dir,
+        is_android = function() return false end,
         ensure_backend = function() return true end,
         start = function() running = true return true end,
         status = function() return running end,
@@ -522,6 +689,7 @@ test("failed updated backend rolls the plugin directory back", function()
     assert(Util.write_atomic(plugin_dir .. "/.update-pending", backup .. "\nresume\n", "600"))
     local daemon = {
         plugin_dir = plugin_dir,
+        is_android = function() return false end,
         ensure_backend = function() return false, "broken backend" end,
         start = function() error("must not start") end,
         status = function() return false end,
@@ -536,8 +704,180 @@ test("failed updated backend rolls the plugin directory back", function()
     if parent then Util.remove_tree(plugin_dir, parent) end
 end)
 
+test("Android pending plugin update commits without controlling the companion", function()
+    local plugin_dir = os.tmpname() .. ".plugin"
+    local backup = plugin_dir .. ".rollback"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.ensure_dir(backup))
+    assert(Util.write_atomic(plugin_dir .. "/.update-pending", backup .. "\nstop\n", "600"))
+    local function forbidden() error("Android plugin activation controlled the companion") end
+    local daemon = {
+        plugin_dir = plugin_dir,
+        is_android = function() return true end,
+        ensure_backend = forbidden,
+        start = forbidden,
+        status = forbidden,
+        stop = forbidden,
+    }
+    local healthy, err = Updater.finalize_pending(daemon)
+    assert(healthy, tostring(err))
+    assert(not Util.path_exists(plugin_dir .. "/.update-pending"))
+    assert(not Util.path_exists(backup))
+    local parent = plugin_dir:match("^(.*)/[^/]+$")
+    if parent then Util.remove_tree(plugin_dir, parent) end
+end)
+
 test("shell quoting does not create a second command", function()
     equal(Util.sh_quote("x'; touch /tmp/owned; '"), "'x'\\''; touch /tmp/owned; '\\'''" )
+end)
+
+test("opening the Android menu uses cached state without launching status", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved = {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function() end, scheduleIn = function() end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local cached_calls = 0
+    local owner = setmetatable({
+        daemon = {
+            settings = { values = Settings.defaults() },
+            is_android = function() return true end,
+            cached_android_status = function() cached_calls = cached_calls + 1 return false, "stopped" end,
+            status = function() error("Android menu performed a live status request") end,
+        },
+    }, { __index = ZenFM })
+    local menu = {}
+    owner:addToMainMenu(menu)
+    equal(menu.zenfm.sub_item_table[1].text_func(), "Start ZenFM")
+    equal(cached_calls, 1)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("Android toggle polls incrementally only after KOReader resumes", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, scheduled, shown = {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) shown = message end,
+        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local begin_actions, checks = {}, 0
+    local request_id = string.rep("1", 32)
+    local owner = setmetatable({
+        daemon = {
+            android_poll_attempts = 3,
+            settings = { values = Settings.defaults() },
+            is_android = function() return true end,
+            cached_android_status = function() return false, "stopped" end,
+            status = function() error("Android toggle performed a live status preflight") end,
+            begin_android = function(_, action)
+                table.insert(begin_actions, action)
+                return true, request_id
+            end,
+            check_android_result = function(_, action, actual_request_id)
+                equal(action, "start")
+                equal(actual_request_id, request_id)
+                checks = checks + 1
+                if checks == 1 then return false end
+                return true, true, "ok running https://0.0.0.0:8443 - request=" .. request_id
+            end,
+            status_details_from_raw = function()
+                return { running = true, scheme = "https", url = "https://192.168.4.12:8443" }
+            end,
+        },
+    }, { __index = ZenFM })
+    assert(owner:onToggleZenFM())
+    equal(begin_actions[1], "start")
+    equal(#begin_actions, 1)
+    equal(checks, 0)
+    equal(#scheduled, 0)
+
+    owner:onResume()
+    equal(#scheduled, 1)
+    table.remove(scheduled, 1)()
+    equal(checks, 1)
+    equal(#scheduled, 1)
+    assert(shown == nil)
+    table.remove(scheduled, 1)()
+    equal(checks, 2)
+    equal(#scheduled, 0)
+    equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("Android update opens the companion only after plugin update work", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, events = {}, {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) table.insert(events, "notice:" .. message.text) end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = {
+        finalize_pending = function() return true end,
+        install_latest = function()
+            table.insert(events, "plugin-update")
+            return false, "ZenFM is up to date"
+        end,
+    }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner = setmetatable({
+        daemon = {
+            is_android = function() return true end,
+            open_android = function(_, action)
+                equal(action, "update")
+                table.insert(events, "companion-update")
+                return true, "request sent"
+            end,
+        },
+    }, { __index = ZenFM })
+    local ok, detail = owner:update()
+    assert(ok, tostring(detail))
+    equal(events[1], "notice:Checking for a verified ZenFM update…")
+    equal(events[2], "plugin-update")
+    contains(events[3], "KOReader plugin bundle: ZenFM is up to date")
+    contains(events[3], "Android companion APK: opening updater")
+    equal(events[4], "companion-update")
+    equal(#events, 4)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
 test("status notice shows the device address and port without the TLS fingerprint or wildcard listener", function()
@@ -561,6 +901,7 @@ test("status notice shows the device address and port without the TLS fingerprin
     local owner = setmetatable({
         daemon = {
             settings = { values = { advanced_root = false } },
+            is_android = function() return false end,
             status_details = function()
                 return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
             end,

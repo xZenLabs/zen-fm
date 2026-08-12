@@ -234,11 +234,11 @@ public final class ZenFMActivity extends Activity {
             return;
         }
         String transport = "1".equals(uri.getQueryParameter("insecure")) ? "HTTP" : "HTTPS";
-        String fingerprint = token.substring(0, 8);
-        showConfirmation("Pair KOReader with ZenFM?",
-            "Only approve if you just started ZenFM from KOReader.\n\nRoot: "
+        showConfirmation("Start ZenFM?",
+            "Only approve if you just selected Start ZenFM in KOReader.\n\n"
+                + "This first approval links the companion to KOReader.\n\nRoot: "
                 + service.getStringExtra("root")
-                + "\nTransport: " + transport + "\nPairing code: " + fingerprint,
+                + "\nTransport: " + transport,
             "User rejected first companion pairing.", () -> {
                 if (!ControlAuth.confirmPairing(this, token)) {
                     CompanionLog.write(this, null, "Could not establish companion pairing.");

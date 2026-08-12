@@ -77,7 +77,7 @@ paths:
   /api/v1/owner/password:
     put:
       operationId: changeOwnerPassword
-      description: Changes the sole owner's password and revokes every session and API token.
+      description: Changes the sole owner's password and revokes every session and API token. The current password may be omitted only by an authenticated session completing mandatory initial setup.
       security:
         - sessionCookie: []
       parameters:
@@ -1214,11 +1214,12 @@ components:
     PasswordChange:
       type: object
       additionalProperties: false
-      required: [currentPassword, newPassword]
+      required: [newPassword]
       properties:
         currentPassword:
           type: string
           maxLength: 1024
+          description: Required after initial setup; omit when the authenticated owner session is completing mandatory setup.
         newPassword:
           type: string
           minLength: 12

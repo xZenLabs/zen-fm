@@ -180,7 +180,7 @@ export const api = {
     },
   },
   owner: {
-    changePassword: (currentPassword: string, newPassword: string) => request<Session>(`${API_ROOT}/owner/password`, {
+    changePassword: (currentPassword: string | undefined, newPassword: string) => request<Session>(`${API_ROOT}/owner/password`, {
       method: 'PUT',
       body: { currentPassword, newPassword },
     }),

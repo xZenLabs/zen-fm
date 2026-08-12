@@ -19,8 +19,8 @@ storage is FAT and stays below Unix socket path limits. The LAN listener serves
 the browser API and static application.
 
 Android uses the same Go service as a native executable inside a foreground
-service. The KOReader plugin sends explicit-component authenticated intents to
-the companion. Native, overlay-resistant confirmation protects sensitive
+service. The KOReader plugin sends in-process, explicit-component authenticated
+intents to the companion. Native, overlay-resistant confirmation protects sensitive
 commands because KOReader state may be shared storage; the APK contains no
 WebView UI. The persistent, owner-requested local server declares Android's
 `specialUse` foreground-service type rather than the time-limited `dataSync`
