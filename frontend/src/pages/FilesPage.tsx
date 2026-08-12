@@ -141,7 +141,12 @@ export function FilesPage() {
   useEffect(() => {
     const openPageContextMenu = (event: globalThis.MouseEvent) => {
       const target = event.target
-      if (!(target instanceof Element) || !target.closest('.app-shell') || target.closest('.file-drop-zone')) return
+      if (!(target instanceof Element)) return
+      const pageBackground = target === document.documentElement
+        || target === document.body
+        || target.id === 'root'
+        || Boolean(target.closest('.app-shell'))
+      if (!pageBackground || target.closest('.file-drop-zone')) return
       if (target.closest('header, nav, a, button, input, textarea, [contenteditable="true"]')) return
       event.preventDefault()
       setSelected(null)

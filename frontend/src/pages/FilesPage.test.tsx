@@ -116,7 +116,7 @@ describe('file browser', () => {
     renderApp('/files')
 
     await screen.findByRole('row', { name: /notes\.txt/ })
-    expect(fireEvent.contextMenu(document.querySelector('.app-shell')!, { clientX: 246, clientY: 135 })).toBe(false)
+    expect(fireEvent.contextMenu(document.body, { clientX: 246, clientY: 135 })).toBe(false)
 
     expect(screen.getByRole('menuitem', { name: 'New file' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'New folder' })).toBeInTheDocument()
