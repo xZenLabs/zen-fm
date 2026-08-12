@@ -179,7 +179,7 @@ it('offers an explicit replacement after a copy destination conflict', async () 
   const onClose = vi.fn()
   const onDone = vi.fn()
   const user = userEvent.setup()
-  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entry={entry} onClose={onClose} onDone={onDone} /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entries={[entry]} onClose={onClose} onDone={onDone} /></QueryClientProvider>)
 
   const destination = screen.getByLabelText('Destination path')
   await user.clear(destination)

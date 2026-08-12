@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import DOMPurify from 'dompurify'
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress,
@@ -12,6 +12,7 @@ import type { CreateShareInput, FileEntry } from '../api/types'
 import { ErrorPane, LoadingPane } from './Feedback'
 import { renderMarkdown } from '../markdown'
 import { parseCsv } from '../csv'
+import { joinPath } from '../utils'
 
 const TextEditor = lazy(() => import('./TextEditor'))
 
@@ -132,37 +133,58 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
 
 type PathAction = 'rename' | 'move' | 'copy'
 
-export function PathActionDialog({ action, entry, onClose, onDone }: { action: PathAction | null; entry: FileEntry | null; onClose: () => void; onDone: () => void }) {
+export function PathActionDialog({ action, entries, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
+  const completed = useRef(new Set<string>())
+  const conflictPath = useRef<string | null>(null)
+  const entry = entries[0] ?? null
+  const multiple = entries.length > 1
+  const entriesKey = entries.map((item) => item.path).join('\n')
   useEffect(() => {
     if (!entry || !action) return
     const parent = entry.path.slice(0, Math.max(0, entry.path.lastIndexOf('/'))) || '/'
-    setDestination(action === 'rename' ? entry.name : `${parent === '/' ? '' : parent}/${entry.name}`)
-  }, [action, entry])
+    setDestination(action === 'rename' ? entry.name : multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`)
+  }, [action, entriesKey, entry, multiple])
 
   const mutate = useMutation({
     mutationFn: async (overwrite: boolean) => {
       if (!entry || !action) return
-      const target = action === 'rename'
-        ? `${entry.path.slice(0, Math.max(0, entry.path.lastIndexOf('/')))}/${destination}`.replaceAll('//', '/')
-        : destination
-      if (action === 'copy') await api.files.copy(entry.path, target, overwrite)
-      else await api.files.move(entry.path, target, overwrite)
+      for (const item of entries) {
+        if (completed.current.has(item.path)) continue
+        const target = action === 'rename'
+          ? `${item.path.slice(0, Math.max(0, item.path.lastIndexOf('/')))}/${destination}`.replaceAll('//', '/')
+          : multiple ? joinPath(destination, item.name) : destination
+        try {
+          const replaceConflict = overwrite && conflictPath.current === item.path
+          if (action === 'copy') await api.files.copy(item.path, target, replaceConflict)
+          else await api.files.move(item.path, target, replaceConflict)
+          completed.current.add(item.path)
+          conflictPath.current = null
+        } catch (error) {
+          if (isConflictError(error)) conflictPath.current = item.path
+          throw error
+        }
+      }
     },
-    onSuccess: () => { onDone(); onClose() },
+    onSuccess: () => { completed.current.clear(); onDone(); onClose() },
   })
   const resetMutation = mutate.reset
-  useEffect(() => { resetMutation() }, [action, entry, resetMutation])
+  useEffect(() => {
+    completed.current.clear()
+    conflictPath.current = null
+    resetMutation()
+  }, [action, entriesKey, resetMutation])
 
   const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate(false) }
   const conflict = isConflictError(mutate.error)
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
-        <DialogTitle>{action ? t(`files.${action}`) : ''}</DialogTitle>
+        <DialogTitle>{action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
+          {multiple && <Typography color="text.secondary" mb={2}>{t('files.itemsSelected', { count: entries.length })}</Typography>}
+          <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
         </DialogContent>
         <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>

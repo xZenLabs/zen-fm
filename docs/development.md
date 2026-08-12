@@ -92,9 +92,22 @@ sh build.sh --dev
 This produces `dist/ZenFM-koreader-ereader-<version>.zip` without requiring
 the Android SDK, Gradle, or `lipo`.
 
-The release-like development build produces the four KOReader ZIPs and the
-Android companion APK. It is unsigned, so in-plugin updates deliberately stay
-disabled.
+Build and install only the unsigned Android companion and Android KOReader
+plugin on an authorized ADB device with:
+
+```sh
+sh build.sh --dev --android
+```
+
+This writes the APK and plugin ZIP under `dist/`, installs the APK with
+`adb install -r`, and pushes the plugin to
+`/sdcard/koreader/plugins/zenfm.koplugin`. Set `ANDROID_SERIAL` when multiple
+devices are connected. If KOReader uses a different writable data directory,
+set `ZENFM_ANDROID_PLUGIN_DIR` to its absolute `zenfm.koplugin` path. Restart
+KOReader after deployment.
+
+The release-like development build produces the four KOReader ZIPs and a
+debug-signed Android companion APK.
 
 The all-platform builder currently runs on macOS because it creates a universal
 macOS binary with `lipo`. It requires:
@@ -114,12 +127,12 @@ export GRADLE_BIN=gradle
 
 sh build.sh
 version="$(sed -n '1p' VERSION)"
-sh scripts/verify-release-assets.sh dist "$version" --allow-unsigned
+sh scripts/verify-release-assets.sh dist "$version"
 ```
 
-Without `ZENFM_RELEASE_PUBLIC_KEY_HEX`, `build.sh` automatically creates an
-unsigned development build. CI supplies the public key and signing credentials
-for signed release builds.
+Without `ANDROID_KEYSTORE_PATH`, `build.sh` automatically creates a debug-signed
+development APK. CI supplies the persistent Android signing credentials for
+release builds.
 
 The first e-reader build bootstraps the pinned, patched Go 1.26.5 compiler for
 old ARM kernels. Set `ZENFM_GO_SOURCE_ARCHIVE` to an already downloaded
@@ -200,9 +213,8 @@ chmod 700 "$ZENFM_DEV_DIR/zenfm.koplugin/supervisor.sh" \
   "$ZENFM_DEV_DIR/zenfm.koplugin/backend/"*
 ```
 
-The source development key remains `UNCONFIGURED`, so verified updates fail
-closed. The copied `VERSION` file is required: the launcher uses it and the
-backend signature to decide when to refresh its private installed copy.
+The copied `VERSION` file is required: the launcher uses it and the backend
+signature to decide when to refresh its private installed copy.
 
 ## Installing on KOReader devices
 

@@ -11,6 +11,8 @@ BINARY_DIR=
 APK_PATH=
 DEV_UNSIGNED=0
 EREADER_ONLY=0
+DEV_MODE=0
+ANDROID_DEV=0
 WEBUI_DIR="$SCRIPT_DIR/internal/webui/dist"
 WEBUI_BACKUP="$BUILD_DIR/webui-fallback"
 WEBUI_PREPARED=0
@@ -18,7 +20,7 @@ WEBUI_PREPARED=0
 rm -rf "$BUILD_DIR" "$DIST_DIR"
 
 usage() {
-    echo "usage: $0 [--package-only BINARY_DIR --apk APK] [--dev]" >&2
+    echo "usage: $0 [--package-only BINARY_DIR --apk APK] [--dev [--android]]" >&2
     exit 2
 }
 
@@ -34,24 +36,31 @@ while [ "$#" -gt 0 ]; do
             case "$2" in --*) usage ;; esac
             APK_PATH=$2; shift 2
             ;;
-        --dev) DEV_UNSIGNED=1; EREADER_ONLY=1; shift ;;
+        --dev) DEV_MODE=1; DEV_UNSIGNED=1; EREADER_ONLY=1; shift ;;
+        --android) ANDROID_DEV=1; shift ;;
         --dev-unsigned) DEV_UNSIGNED=1; shift ;;
         *) usage ;;
     esac
 done
+
+if [ "$ANDROID_DEV" -eq 1 ]; then
+    [ "$DEV_MODE" -eq 1 ] && [ -z "$PACKAGE_ONLY" ] || usage
+    ADB_BIN=${ADB_BIN:-adb}
+    command -v "$ADB_BIN" >/dev/null 2>&1 || { echo "adb is required for --dev --android" >&2; exit 2; }
+    adb_state=$("$ADB_BIN" get-state 2>/dev/null || true)
+    [ "$adb_state" = device ] || {
+        echo "Connect and authorize one Android device (set ANDROID_SERIAL when more than one is connected)" >&2
+        exit 2
+    }
+fi
 
 VERSION=$(sed -n '1{s/^[[:space:]]*//;s/[[:space:]]*$//;p;}' "$VERSION_FILE")
 printf '%s\n' "$VERSION" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$' || {
     echo "VERSION must contain valid SemVer" >&2
     exit 2
 }
-
-PUBLIC_KEY=${ZENFM_RELEASE_PUBLIC_KEY_HEX:-}
-if [ -z "$PUBLIC_KEY" ]; then
+if [ -z "$PACKAGE_ONLY" ] && [ -z "${ANDROID_KEYSTORE_PATH:-}" ]; then
     DEV_UNSIGNED=1
-elif [ "$DEV_UNSIGNED" -ne 1 ]; then
-    case "$PUBLIC_KEY" in *[!0-9a-fA-F]*|'') echo "Set ZENFM_RELEASE_PUBLIC_KEY_HEX to the pinned 32-byte Ed25519 public key" >&2; exit 2 ;; esac
-    [ "${#PUBLIC_KEY}" -eq 64 ] || { echo "ZENFM_RELEASE_PUBLIC_KEY_HEX must be 64 hexadecimal characters" >&2; exit 2; }
 fi
 
 cleanup() {
@@ -65,6 +74,21 @@ cleanup() {
 trap cleanup EXIT INT TERM
 mkdir -p "$BUILD_DIR/bin" "$BUILD_DIR/stage" "$DIST_DIR"
 
+stage_plugin() {
+    target=$1
+    rm -rf "$target"
+    mkdir -p "$target/zenfm.koplugin/backend"
+    cp -R "$PLUGIN_SOURCE/." "$target/zenfm.koplugin/"
+    rm -rf "$target/zenfm.koplugin/tests" "$target/zenfm.koplugin/data"
+    cp "$VERSION_FILE" "$target/zenfm.koplugin/VERSION"
+    cp "$SCRIPT_DIR/LICENSE" "$target/zenfm.koplugin/LICENSE"
+    cp "$SCRIPT_DIR/THIRD_PARTY_NOTICES.md" "$target/zenfm.koplugin/THIRD_PARTY_NOTICES.md"
+    sed -E "s/version = \"[^\"]*\"/version = \"$VERSION\"/" \
+        "$target/zenfm.koplugin/_meta.lua" > "$target/zenfm.koplugin/_meta.lua.tmp"
+    mv "$target/zenfm.koplugin/_meta.lua.tmp" "$target/zenfm.koplugin/_meta.lua"
+    find "$target/zenfm.koplugin" -type f -name '*.sh' -exec chmod 700 {} +
+}
+
 if [ -z "$PACKAGE_ONLY" ]; then
     if [ -f "$SCRIPT_DIR/frontend/package.json" ]; then
         echo "Building React frontend..."
@@ -75,6 +99,31 @@ if [ -z "$PACKAGE_ONLY" ]; then
         rm -rf "$WEBUI_DIR"
         mkdir -p "$WEBUI_DIR"
         cp -R "$SCRIPT_DIR/frontend/dist/." "$WEBUI_DIR/"
+    fi
+    if [ "$ANDROID_DEV" -eq 1 ]; then
+        echo "Building Android companion and KOReader plugin..."
+        ZENFM_ANDROID_DEV_UNSIGNED=1 "$SCRIPT_DIR/android/build.sh"
+        APK_PATH="$SCRIPT_DIR/android/app/build/outputs/apk/release/app-release.apk"
+        [ -f "$APK_PATH" ] || { echo "Android build did not produce $APK_PATH" >&2; exit 2; }
+
+        ANDROID_STAGE="$BUILD_DIR/stage/android"
+        stage_plugin "$ANDROID_STAGE"
+        ANDROID_ZIP="$DIST_DIR/ZenFM-koreader-android-$VERSION.zip"
+        APK_OUT="$DIST_DIR/ZenFM-android-$VERSION.apk"
+        (cd "$ANDROID_STAGE" && zip -qr "$ANDROID_ZIP" zenfm.koplugin)
+        cp "$APK_PATH" "$APK_OUT"
+
+        ANDROID_PLUGIN_DIR=${ZENFM_ANDROID_PLUGIN_DIR:-/sdcard/koreader/plugins/zenfm.koplugin}
+        case "$ANDROID_PLUGIN_DIR" in
+            /*/zenfm.koplugin) ;;
+            *) echo "ZENFM_ANDROID_PLUGIN_DIR must be an absolute path ending in /zenfm.koplugin" >&2; exit 2 ;;
+        esac
+        ANDROID_PLUGIN_PARENT=${ANDROID_PLUGIN_DIR%/zenfm.koplugin}
+        "$ADB_BIN" install -r "$APK_OUT"
+        "$ADB_BIN" shell mkdir -p "$ANDROID_PLUGIN_PARENT"
+        "$ADB_BIN" push "$ANDROID_STAGE/zenfm.koplugin" "$ANDROID_PLUGIN_PARENT/"
+        echo "Installed ZenFM $VERSION companion and KOReader plugin; restart KOReader before starting ZenFM."
+        exit 0
     fi
     echo "Building KOReader backends..."
     GOFLAGS='-trimpath -buildvcs=false'
@@ -117,25 +166,6 @@ if [ "$EREADER_ONLY" -ne 1 ]; then
     done
     [ -f "$APK_PATH" ] || { echo "missing Android APK; pass --apk when using --package-only" >&2; exit 2; }
 fi
-
-stage_plugin() {
-    target=$1
-    rm -rf "$target"
-    mkdir -p "$target/zenfm.koplugin/backend"
-    cp -R "$PLUGIN_SOURCE/." "$target/zenfm.koplugin/"
-    rm -rf "$target/zenfm.koplugin/tests" "$target/zenfm.koplugin/data"
-    cp "$VERSION_FILE" "$target/zenfm.koplugin/VERSION"
-    cp "$SCRIPT_DIR/LICENSE" "$target/zenfm.koplugin/LICENSE"
-    cp "$SCRIPT_DIR/THIRD_PARTY_NOTICES.md" "$target/zenfm.koplugin/THIRD_PARTY_NOTICES.md"
-    sed -E "s/version = \"[^\"]*\"/version = \"$VERSION\"/" \
-        "$target/zenfm.koplugin/_meta.lua" > "$target/zenfm.koplugin/_meta.lua.tmp"
-    mv "$target/zenfm.koplugin/_meta.lua.tmp" "$target/zenfm.koplugin/_meta.lua"
-    if [ "$DEV_UNSIGNED" -ne 1 ]; then
-        printf 'return %s\n' "\"$(printf '%s' "$PUBLIC_KEY" | tr 'A-F' 'a-f')\"" \
-            > "$target/zenfm.koplugin/zenfm_release_public_key.lua"
-    fi
-    find "$target/zenfm.koplugin" -type f -name '*.sh' -exec chmod 700 {} +
-}
 
 EREADER_STAGE="$BUILD_DIR/stage/ereader"
 stage_plugin "$EREADER_STAGE"
@@ -185,23 +215,5 @@ rm -f "$LINUX_ZIP" "$MACOS_ZIP" "$ANDROID_ZIP" "$APK_OUT"
 (cd "$MACOS_STAGE" && zip -qr "$MACOS_ZIP" zenfm.koplugin)
 (cd "$ANDROID_STAGE" && zip -qr "$ANDROID_ZIP" zenfm.koplugin)
 cp "$APK_PATH" "$APK_OUT"
-
-MANIFEST="$DIST_DIR/ZenFM-release-manifest-$VERSION.txt"
-SIGNATURE="$DIST_DIR/ZenFM-release-manifest-$VERSION.sig"
-{
-    printf 'zenfm-release-manifest-v1\nversion\t%s\n' "$VERSION"
-    for asset in "$APK_OUT" "$ANDROID_ZIP" "$EREADER_ZIP" "$LINUX_ZIP" "$MACOS_ZIP"; do
-        size=$(wc -c < "$asset" | tr -d ' ')
-        digest=$(shasum -a 256 "$asset" | sed 's/[[:space:]].*//')
-        printf 'asset\t%s\t%s\t%s\n' "$(basename "$asset")" "$size" "$digest"
-    done
-} > "$MANIFEST"
-
-if [ "$DEV_UNSIGNED" -eq 1 ]; then
-    rm -f "$SIGNATURE"
-    echo "Built unsigned development packages; in-plugin updates remain disabled."
-else
-    "$SCRIPT_DIR/scripts/sign-manifest.sh" "$MANIFEST" "$SIGNATURE" "$PUBLIC_KEY"
-fi
 
 echo "Built ZenFM $VERSION KOReader bundles and Android companion in $DIST_DIR"

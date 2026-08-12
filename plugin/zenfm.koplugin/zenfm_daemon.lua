@@ -50,6 +50,8 @@ function Daemon:new(options)
     object.path_exists = options.path_exists or Util.path_exists
     object.control_request = options.control_request or Control.request
     object.sleep = options.sleep or (ok_socket and socket.sleep) or function() end
+    object.socket = options.socket
+    if object.socket == nil and ok_socket then object.socket = socket end
     object.android_poll_attempts = options.android_poll_attempts or 300
     object.android = options.android or (ok_android and android or nil)
     object.android_launcher = options.android_launcher or function(uri)
@@ -194,39 +196,6 @@ function Daemon:ensure_backend()
         return false, "could not install the bundled ZenFM backend"
     end
     return true
-end
-
-function Daemon:verify_release_manifest(manifest, signature, public_key)
-    if self:is_android() then return false, "Android verifies release manifests in the companion" end
-    local ready, ready_err = self:ensure_backend()
-    if not ready then return false, ready_err end
-    if type(manifest) ~= "string" or #manifest > 64 * 1024
-        or type(signature) ~= "string" or #signature > 1024
-        or type(public_key) ~= "string" or not public_key:match("^[0-9a-fA-F]+$") or #public_key ~= 64 then
-        return false, "release signature input is invalid"
-    end
-    local update_dir = self.state_dir .. "/update"
-    if not Util.ensure_dir(update_dir) then return false, "could not create update directory" end
-    local nonce = Util.random_hex(16)
-    if not nonce then return false, "could not create verifier input names" end
-    local manifest_path = update_dir .. "/manifest-" .. nonce .. ".txt"
-    local signature_path = update_dir .. "/manifest-" .. nonce .. ".sig"
-    if not Util.write_atomic(manifest_path, manifest, "600")
-        or not Util.write_atomic(signature_path, signature, "600") then
-        os.remove(manifest_path)
-        os.remove(signature_path)
-        return false, "could not stage release signature inputs"
-    end
-    local command = Util.sh_quote(self:backend_path())
-        .. " verify-manifest --public-key " .. Util.sh_quote(public_key)
-        .. " --manifest " .. Util.sh_quote(manifest_path)
-        .. " --signature " .. Util.sh_quote(signature_path)
-        .. " >/dev/null 2>&1"
-    local status = self.execute(command)
-    os.remove(manifest_path)
-    os.remove(signature_path)
-    if status == 0 then return true end
-    return false, "release manifest signature did not verify"
 end
 
 function Daemon:android_storage()
@@ -443,6 +412,20 @@ function Daemon:local_ip()
     for _, pattern in ipairs({ "inet%s+addr:([0-9]+%.[0-9]+%.[0-9]+%.[0-9]+)", "inet%s+([0-9]+%.[0-9]+%.[0-9]+%.[0-9]+)" }) do
         for candidate in interfaces:gmatch(pattern) do
             if candidate ~= "127.0.0.1" and candidate ~= "0.0.0.0" then return candidate end
+        end
+    end
+    if self.socket and self.socket.udp then
+        local udp
+        local ok, candidate = pcall(function()
+            udp = self.socket.udp()
+            if not udp or not udp:setpeername("1.1.1.1", 53) then return nil end
+            return udp:getsockname()
+        end)
+        if udp and udp.close then pcall(udp.close, udp) end
+        if ok and type(candidate) == "string"
+            and candidate:match("^[0-9]+%.[0-9]+%.[0-9]+%.[0-9]+$")
+            and candidate ~= "127.0.0.1" and candidate ~= "0.0.0.0" then
+            return candidate
         end
     end
 end

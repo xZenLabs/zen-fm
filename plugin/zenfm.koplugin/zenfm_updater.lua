@@ -1,7 +1,5 @@
 -- Keep ZenFM modules namespaced to avoid collisions in KOReader's package cache.
 local Util = require("zenfm_util")
-local Signature = require("zenfm_signature")
-local pinned_public_key = require("zenfm_release_public_key")
 local ok_lfs, lfs = pcall(require, "libs/libkoreader-lfs")
 if not ok_lfs then ok_lfs, lfs = pcall(require, "lfs") end
 
@@ -11,8 +9,6 @@ local repository = "xZenLabs/zen-fm"
 local releases_url = "https://api.github.com/repos/" .. repository .. "/releases?per_page=20"
 local maximum_metadata_bytes = 1024 * 1024
 local maximum_package_bytes = 200 * 1024 * 1024
-local maximum_manifest_bytes = 64 * 1024
-local maximum_signature_bytes = 1024
 
 local trusted_hosts = {
     ["api.github.com"] = true,
@@ -139,59 +135,28 @@ function Updater.select_release(releases, daemon, current_version)
             local version = tostring(release.tag_name or ""):gsub("^v", "")
             local expected = Updater.asset_name(daemon, version)
             if expected and Updater.version_greater(version, current_version) then
-                local package_asset, manifest_asset, signature_asset
+                local package_asset
                 for _, asset in ipairs(release.assets or {}) do
                     local digest = tostring(asset.digest or ""):match("^sha256:([0-9a-fA-F]+)$")
-                    if asset.name == expected and digest and #digest == 64
+                    local size = tonumber(asset.size)
+                    if asset.name == expected and digest and #digest == 64 and size and size > 0
+                        and size <= maximum_package_bytes
                         and trusted_url(asset.browser_download_url, true) then package_asset = asset end
-                    if asset.name == "ZenFM-release-manifest-" .. version .. ".txt"
-                        and trusted_url(asset.browser_download_url, true) then manifest_asset = asset end
-                    if asset.name == "ZenFM-release-manifest-" .. version .. ".sig"
-                        and trusted_url(asset.browser_download_url, true) then signature_asset = asset end
                 end
-                if package_asset and manifest_asset and signature_asset
+                if package_asset
                     and (not best or Updater.version_greater(version, best.version)) then
                     best = {
                         version = version,
                         name = expected,
                         url = package_asset.browser_download_url,
-                        api_digest = package_asset.digest:sub(#"sha256:" + 1):lower(),
-                        api_size = tonumber(package_asset.size),
-                        manifest_url = manifest_asset.browser_download_url,
-                        signature_url = signature_asset.browser_download_url,
+                        digest = package_asset.digest:sub(#"sha256:" + 1):lower(),
+                        size = tonumber(package_asset.size),
                     }
                 end
             end
         end
     end
     return best
-end
-
-function Updater.parse_manifest(body)
-    if type(body) ~= "string" or #body > maximum_manifest_bytes or body:sub(-1) ~= "\n"
-        or body:find("\r", 1, true) or body:find("\0", 1, true) then
-        return nil, "release manifest format is invalid"
-    end
-    local lines = {}
-    for line in body:gmatch("([^\n]*)\n") do table.insert(lines, line) end
-    if lines[1] ~= "zenfm-release-manifest-v1" then return nil, "release manifest version is unsupported" end
-    local version = lines[2] and lines[2]:match("^version\t([0-9]+%.[0-9]+%.[0-9]+[%w.+-]*)$")
-    if not version then return nil, "release manifest has no valid version" end
-    local assets = {}
-    for index = 3, #lines do
-        local name, size, digest = lines[index]:match("^asset\t([^/\\%s]+)\t([0-9]+)\t([0-9a-f]+)$")
-        size = tonumber(size)
-        if not name or not size or size <= 0 or size > maximum_package_bytes or #digest ~= 64
-            or assets[name] then return nil, "release manifest contains an invalid asset" end
-        assets[name] = { size = size, digest = digest }
-    end
-    return { version = version, assets = assets }
-end
-
-function Updater.verify_manifest(body, encoded_signature, public_key, verifier)
-    local verified, verify_err = Signature.verify(body, encoded_signature, public_key or pinned_public_key, verifier)
-    if not verified then return nil, verify_err end
-    return Updater.parse_manifest(body)
 end
 
 local function plugin_version(plugin_dir)
@@ -233,37 +198,14 @@ function Updater.validate_lua_tree(root)
     return walk(root, 0)
 end
 
-local function latest(daemon, options)
+local function latest(daemon)
     local body, err = request(releases_url, maximum_metadata_bytes)
     if not body then return nil, err end
     local ok_json, JSON = pcall(require, "json")
     if not ok_json then return nil, "JSON support is unavailable" end
     local decoded_ok, releases = pcall(JSON.decode, body)
     if not decoded_ok or type(releases) ~= "table" then return nil, "GitHub returned invalid release metadata" end
-    local release = Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir))
-    if not release then return nil end
-    local manifest_body, manifest_err = request(release.manifest_url, maximum_manifest_bytes)
-    if not manifest_body then return nil, manifest_err end
-    local signature_body, signature_err = request(release.signature_url, maximum_signature_bytes)
-    if not signature_body then return nil, signature_err end
-    local public_key = options and options.public_key or pinned_public_key
-    local manifest, verify_err
-    if not daemon:is_android() and not (options and options.verifier) then
-        local verified
-        verified, verify_err = daemon:verify_release_manifest(manifest_body, signature_body, public_key)
-        if verified then manifest, verify_err = Updater.parse_manifest(manifest_body) end
-    else
-        manifest, verify_err = Updater.verify_manifest(manifest_body, signature_body,
-            public_key, options and options.verifier)
-    end
-    if not manifest then return nil, verify_err end
-    if manifest.version ~= release.version then return nil, "signed manifest version does not match release" end
-    local asset = manifest.assets[release.name]
-    if not asset then return nil, "signed manifest does not contain this platform package" end
-    if release.api_size and release.api_size ~= asset.size then return nil, "release size does not match signed manifest" end
-    if release.api_digest ~= asset.digest then return nil, "release digest does not match signed manifest" end
-    release.size, release.digest = asset.size, asset.digest
-    return release
+    return Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir))
 end
 
 local function validate_stage(daemon, directory, version)
@@ -362,8 +304,8 @@ function Updater.finalize_pending(daemon)
     return false, "updated backend failed health check; previous plugin restored. Restart KOReader."
 end
 
-function Updater.install_latest(daemon, options)
-    local release, err = latest(daemon, options)
+function Updater.install_latest(daemon)
+    local release, err = latest(daemon)
     if not release then return false, err or "ZenFM is up to date" end
     if release.size and (release.size <= 0 or release.size > maximum_package_bytes) then
         return false, "release package size is invalid"

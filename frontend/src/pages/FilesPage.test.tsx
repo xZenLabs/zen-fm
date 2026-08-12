@@ -108,6 +108,93 @@ describe('file browser', () => {
     expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
   })
 
+  it('selects ranges with shift-click and toggles items with ctrl/cmd-click', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'bravo.txt', path: '/bravo.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'charlie.txt', path: '/charlie.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'delta.txt', path: '/delta.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    renderApp('/files')
+
+    const alpha = await screen.findByRole('row', { name: /alpha\.txt/ })
+    const bravo = screen.getByRole('row', { name: /bravo\.txt/ })
+    const charlie = screen.getByRole('row', { name: /charlie\.txt/ })
+    const delta = screen.getByRole('row', { name: /delta\.txt/ })
+    fireEvent.click(alpha)
+    fireEvent.click(charlie, { shiftKey: true })
+
+    expect(alpha).toHaveClass('selected')
+    expect(bravo).toHaveClass('selected')
+    expect(charlie).toHaveClass('selected')
+    expect(screen.getByText('3 selected')).toBeInTheDocument()
+
+    fireEvent.click(bravo, { ctrlKey: true })
+    fireEvent.click(delta, { metaKey: true })
+    expect(bravo).not.toHaveClass('selected')
+    expect(delta).toHaveClass('selected')
+    expect(screen.getByText('3 selected')).toBeInTheDocument()
+  })
+
+  it('moves and deletes every selected item and shows the selection count in each dialog', async () => {
+    const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
+    const deletions: string[] = []
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [
+          { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'bravo.txt', path: '/bravo.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })),
+      http.post('http://localhost/api/v1/files/move', async ({ request }) => {
+        moves.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.delete('http://localhost/api/v1/files', ({ request }) => {
+        deletions.push(new URL(request.url).searchParams.get('path') ?? '')
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const alpha = await screen.findByRole('row', { name: /alpha\.txt/ })
+    const bravo = screen.getByRole('row', { name: /bravo\.txt/ })
+    expect(alpha).toHaveStyle({ cursor: 'pointer' })
+    fireEvent.click(alpha)
+    fireEvent.click(bravo, { ctrlKey: true })
+    expect(screen.getByText('2 selected').closest('.page-header')).toBeInTheDocument()
+
+    fireEvent.contextMenu(bravo, { clientX: 200, clientY: 100 })
+    const menu = screen.getByRole('menu')
+    expect(within(menu).getByRole('menuitem', { name: 'Download 2 items' })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: 'Copy 2 items' })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: 'Delete 2 items' })).toBeInTheDocument()
+    await user.click(within(menu).getByRole('menuitem', { name: 'Move 2 items' }))
+    const moveDialog = screen.getByRole('dialog', { name: 'Move 2 items' })
+    const destination = within(moveDialog).getByLabelText('Destination folder')
+    await user.clear(destination)
+    await user.type(destination, '/Archive')
+    await user.click(within(moveDialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(moves).toEqual([
+      { source: '/alpha.txt', destination: '/Archive/alpha.txt', overwrite: false },
+      { source: '/bravo.txt', destination: '/Archive/bravo.txt', overwrite: false },
+    ]))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(alpha)
+    fireEvent.click(bravo, { metaKey: true })
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    const deleteDialog = screen.getByRole('dialog', { name: 'Delete 2 items?' })
+    expect(deleteDialog).toHaveTextContent('2 items selected')
+    await user.click(within(deleteDialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(deletions).toEqual(['/alpha.txt', '/bravo.txt']))
+  })
+
   it('shows current-folder creation actions when right-clicking outside the file table', async () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
@@ -327,11 +414,13 @@ describe('file browser', () => {
     expect(body).toBe('')
   })
 
-  it('never overwrites an upload until the owner explicitly chooses replace', async () => {
-    const conditions: string[] = []
+  it('applies replace all to the current conflict and every remaining upload', async () => {
+    const requests: string[] = []
     server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
-      conditions.push(request.headers.get('If-None-Match') ?? '')
-      if (conditions.length === 1) return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+      const path = new URL(request.url).searchParams.get('path') ?? ''
+      const condition = request.headers.get('If-None-Match') ?? ''
+      requests.push(`${path}:${condition}`)
+      if (condition === '*') return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
       return new HttpResponse(null, { status: 204 })
     }))
     const user = userEvent.setup()
@@ -339,14 +428,61 @@ describe('file browser', () => {
     await screen.findByText('Nothing here yet')
 
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
-    await user.upload(input, new File(['new content'], 'notes.txt', { type: 'text/plain' }))
+    await user.upload(input, [
+      new File(['one'], 'one.txt', { type: 'text/plain' }),
+      new File(['two'], 'two.txt', { type: 'text/plain' }),
+    ])
 
     expect(await screen.findByRole('heading', { name: 'File already exists' })).toBeInTheDocument()
-    expect(conditions).toEqual(['*'])
-    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Upload with new name' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Replace' }))
-    await waitFor(() => expect(conditions).toEqual(['*', '']))
+    expect(requests).toEqual(['/one.txt:*'])
+    expect(screen.getByRole('button', { name: 'Skip all' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upload with new name' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Replace all' }))
+    await waitFor(() => expect(requests).toEqual(['/one.txt:*', '/one.txt:', '/two.txt:']))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
+  })
+
+  it('skips every conflict after choosing skip all but keeps uploading new files', async () => {
+    const requests: string[] = []
+    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path') ?? ''
+      requests.push(path)
+      if (path !== '/new.txt') return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+      return new HttpResponse(null, { status: 201 })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, [
+      new File(['one'], 'one.txt'),
+      new File(['two'], 'two.txt'),
+      new File(['new'], 'new.txt'),
+    ])
+
+    await user.click(await screen.findByRole('button', { name: 'Skip all' }))
+    await waitFor(() => expect(requests).toEqual(['/one.txt', '/two.txt', '/new.txt']))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
+  })
+
+  it('cancels the rest of an upload batch from the conflict dialog', async () => {
+    const requests: string[] = []
+    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+      requests.push(new URL(request.url).searchParams.get('path') ?? '')
+      return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, [new File(['one'], 'one.txt'), new File(['two'], 'two.txt')])
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
+    expect(requests).toEqual(['/one.txt'])
   })
 
   it('shows lazy bounded image thumbnails in grid view', async () => {

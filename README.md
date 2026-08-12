@@ -123,9 +123,16 @@ sh build.sh --dev
 ```
 
 This builds only the e-reader backends and does not require the Android or
-macOS build toolchains. Run `sh build.sh` for all local packages.
-CI supplies the release public key and signing credentials when producing
-signed release packages.
+macOS build toolchains. To build and install the Android companion and its
+KOReader plugin on an authorized ADB device, run:
+
+```sh
+sh build.sh --dev --android
+```
+
+Run `sh build.sh` for all local packages.
+CI supplies the persistent Android signing credentials when producing release
+packages.
 
 The API contract is under `docs/api/`; architecture and security decisions are
 documented under `docs/` and in [SECURITY.md](SECURITY.md).

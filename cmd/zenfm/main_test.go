@@ -3,11 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -105,34 +100,5 @@ func TestWatchIdleStaysAliveWhileProgressContinues(t *testing.T) {
 	case <-stopped:
 	case <-time.After(300 * time.Millisecond):
 		t.Fatal("idle watcher did not stop after progress ended")
-	}
-}
-
-func TestVerifyManifestCommand(t *testing.T) {
-	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	manifestPath := filepath.Join(dir, "manifest.json")
-	signaturePath := filepath.Join(dir, "manifest.sig")
-	manifest := []byte(`{"version":"1.2.3"}`)
-	if err := os.WriteFile(manifestPath, manifest, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, manifest))
-	if err := os.WriteFile(signaturePath, []byte(signature+"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	args := []string{"verify-manifest", "--public-key", hex.EncodeToString(publicKey), "--manifest", manifestPath, "--signature", signaturePath}
-	var stdout, stderr bytes.Buffer
-	if code := run(args, &stdout, &stderr); code != 0 || stdout.Len() != 0 || stderr.Len() != 0 {
-		t.Fatalf("verify: %d %q %q", code, stdout.String(), stderr.String())
-	}
-	if err := os.WriteFile(manifestPath, []byte(`{"version":"tampered"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if code := run(args, &stdout, &stderr); code != 1 || stdout.Len() != 0 || stderr.Len() != 0 {
-		t.Fatalf("tampered verification was not silent failure: %d %q %q", code, stdout.String(), stderr.String())
 	}
 }

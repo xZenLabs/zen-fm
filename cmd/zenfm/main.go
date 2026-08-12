@@ -40,11 +40,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = runServe(args[1:], stdout, stderr)
 	case "reset-login", "reset-password":
 		err = runReset(args[1:], stdout, stderr)
-	case "verify-manifest":
-		if runVerifyManifest(args[1:]) != nil {
-			return 1
-		}
-		return 0
 	case "version", "--version", "-version":
 		_, err = fmt.Fprintln(stdout, version)
 	case "help", "--help", "-h":
@@ -63,7 +58,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: zenfm <serve|reset-login|verify-manifest|version> [options]")
+	fmt.Fprintln(w, "Usage: zenfm <serve|reset-login|version> [options]")
 }
 
 func listenNetwork(address string) string {

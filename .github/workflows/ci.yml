@@ -133,7 +133,6 @@ jobs:
       - name: Compile both Android ABIs and run JVM tests
         env:
           ZENFM_ANDROID_DEV_UNSIGNED: '1'
-          ZENFM_RELEASE_PUBLIC_KEY_HEX: 0000000000000000000000000000000000000000000000000000000000000000
         run: GRADLE_BIN=gradle sh android/build.sh testDebugUnitTest
 
   package-builds:
@@ -175,7 +174,7 @@ jobs:
           sh scripts/verify-legacy-toolchain.sh
           sh build.sh --dev-unsigned
           version=$(sed -n '1p' VERSION)
-          sh scripts/verify-release-assets.sh dist "$version" --allow-unsigned
+          sh scripts/verify-release-assets.sh dist "$version"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: development-installable-packages

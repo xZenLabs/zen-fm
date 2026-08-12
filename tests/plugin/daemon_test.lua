@@ -2,7 +2,7 @@ local root = assert(arg[1], "repository root required")
 package.path = root .. "/plugin/zenfm.koplugin/?.lua;" .. package.path
 
 local generic_modules = {}
-for _, name in ipairs({ "android_intent", "control", "daemon", "release_public_key", "settings", "signature", "updater", "util" }) do
+for _, name in ipairs({ "android_intent", "control", "daemon", "settings", "updater", "util" }) do
     generic_modules[name] = { occupied_by_another_plugin = true }
     package.loaded[name] = generic_modules[name]
 end
@@ -264,6 +264,28 @@ test("status address falls back to an assigned IPv4 address without a default ro
     equal(daemon:local_ip(), "192.168.4.12")
 end)
 
+test("Android status address falls back to the routed socket address", function()
+    local closed = false
+    local udp = {
+        setpeername = function(_, host, port)
+            equal(host, "1.1.1.1")
+            equal(port, 53)
+            return 1
+        end,
+        getsockname = function() return "192.168.4.12", 49152 end,
+        close = function() closed = true end,
+    }
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", android = {},
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+        command_output = function() return "" end,
+        socket = { udp = function() return udp end },
+    }
+    local details = daemon:status_details_from_raw("ok running https://0.0.0.0:8443 sha256:abc")
+    equal(details.url, "https://192.168.4.12:8443")
+    assert(closed)
+end)
+
 test("control status protocol", function()
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "host",
@@ -292,6 +314,7 @@ test("status never presents a wildcard listener as the device address", function
         plugin_dir = "/plugin", state_dir = "/state", platform = "host",
         settings = fake_settings(defaults), path_exists = function() return false end,
         command_output = function() return "" end,
+        socket = false,
         control_request = function()
             return "ok running http://0.0.0.0:8080 -"
         end,
@@ -602,22 +625,30 @@ test("start fails closed before launch when no safe root exists", function()
     equal(launches, 0)
 end)
 
-local function base64_zero_signature()
-    return string.rep("A", 86) .. "=="
-end
-
-test("signed manifest verification is injectable and strict", function()
-    local digest = string.rep("a", 64)
-    local body = "zenfm-release-manifest-v1\nversion\t1.2.3\nasset\tZenFM-koreader-linux-1.2.3.zip\t42\t" .. digest .. "\n"
-    local manifest = assert(Updater.verify_manifest(body, base64_zero_signature(), string.rep("11", 32),
-        function(message, signature, public)
-            equal(message, body); equal(#signature, 64); equal(#public, 32); return true
-        end))
-    equal(manifest.version, "1.2.3")
-    equal(manifest.assets["ZenFM-koreader-linux-1.2.3.zip"].size, 42)
-    local invalid = Updater.verify_manifest(body .. "extra", base64_zero_signature(), string.rep("11", 32),
-        function() return true end)
-    assert(not invalid)
+test("release selection requires a GitHub digest and bounded size", function()
+    local daemon = {
+        is_android = function() return false end,
+        platform = function() return "host" end,
+        kernel = function() return "linux" end,
+    }
+    local function release(digest, size)
+        return {
+            tag_name = "v1.2.3",
+            assets = {{
+                name = "ZenFM-koreader-linux-1.2.3.zip",
+                browser_download_url = "https://github.com/xZenLabs/zen-fm/releases/download/v1.2.3/ZenFM-koreader-linux-1.2.3.zip",
+                digest = digest,
+                size = size,
+            }},
+        }
+    end
+    local selected = assert(Updater.select_release({ release("sha256:" .. string.rep("A", 64), 42) }, daemon, "1.2.2"))
+    equal(selected.version, "1.2.3")
+    equal(selected.digest, string.rep("a", 64))
+    equal(selected.size, 42)
+    assert(not Updater.select_release({ release("", 42) }, daemon, "1.2.2"))
+    assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 0) }, daemon, "1.2.2"))
+    assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 201 * 1024 * 1024) }, daemon, "1.2.2"))
 end)
 
 test("staged plugin Lua is compiled before activation", function()
@@ -632,27 +663,6 @@ test("staged plugin Lua is compiled before activation", function()
     contains(syntax_err, "invalid Lua")
     local parent = directory:match("^(.*)/[^/]+$")
     if parent then Util.remove_tree(directory, parent) end
-end)
-
-test("bundled backend verifies updater signatures without Lua crypto", function()
-    local state = os.tmpname() .. ".verify"
-    local executed
-    local daemon = Daemon:new{
-        plugin_dir = "/plugin", state_dir = state, platform = "host",
-        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
-        execute = function(command)
-            executed = command
-            return 0
-        end,
-    }
-    daemon.ensure_backend = function() return true end
-    local ok, err = daemon:verify_release_manifest("signed manifest\n", "c2lnbmF0dXJl\n", string.rep("ab", 32))
-    assert(ok, tostring(err))
-    contains(executed, "verify-manifest")
-    contains(executed, "--public-key")
-    assert(not executed:find("signed manifest", 1, true))
-    local parent = state:match("^(.*)/[^/]+$")
-    if parent then Util.remove_tree(state, parent) end
 end)
 
 test("update health verification restores a stopped service", function()

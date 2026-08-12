@@ -17,8 +17,8 @@
 - Public-share visitors are anonymous and confined to one share capability.
 - The KOReader control socket and Android control secret are device-local
   lifecycle boundaries.
-- Release downloads and redirects are hostile until signature, size, and hash
-  verification succeeds.
+- Release downloads and redirects are hostile until trusted-host, size, and
+  GitHub-recorded SHA-256 verification succeeds.
 
 ## Primary threats and controls
 
@@ -33,7 +33,7 @@
 | Upload/archive exhaustion | Streaming I/O, declared-length enforcement, quotas, entry/count/depth limits, cancellation. |
 | Share escalation | High-entropy hashed capabilities, body-based password exchange, scoped public sessions, expiry. |
 | Local lifecycle abuse | Mode-0700 native runtime directory plus mode-0600 control socket, exact process identity checks, and an Android pairing secret established only after a native, overlay-resistant first-start confirmation. Sensitive Android commands require confirmation because KOReader state can reside on shared storage. |
-| Malicious update | Pinned signing key, bounded download, redirect validation, manifest signature, and SHA-256. Plugin trees activate atomically with rollback; APK replacements are journaled, identity/signature revalidated, and health-gated through Android's Package Installer. |
+| Malicious update | Trusted GitHub release URLs, bounded downloads, redirect validation, and GitHub-recorded SHA-256. Plugin trees activate atomically with rollback; APK replacements are journaled, package/version/signature revalidated, and health-gated through Android's Package Installer. |
 
 ## Accepted risks
 
@@ -52,6 +52,10 @@
   background policy. An ordinary sideloaded app also cannot silently downgrade
   itself: a replacement APK that cannot launch requires an owner-approved newer
   signed install or manual reinstall of the prior trusted APK.
+- Plugin updates trust GitHub's release metadata and asset digests. Compromise
+  of the repository's release publication authority could therefore publish a
+  malicious plugin ZIP. APK replacement additionally requires the persistent
+  Android signing key.
 
 ## Release criteria
 
@@ -59,5 +63,5 @@
 - No known unaccepted critical/high dependency or code-scanning finding.
 - Race, unit, browser, plugin, package-layout, old-kernel QEMU, and physical
   Kindle 4/5 and PW1 checks pass.
-- Release manifest, bundles, APK, checksums, provenance, and SBOM are signed or
-  cryptographically bound to the release.
+- Release bundles and the APK have GitHub-recorded SHA-256 digests and build
+  provenance; the APK is signed with the persistent Android release key.

@@ -295,32 +295,18 @@ jobs:
         run: |
           set -eu
           test -n "$ANDROID_KEYSTORE_BASE64"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zenfm-release.jks"
-          test -s "$RUNNER_TEMP/zenfm-release.jks"
-          chmod 600 "$RUNNER_TEMP/zenfm-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zenfm-release.p12"
+          test -s "$RUNNER_TEMP/zenfm-release.p12"
+          chmod 600 "$RUNNER_TEMP/zenfm-release.p12"
       - name: Compile, test, and sign both Android ABIs
         env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zenfm-release.jks
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zenfm-release.p12
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
-          ZENFM_RELEASE_PUBLIC_KEY_HEX: ${{ secrets.ZENFM_RELEASE_PUBLIC_KEY_HEX }}
         run: |
           test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          test "${#ZENFM_RELEASE_PUBLIC_KEY_HEX}" -eq 64
           sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
           GRADLE_BIN=gradle sh android/build.sh testReleaseUnitTest
-          apksigner verify --verbose --print-certs \
-            android/app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/apksigner.txt"
-          cat "$RUNNER_TEMP/apksigner.txt"
-          actual_cert=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
-            "$RUNNER_TEMP/apksigner.txt" | tr 'A-F' 'a-f')
-          expected_cert=$(printf '%s' "$ANDROID_CERT_SHA256" | tr 'A-F' 'a-f')
-          test "${#expected_cert}" -eq 64
-          test "$actual_cert" = "$expected_cert"
+          apksigner verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-android-apk
@@ -361,21 +347,8 @@ jobs:
         with:
           name: stable-release-evidence
           path: evidence
-      - name: Restore the offline-generated manifest signing key
-        env:
-          SIGNING_KEY_BASE64: ${{ secrets.ZENFM_RELEASE_SIGNING_KEY_BASE64 }}
-        run: |
-          set -eu
-          test -n "$SIGNING_KEY_BASE64"
-          printf '%s' "$SIGNING_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/zenfm-manifest-ed25519.pem"
-          test -s "$RUNNER_TEMP/zenfm-manifest-ed25519.pem"
-          chmod 600 "$RUNNER_TEMP/zenfm-manifest-ed25519.pem"
       - name: Produce only the four KOReader bundles and companion APK
-        env:
-          ZENFM_RELEASE_PUBLIC_KEY_HEX: ${{ secrets.ZENFM_RELEASE_PUBLIC_KEY_HEX }}
-          ZENFM_RELEASE_SIGNING_KEY: ${{ runner.temp }}/zenfm-manifest-ed25519.pem
         run: |
-          test "${#ZENFM_RELEASE_PUBLIC_KEY_HEX}" -eq 64
           apk=$(find .release/apk -type f -name '*.apk' -print -quit)
           test -n "$apk"
           sh scripts/verify-qualified-binaries.sh evidence .release/bin

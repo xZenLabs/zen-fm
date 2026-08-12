@@ -9,12 +9,8 @@ def zenfmVersionCode = core[0].toInteger() * 10000000 + core[1].toInteger() * 10
     core[2].toInteger() * 1000 + prereleaseCode
 def releaseKeystore = System.getenv('ANDROID_KEYSTORE_PATH')
 def devUnsigned = System.getenv('ZENFM_ANDROID_DEV_UNSIGNED') == '1'
-def releasePublicKey = System.getenv('ZENFM_RELEASE_PUBLIC_KEY_HEX') ?: 'UNCONFIGURED'
 if (!devUnsigned && !releaseKeystore) {
     throw new GradleException('ANDROID_KEYSTORE_PATH is required for a release APK (set ZENFM_ANDROID_DEV_UNSIGNED=1 only for local development)')
-}
-if (!devUnsigned && !(releasePublicKey ==~ /[0-9a-fA-F]{64}/)) {
-    throw new GradleException('ZENFM_RELEASE_PUBLIC_KEY_HEX must contain the pinned Ed25519 public key')
 }
 
 android {
@@ -31,27 +27,24 @@ android {
         versionCode zenfmVersionCode
         versionName zenfmVersion
         ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
-        buildConfigField 'String', 'ZENFM_RELEASE_PUBLIC_KEY', '"' + releasePublicKey.toLowerCase() + '"'
     }
     signingConfigs {
         release {
             if (releaseKeystore) {
                 storeFile file(releaseKeystore)
                 storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
-                keyAlias System.getenv('ANDROID_KEY_ALIAS')
-                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+                keyAlias 'zenfm-release'
+                keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
             }
         }
     }
     buildTypes {
         release { signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.debug }
     }
-    buildFeatures { buildConfig true }
     packaging { jniLibs { useLegacyPackaging true } }
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-jdk15to18:1.85.1'
     testImplementation 'junit:junit:4.13.2'
 }
 

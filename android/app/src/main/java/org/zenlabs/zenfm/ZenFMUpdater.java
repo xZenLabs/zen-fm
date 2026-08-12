@@ -9,9 +9,6 @@ import android.content.pm.Signature;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
-import android.util.Base64;
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
-import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.lang.ref.WeakReference;
@@ -251,75 +248,19 @@ final class ZenFMUpdater {
             String name = "ZenFM-android-" + version + ".apk";
             JSONArray assets = release.optJSONArray("assets");
             if (assets == null) continue;
-            JSONObject apk = null, manifest = null, signature = null;
             for (int assetIndex = 0; assetIndex < assets.length(); assetIndex++) {
                 JSONObject asset = assets.getJSONObject(assetIndex);
                 String url = asset.optString("browser_download_url");
-                if (!trusted(new URL(url))) continue;
-                if (name.equals(asset.optString("name"))) apk = asset;
-                else if (("ZenFM-release-manifest-" + version + ".txt").equals(asset.optString("name"))) manifest = asset;
-                else if (("ZenFM-release-manifest-" + version + ".sig").equals(asset.optString("name"))) signature = asset;
-            }
-            if (apk != null && manifest != null && signature != null) {
-                return verifiedRelease(version, name, apk, manifest, signature);
+                String digest = asset.optString("digest");
+                long size = asset.optLong("size", -1);
+                if (name.equals(asset.optString("name")) && digest.matches("sha256:[0-9a-fA-F]{64}")
+                    && size > 0 && size <= MAXIMUM_APK && trusted(new URL(url))) {
+                    return new Release(version, url,
+                        digest.substring("sha256:".length()).toLowerCase(Locale.US), size);
+                }
             }
         }
         throw new IOException("no newer compatible companion release");
-    }
-
-    private static Release verifiedRelease(String version, String name, JSONObject apk,
-        JSONObject manifestAsset, JSONObject signatureAsset) throws Exception {
-        byte[] manifest = fetch(new URL(manifestAsset.getString("browser_download_url")), 64 * 1024);
-        byte[] encodedSignature = fetch(new URL(signatureAsset.getString("browser_download_url")), 1024);
-        verifyManifest(manifest, encodedSignature);
-        String text = new String(manifest, "UTF-8");
-        if (text.indexOf('\r') >= 0 || !text.endsWith("\n")) throw new IOException("invalid signed manifest format");
-        String[] lines = text.split("\n", -1);
-        if (lines.length < 4 || !"zenfm-release-manifest-v1".equals(lines[0])
-            || !("version\t" + version).equals(lines[1])) throw new IOException("signed manifest version mismatch");
-        long signedSize = -1; String signedDigest = null;
-        for (int index = 2; index < lines.length - 1; index++) {
-            String[] fields = lines[index].split("\t", -1);
-            if (fields.length != 4 || !"asset".equals(fields[0])) throw new IOException("invalid signed manifest asset");
-            if (name.equals(fields[1])) {
-                signedSize = Long.parseLong(fields[2]); signedDigest = fields[3];
-            }
-        }
-        if (signedSize <= 0 || signedSize > MAXIMUM_APK || signedDigest == null
-            || !signedDigest.matches("[0-9a-f]{64}")) throw new IOException("APK missing from signed manifest");
-        String apiDigest = apk.optString("digest");
-        if (!apiDigest.equals("sha256:" + signedDigest) || apk.optLong("size", -1) != signedSize) {
-            throw new IOException("GitHub APK metadata differs from signed manifest");
-        }
-        return new Release(version, apk.getString("browser_download_url"), signedDigest, signedSize);
-    }
-
-    private static void verifyManifest(byte[] manifest, byte[] encodedSignature) throws Exception {
-        if (!BuildConfig.ZENFM_RELEASE_PUBLIC_KEY.matches("[0-9a-f]{64}")) {
-            throw new IOException("release public key is not configured");
-        }
-        byte[] signature = Base64.decode(new String(encodedSignature, "US-ASCII").trim(), Base64.DEFAULT);
-        if (signature.length != 64) throw new IOException("invalid manifest signature");
-        Ed25519Signer verifier = new Ed25519Signer();
-        verifier.init(false, new Ed25519PublicKeyParameters(fromHex(BuildConfig.ZENFM_RELEASE_PUBLIC_KEY), 0));
-        verifier.update(manifest, 0, manifest.length);
-        if (!verifier.verifySignature(signature)) throw new IOException("manifest signature did not verify");
-    }
-
-    private static byte[] fetch(URL url, int maximum) throws IOException {
-        for (int redirects = 0; redirects < 6; redirects++) {
-            if (!trusted(url)) throw new IOException("untrusted update URL");
-            HttpURLConnection connection = open(url); connection.setInstanceFollowRedirects(false);
-            int status = connection.getResponseCode();
-            if (status >= 300 && status < 400) {
-                String location = connection.getHeaderField("Location");
-                if (location == null) throw new IOException("invalid update redirect");
-                url = new URL(url, location); continue;
-            }
-            if (status != 200) throw new IOException("update metadata HTTP " + status);
-            return read(connection.getInputStream(), maximum);
-        }
-        throw new IOException("too many update redirects");
     }
 
     private static void download(Release release, File destination) throws Exception {
@@ -342,7 +283,7 @@ final class ZenFMUpdater {
                 byte[] buffer = new byte[64 * 1024]; int count;
                 while ((count = input.read(buffer)) != -1) {
                     total += count;
-                    if (total > release.size || total > MAXIMUM_APK) throw new IOException("APK exceeds signed size");
+                    if (total > release.size || total > MAXIMUM_APK) throw new IOException("APK exceeds recorded size");
                     digest.update(buffer, 0, count); output.write(buffer, 0, count);
                 }
                 output.getFD().sync();
@@ -373,7 +314,7 @@ final class ZenFMUpdater {
             throw new IOException("APK package or signing certificate did not match");
         }
         PackageIdentity identity = identity(downloaded);
-        if (!expectedVersion.equals(identity.version)) throw new IOException("APK version did not match the signed release");
+        if (!expectedVersion.equals(identity.version)) throw new IOException("APK version did not match the GitHub release");
         return identity;
     }
 
@@ -450,14 +391,6 @@ final class ZenFMUpdater {
         StringBuilder result = new StringBuilder(value.length * 2);
         for (byte item : value) result.append(String.format(Locale.US, "%02x", item & 0xff));
         return result.toString();
-    }
-
-    private static byte[] fromHex(String value) {
-        byte[] result = new byte[value.length() / 2];
-        for (int index = 0; index < result.length; index++) {
-            result[index] = (byte) Integer.parseInt(value.substring(index * 2, index * 2 + 2), 16);
-        }
-        return result;
     }
 
     private static int compare(String left, String right) {

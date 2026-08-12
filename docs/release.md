@@ -1,11 +1,10 @@
 # ZenFM release process
 
 ZenFM publishes only the four KOReader bundles and Android companion below as
-installable artifacts. A signed updater manifest, its detached signature, and
-qualification evidence are non-installable release metadata. The SPDX SBOM is
-generated, GitHub-attested, and retained as a workflow artifact; it is kept out
-of the updater asset namespace so an updater can see exactly five installable
-artifacts.
+installable artifacts. Qualification evidence is non-installable release
+metadata. The SPDX SBOM is generated, GitHub-attested, and retained as a
+workflow artifact. Updaters accept only the five exact installable asset names
+and verify the SHA-256 digests recorded by GitHub for those assets.
 
 | Installable artifact | Contents |
 | --- | --- |
@@ -103,27 +102,57 @@ Create two protected GitHub environments:
 
 - `stable-release-qualification` protects the QEMU and hardware runner jobs.
   Require trusted reviewers and restrict deployment branches to `main`.
-- `stable-release` protects access to release keys and publication. Require
-  independent reviewers, restrict it to `main`, and prevent administrators
-  from bypassing the rule where repository policy permits.
+- `stable-release` protects access to the Android release key and publication.
+  Require independent reviewers, restrict it to `main`, and prevent
+  administrators from bypassing the rule where repository policy permits.
 
 Store these values as environment secrets on `stable-release`:
 
 | Secret | Requirement |
 | --- | --- |
-| `ZENFM_RELEASE_PUBLIC_KEY_HEX` | Lowercase 64-character Ed25519 public key encoded into plugin and Android builds |
-| `ZENFM_RELEASE_SIGNING_KEY_BASE64` | Base64 of the matching encrypted-at-rest Ed25519 PEM used only by the packaging job |
 | `ANDROID_KEYSTORE_BASE64` | Base64 of the Android release keystore |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_ALIAS` | Release key alias |
-| `ANDROID_KEY_PASSWORD` | Release key password |
-| `ANDROID_CERT_SHA256` | Expected 64-character SHA-256 digest of the Android signing certificate |
 
-Generate the Ed25519 key outside GitHub, back it up offline, and publish its
-public-key fingerprint through a separate trusted channel. Do not reuse the
-Android signing key or put either private key in the repository. Rotation
-requires a deliberately shipped trust transition; merely changing a secret
-would make installed updaters reject future manifests.
+Generate the keystore outside GitHub. The alias must be `zenfm-release` because
+the build fixes that non-secret value in Gradle:
+
+```sh
+keytool -genkeypair \
+  -keystore zenfm-release.p12 \
+  -storetype PKCS12 \
+  -alias zenfm-release \
+  -keyalg RSA \
+  -keysize 4096 \
+  -sigalg SHA256withRSA \
+  -validity 10000
+```
+
+Use the prompted password for `ANDROID_KEYSTORE_PASSWORD`. PKCS#12 uses that
+same password for its private-key entry. Generate the remaining secret value as
+one line:
+
+```sh
+openssl base64 -A -in zenfm-release.p12
+```
+
+Store that output as `ANDROID_KEYSTORE_BASE64`. Keep an offline backup of the
+keystore and password. Android requires every update to use the same signing
+key, so losing or replacing it prevents upgrades of existing installations.
+
+If a JKS keystore was already generated, preserve its key by converting it
+rather than generating another one:
+
+```sh
+keytool -importkeystore \
+  -srckeystore zenfm-release.jks \
+  -destkeystore zenfm-release.p12 \
+  -deststoretype PKCS12 \
+  -srcalias zenfm-release \
+  -destalias zenfm-release
+```
+
+Then base64-encode `zenfm-release.p12` as above. Use the destination password as
+`ANDROID_KEYSTORE_PASSWORD`.
 
 ## Stable promotion
 
@@ -135,9 +164,8 @@ would make installed updaters reject future manifests.
 3. Dispatch `Stable release` from `main` with the tag and four run IDs.
 4. Approve the `stable-release` environment only after reviewing the evidence
    summaries and expected source commit.
-5. Download the published assets, verify the manifest signature with the
-   separately distributed Ed25519 public key, verify GitHub artifact
-   attestations, and install-test the final archives before announcement.
+5. Download the published assets, verify GitHub artifact attestations, and
+   install-test the final archives before announcement.
 
 The workflow will not manufacture or waive old-kernel or physical-device
 evidence. Pre-releases need a separate explicitly documented workflow if the
