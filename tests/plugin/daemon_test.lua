@@ -146,6 +146,22 @@ test("hard-float Kindle backend", function()
     equal(daemon:root(), "/mnt/us")
 end)
 
+test("installed backend version prefers the installed marker", function()
+    local base = os.tmpname() .. ".version"
+    local plugin_dir, state_dir = base .. "/plugin", base .. "/state"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.ensure_dir(state_dir .. "/backend"))
+    assert(Util.write_atomic(plugin_dir .. "/VERSION", "2.0.0\n", "600"))
+    assert(Util.write_atomic(state_dir .. "/backend/source.version", "1.9.0\nzenfm-hf\nsignature\n", "600"))
+    local daemon = Daemon:new{
+        plugin_dir = plugin_dir, state_dir = state_dir, platform = "kindle",
+        settings = fake_settings(defaults),
+    }
+    equal(daemon:bundled_backend_version(), "2.0.0")
+    equal(daemon:installed_backend_version(), "1.9.0")
+    assert(Util.remove_tree(base, base:match("^(.*)/[^/]+$")))
+end)
+
 test("PocketBook always uses soft float", function()
     local real_settings = setmetatable({ values = Settings.defaults() }, { __index = Settings })
     equal(real_settings:default_root("pocketbook"), "/mnt/ext1")
@@ -1028,6 +1044,46 @@ test("opening the Android menu uses cached state and exit stops the service", fu
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
+test("dispatcher exposes the server toggle and settings show its backend version", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, actions = {}, {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = {
+        registerAction = function(_, name, action) actions[name] = action end,
+    }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function() end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    ZenFM:onDispatcherRegisterActions()
+    equal(actions.zenfm_toggle.event, "ToggleZenFM")
+    equal(actions.zenfm_toggle.title, "ZenFM: Toggle server")
+    assert(actions.zenfm_toggle.general)
+    assert(type(ZenFM["on" .. actions.zenfm_toggle.event]) == "function")
+
+    local owner = setmetatable({
+        daemon = {
+            settings = { values = Settings.defaults() },
+            installed_backend_version = function() return "9.8.7" end,
+        },
+    }, { __index = ZenFM })
+    local menu = owner:settings_menu()
+    equal(menu[1].text_func(), "Backend version: 9.8.7")
+    assert(not menu[1].enabled_func())
+    equal(menu[#menu].text, "Update")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
 test("Android toggle polls incrementally only after KOReader resumes", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
@@ -1132,7 +1188,7 @@ test("Android update opens the companion only after plugin update work", functio
     }, { __index = ZenFM })
     local ok, detail = owner:update()
     assert(ok, tostring(detail))
-    equal(events[1], "notice:Checking for a verified ZenFM update…")
+    equal(events[1], "notice:Checking for a ZenFM update…")
     equal(events[2], "plugin-update")
     contains(events[3], "KOReader plugin bundle: ZenFM is up to date")
     contains(events[3], "Android companion APK: opening updater")

@@ -121,14 +121,15 @@ macOS binary with `lipo`. It requires:
 Configure Android and build:
 
 ```sh
-export ANDROID_HOME=/absolute/path/to/android-sdk
-export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/25.2.9519653"
-export GRADLE_BIN=gradle
-
 sh build.sh
 version="$(sed -n '1p' VERSION)"
 sh scripts/verify-release-assets.sh dist "$version"
 ```
+
+The Android build command derives `JAVA_HOME`, `ANDROID_HOME`,
+`ANDROID_SDK_ROOT`, and the NDK variables from common local installations. It
+also prefers SDKMAN's pinned Gradle 8.6 installation over another global
+Gradle version. Set any of these variables explicitly to override discovery.
 
 Without `ANDROID_KEYSTORE_PATH`, `build.sh` automatically creates a debug-signed
 development APK. CI supplies the persistent Android signing credentials for

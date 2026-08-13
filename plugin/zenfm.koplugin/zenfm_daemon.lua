@@ -141,6 +141,23 @@ function Daemon:backend_path()
     return self:backend_dir() .. "/zenfm"
 end
 
+function Daemon:bundled_backend_version()
+    local version = Util.trim(Util.read_all(self.plugin_dir .. "/VERSION", 128) or "")
+    if version ~= "" then return version end
+    local ok, meta = pcall(dofile, self.plugin_dir .. "/_meta.lua")
+    if ok and type(meta) == "table" and meta.version then return tostring(meta.version) end
+    return "unknown"
+end
+
+function Daemon:installed_backend_version()
+    if not self:is_android() and not self:is_pocketbook() then
+        local marker = Util.read_all(self:backend_dir() .. "/source.version", 1024) or ""
+        local version = Util.trim(marker:match("^[^\r\n]+") or "")
+        if version ~= "" then return version end
+    end
+    return self:bundled_backend_version()
+end
+
 function Daemon:control_socket()
     return self:runtime_dir() .. "/control.sock"
 end

@@ -99,7 +99,7 @@ function ZenFM:onDispatcherRegisterActions()
     Dispatcher:registerAction("zenfm_toggle", {
         category = "none",
         event = "ToggleZenFM",
-        title = _("ZenFM: Start or stop"),
+        title = _("ZenFM: Toggle server"),
         general = true,
     })
     Dispatcher:registerAction("zenfm_status", {
@@ -274,7 +274,7 @@ function ZenFM:confirm_reset_login()
 end
 
 function ZenFM:update()
-    notice(_("Checking for a verified ZenFM update…"))
+    notice(_("Checking for a ZenFM update…"))
     if self.daemon:is_android() then
         local ok, result = Updater.install_latest(self.daemon)
         local plugin_failed = not ok and result ~= "ZenFM is up to date"
@@ -293,6 +293,12 @@ end
 function ZenFM:settings_menu()
     local values = self.daemon.settings.values
     return {
+        {
+            text_func = function()
+                return _("Backend version: ") .. self.daemon:installed_backend_version()
+            end,
+            enabled_func = function() return false end,
+        },
         {
             text = _("Port: ") .. tostring(values.port),
             keep_menu_open = true,
@@ -349,7 +355,7 @@ function ZenFM:settings_menu()
             callback = function() self:confirm_reset_login() end,
         },
         {
-            text = _("Check for verified update"),
+            text = _("Update"),
             callback = function() self:update() end,
         },
     }
