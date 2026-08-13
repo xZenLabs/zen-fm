@@ -82,6 +82,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	sessionIdle := flags.Duration("session-idle", 2*time.Hour, "browser session idle lifetime")
 	sessionAbsolute := flags.Duration("session-absolute", 12*time.Hour, "browser session absolute lifetime")
 	insecureHTTP := flags.Bool("insecure-http", false, "explicitly serve unencrypted HTTP")
+	modeLessFilesystem := flags.Bool("mode-less-filesystem", false, "allow storage without Unix file modes")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
-	if err := os.Chmod(*dataDir, 0o700); err != nil {
+	if err := platform.ModeChangeError(os.Chmod(*dataDir, 0o700), *modeLessFilesystem); err != nil {
 		return fmt.Errorf("secure data directory: %w", err)
 	}
 	if *listenAddress == "" {
@@ -110,7 +111,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *keyFile == "" {
 		*keyFile = filepath.Join(*dataDir, "tls", "key.pem")
 	}
-	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{})
+	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
 	if err != nil {
 		return err
 	}
@@ -131,6 +132,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	api, err := server.New(server.Config{
 		Store: store, Files: root, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
 		SessionIdle: *sessionIdle, SessionAbsolute: *sessionAbsolute,
+		ModeLessFilesystem: *modeLessFilesystem,
 	})
 	if err != nil {
 		return err
@@ -144,7 +146,9 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	fingerprint := "-"
 	var certificateManager *tlsutil.Manager
 	if !*insecureHTTP {
-		certificateManager, fingerprint, err = tlsutil.NewManager(*certFile, *keyFile, []string{listener.Addr().String()})
+		certificateManager, fingerprint, err = tlsutil.NewManagerWithOptions(
+			*certFile, *keyFile, []string{listener.Addr().String()}, tlsutil.Options{ModeLessFilesystem: *modeLessFilesystem},
+		)
 		if err != nil {
 			return fmt.Errorf("TLS certificate: %w", err)
 		}
@@ -164,7 +168,10 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		httpServer.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12, GetCertificate: certificateManager.GetCertificate}
 	}
 	controlErrors := make(chan error, 1)
-	controlServer := &control.Server{Path: *controlSocket, URL: address, Fingerprint: fingerprint, Stop: cancel}
+	controlServer := &control.Server{
+		Path: *controlSocket, URL: address, Fingerprint: fingerprint, Stop: cancel,
+		ModeLessFilesystem: *modeLessFilesystem,
+	}
 	go func() { controlErrors <- controlServer.Run(ctx) }()
 	serveErrors := make(chan error, 1)
 	go func() {
@@ -234,13 +241,14 @@ func runReset(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("reset-login", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	dataDir := flags.String("data-dir", platform.DefaultDataDir(), "private ZenFM state directory")
+	modeLessFilesystem := flags.Bool("mode-less-filesystem", false, "allow storage without Unix file modes")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return errors.New("invalid reset-login arguments")
 	}
-	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{})
+	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
 	if err != nil {
 		return err
 	}

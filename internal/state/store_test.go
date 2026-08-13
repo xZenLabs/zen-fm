@@ -3,7 +3,10 @@ package state
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +24,29 @@ func testStore(t *testing.T, now *time.Time) *Store {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	return s
+}
+
+func TestOpenModeLessFilesystemAllowsPermissionDeniedChmod(t *testing.T) {
+	original := chmodDataDirectory
+	chmodDataDirectory = func(string, os.FileMode) error { return syscall.EPERM }
+	t.Cleanup(func() { chmodDataDirectory = original })
+
+	options := Options{
+		ModeLessFilesystem: true,
+		PasswordParams:     auth.PasswordParams{Memory: 8 * 1024, Iterations: 1, Parallelism: 1, SaltLength: 16, KeyLength: 16},
+	}
+	store, err := Open(filepath.Join(t.TempDir(), "portable", "zenfm.db"), options)
+	if err != nil {
+		t.Fatalf("mode-less filesystem failed to open state: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	options.ModeLessFilesystem = false
+	if _, err := Open(filepath.Join(t.TempDir(), "strict", "zenfm.db"), options); !errors.Is(err, syscall.EPERM) {
+		t.Fatalf("strict mode did not preserve chmod failure: %v", err)
+	}
 }
 
 func TestInitialOwnerAndSettings(t *testing.T) {
@@ -54,6 +80,228 @@ func TestSessionIdleAndAbsoluteExpiry(t *testing.T) {
 	now = time.Unix(1000, 0).Add(12 * time.Hour)
 	if _, err := s.Session("secret", time.Hour, true); !errors.Is(err, ErrExpired) {
 		t.Fatalf("expected expiry, got %v", err)
+	}
+}
+
+func TestSessionTouchesUseReadTransactionsAndCoalesce(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 10 * time.Minute
+	created, err := s.CreateSession("session", "csrf", idle, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(30 * time.Second)
+	stats := s.db.Stats()
+	coalesced, err := s.Session("session", idle, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reads := s.db.Stats().TxN - stats.TxN; reads != 1 {
+		t.Fatalf("coalesced lookup started %d read transactions, want 1", reads)
+	}
+	if coalesced.LastSeenAt != now.Unix() || coalesced.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("coalesced touch did not return its effective deadline: got %+v, created %+v", coalesced, created)
+	}
+
+	now = now.Add(30 * time.Second)
+	touched, err := s.Session("session", idle, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if touched.LastSeenAt != now.Unix() || touched.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("persisted touch = %+v", touched)
+	}
+	persisted, err := s.Session("session", idle, false)
+	if err != nil || persisted.LastSeenAt != touched.LastSeenAt || persisted.IdleUntil != touched.IdleUntil {
+		t.Fatalf("stored touch = %+v, %v", persisted, err)
+	}
+}
+
+func TestSessionTouchIntervalIsShorterThanShortIdleWindow(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 40 * time.Second
+	_, err := s.CreateSession("short-session", "csrf", idle, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(19 * time.Second)
+	coalesced, err := s.Session("short-session", idle, true)
+	if err != nil || coalesced.LastSeenAt != now.Unix() || coalesced.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("early short-idle touch = %+v, %v", coalesced, err)
+	}
+	now = now.Add(time.Second)
+	touched, err := s.Session("short-session", idle, true)
+	if err != nil || touched.LastSeenAt != now.Unix() || touched.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("due short-idle touch = %+v, %v", touched, err)
+	}
+}
+
+func TestCoalescedSessionTouchSurvivesPersistedIdleDeadline(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 40 * time.Second
+	_, err := s.CreateSession("active-short-session", "csrf", idle, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(19 * time.Second)
+	coalesced, err := s.Session("active-short-session", idle, true)
+	if err != nil || coalesced.LastSeenAt != now.Unix() || coalesced.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("coalesced touch = %+v, %v", coalesced, err)
+	}
+
+	// This request is still within one idle window of the coalesced touch even
+	// though the older, persisted idle deadline has just been reached.
+	now = now.Add(21 * time.Second)
+	touched, err := s.Session("active-short-session", idle, true)
+	if err != nil {
+		t.Fatalf("active session expired at persisted deadline: %v", err)
+	}
+	if touched.LastSeenAt != now.Unix() || touched.IdleUntil != now.Add(idle).Unix() {
+		t.Fatalf("persisted boundary touch = %+v", touched)
+	}
+}
+
+func TestPruneExpiredPersistsPendingSessionTouch(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 40 * time.Second
+	if _, err := s.CreateSession("pruned-short-session", "csrf", idle, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(19 * time.Second)
+	if _, err := s.Session("pruned-short-session", idle, true); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(21 * time.Second)
+	if _, err := s.PruneExpired(); err != nil {
+		t.Fatal(err)
+	}
+	persisted, err := s.Session("pruned-short-session", idle, false)
+	if err != nil {
+		t.Fatalf("prune removed active session: %v", err)
+	}
+	if persisted.LastSeenAt != now.Add(-21*time.Second).Unix() || persisted.IdleUntil != now.Add(19*time.Second).Unix() {
+		t.Fatalf("session touch persisted by prune = %+v", persisted)
+	}
+
+	now = now.Add(19 * time.Second)
+	if _, err := s.PruneExpired(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Session("pruned-short-session", idle, false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("session survived its effective idle deadline: %v", err)
+	}
+}
+
+func TestExpiredSessionLookupDeletesRecord(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 2 * time.Minute
+	if _, err := s.CreateSession("expired-session", "csrf", idle, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	now = now.Add(idle)
+	if _, err := s.Session("expired-session", idle, true); !errors.Is(err, ErrExpired) {
+		t.Fatalf("expired lookup = %v", err)
+	}
+	if _, err := s.Session("expired-session", idle, false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expired session was not deleted: %v", err)
+	}
+}
+
+func TestSessionTouchRereadsBeforePersisting(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	idle := 10 * time.Minute
+	if _, err := s.CreateSession("revoked-session", "csrf", idle, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Minute)
+
+	writer, err := s.db.Begin(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Rollback()
+	stats := s.db.Stats()
+	result := make(chan error, 1)
+	go func() {
+		_, lookupErr := s.Session("revoked-session", idle, true)
+		result <- lookupErr
+	}()
+	deadline := time.Now().Add(time.Second)
+	for {
+		current := s.db.Stats()
+		if current.TxN > stats.TxN && current.OpenTxN == stats.OpenTxN {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("session lookup did not complete its read transaction")
+		}
+		runtime.Gosched()
+	}
+	if err := writer.Bucket(bucketSessions).Delete(digestKey("revoked-session")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-result; !errors.Is(err, ErrNotFound) {
+		t.Fatalf("touch restored revoked session: %v", err)
+	}
+}
+
+func TestTokenTouchesCoalescePersistAndExpire(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := testStore(t, &now)
+	expiresAt := now.Add(3 * time.Minute).Unix()
+	if err := s.CreateToken("token", APIToken{ID: "id", Name: "phone", CreatedAt: now.Unix(), ExpiresAt: expiresAt}); err != nil {
+		t.Fatal(err)
+	}
+
+	untouched, err := s.Token("token", false)
+	if err != nil || untouched.LastUsedAt != 0 {
+		t.Fatalf("untouched token = %+v, %v", untouched, err)
+	}
+	first, err := s.Token("token", true)
+	if err != nil || first.LastUsedAt != now.Unix() {
+		t.Fatalf("first token touch = %+v, %v", first, err)
+	}
+
+	now = now.Add(59 * time.Second)
+	stats := s.db.Stats()
+	coalesced, err := s.Token("token", true)
+	if err != nil || coalesced.LastUsedAt != first.LastUsedAt {
+		t.Fatalf("coalesced token touch = %+v, %v", coalesced, err)
+	}
+	if reads := s.db.Stats().TxN - stats.TxN; reads != 1 {
+		t.Fatalf("coalesced token lookup started %d read transactions, want 1", reads)
+	}
+
+	now = now.Add(time.Second)
+	touched, err := s.Token("token", true)
+	if err != nil || touched.LastUsedAt != now.Unix() {
+		t.Fatalf("persisted token touch = %+v, %v", touched, err)
+	}
+	persisted, err := s.Token("token", false)
+	if err != nil || persisted.LastUsedAt != touched.LastUsedAt {
+		t.Fatalf("stored token touch = %+v, %v", persisted, err)
+	}
+
+	now = time.Unix(expiresAt, 0)
+	if _, err := s.Token("token", true); !errors.Is(err, ErrExpired) {
+		t.Fatalf("expired token lookup = %v", err)
+	}
+	if _, err := s.Token("token", false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expired token was not deleted: %v", err)
 	}
 }
 

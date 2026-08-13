@@ -21,9 +21,20 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/xZenLabs/zen-fm/internal/platform"
 )
 
 const managedMarkerVersion = "zenfm-managed-v1"
+
+var (
+	chmodCertificatePath = os.Chmod
+	chmodCertificateFile = func(file *os.File, mode os.FileMode) error { return file.Chmod(mode) }
+)
+
+type Options struct {
+	ModeLessFilesystem bool
+}
 
 // Manager serves a certificate and refreshes a ZenFM-managed certificate when
 // a DHCP/interface change introduces a LAN address absent from its IP SANs.
@@ -37,6 +48,7 @@ type Manager struct {
 	hosts       []string
 	addresses   func() []net.IP
 	now         func() time.Time
+	options     Options
 	managed     bool
 	certificate tls.Certificate
 	leaf        *x509.Certificate
@@ -48,6 +60,12 @@ func NewManager(certFile, keyFile string, hosts []string) (*Manager, string, err
 	return newManager(certFile, keyFile, hosts, interfaceIPs, time.Now)
 }
 
+// NewManagerWithOptions permits callers on explicitly mode-less filesystems to
+// continue when chmod reports a permission error.
+func NewManagerWithOptions(certFile, keyFile string, hosts []string, options Options) (*Manager, string, error) {
+	return newManagerWithOptions(certFile, keyFile, hosts, interfaceIPs, time.Now, options)
+}
+
 // Ensure preserves the original fingerprint-only API for callers that do not
 // need live DHCP refresh.
 func Ensure(certFile, keyFile string, hosts []string) (string, error) {
@@ -56,10 +74,14 @@ func Ensure(certFile, keyFile string, hosts []string) (string, error) {
 }
 
 func newManager(certFile, keyFile string, hosts []string, addresses func() []net.IP, now func() time.Time) (*Manager, string, error) {
+	return newManagerWithOptions(certFile, keyFile, hosts, addresses, now, Options{})
+}
+
+func newManagerWithOptions(certFile, keyFile string, hosts []string, addresses func() []net.IP, now func() time.Time, options Options) (*Manager, string, error) {
 	if certFile == "" || keyFile == "" || certFile == keyFile {
 		return nil, "", errors.New("invalid certificate paths")
 	}
-	m := &Manager{certFile: certFile, keyFile: keyFile, hosts: append([]string(nil), hosts...), addresses: addresses, now: now}
+	m := &Manager{certFile: certFile, keyFile: keyFile, hosts: append([]string(nil), hosts...), addresses: addresses, now: now, options: options}
 	certExists, keyExists := fileExists(certFile), fileExists(keyFile)
 	if certExists != keyExists {
 		return nil, "", errors.New("certificate and key must both exist or both be absent")
@@ -69,14 +91,14 @@ func newManager(certFile, keyFile string, hosts []string, addresses func() []net
 		if err != nil {
 			return nil, "", err
 		}
-		if err := writePair(certFile, keyFile, key, hosts, addresses(), now()); err != nil {
+		if err := writePairWithOptions(certFile, keyFile, key, hosts, addresses(), now(), options); err != nil {
 			return nil, "", err
 		}
 		fingerprint, err := Fingerprint(certFile)
 		if err != nil {
 			return nil, "", err
 		}
-		if err := atomicWrite(markerPath(certFile), []byte(managedMarkerVersion+" "+fingerprint+"\n"), 0o600); err != nil {
+		if err := atomicWriteWithOptions(markerPath(certFile), []byte(managedMarkerVersion+" "+fingerprint+"\n"), 0o600, options); err != nil {
 			return nil, "", fmt.Errorf("write managed marker: %w", err)
 		}
 	}
@@ -86,10 +108,10 @@ func newManager(certFile, keyFile string, hosts []string, addresses func() []net
 	fingerprint := certificateFingerprint(m.leaf)
 	m.managed = validManagedMarker(certFile, fingerprint)
 	if m.managed {
-		if err := os.Chmod(certFile, 0o600); err != nil {
+		if err := platform.ModeChangeError(chmodCertificatePath(certFile, 0o600), options.ModeLessFilesystem); err != nil {
 			return nil, "", err
 		}
-		if err := os.Chmod(keyFile, 0o600); err != nil {
+		if err := platform.ModeChangeError(chmodCertificatePath(keyFile, 0o600), options.ModeLessFilesystem); err != nil {
 			return nil, "", err
 		}
 		if err := m.refreshLocked(); err != nil {
@@ -119,7 +141,7 @@ func (m *Manager) refreshLocked() error {
 	if certificateCovers(m.leaf, addresses) && m.now().Before(m.leaf.NotAfter) && !m.now().Before(m.leaf.NotBefore) {
 		return nil
 	}
-	if err := writePair(m.certFile, m.keyFile, m.certificate.PrivateKey, m.hosts, addresses, m.now()); err != nil {
+	if err := writePairWithOptions(m.certFile, m.keyFile, m.certificate.PrivateKey, m.hosts, addresses, m.now(), m.options); err != nil {
 		return err
 	}
 	return m.load()
@@ -164,6 +186,10 @@ func certificateFingerprint(cert *x509.Certificate) string {
 }
 
 func writePair(certFile, keyFile string, privateKey any, hosts []string, addresses []net.IP, now time.Time) error {
+	return writePairWithOptions(certFile, keyFile, privateKey, hosts, addresses, now, Options{})
+}
+
+func writePairWithOptions(certFile, keyFile string, privateKey any, hosts []string, addresses []net.IP, now time.Time, options Options) error {
 	if err := os.MkdirAll(filepath.Dir(certFile), 0o700); err != nil {
 		return err
 	}
@@ -213,11 +239,11 @@ func writePair(certFile, keyFile string, privateKey any, hosts []string, address
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
 	keyAlreadyPresent := fileExists(keyFile)
-	if err := atomicWrite(certFile, certPEM, 0o600); err != nil {
+	if err := atomicWriteWithOptions(certFile, certPEM, 0o600, options); err != nil {
 		return fmt.Errorf("write certificate: %w", err)
 	}
 	if !keyAlreadyPresent {
-		if err := atomicWrite(keyFile, keyPEM, 0o600); err != nil {
+		if err := atomicWriteWithOptions(keyFile, keyPEM, 0o600, options); err != nil {
 			_ = os.Remove(certFile)
 			return fmt.Errorf("write key: %w", err)
 		}
@@ -329,6 +355,10 @@ func validManagedMarker(certFile, fingerprint string) bool {
 }
 
 func atomicWrite(name string, data []byte, mode os.FileMode) error {
+	return atomicWriteWithOptions(name, data, mode, Options{})
+}
+
+func atomicWriteWithOptions(name string, data []byte, mode os.FileMode, options Options) error {
 	if err := os.MkdirAll(filepath.Dir(name), 0o700); err != nil {
 		return err
 	}
@@ -344,7 +374,7 @@ func atomicWrite(name string, data []byte, mode os.FileMode) error {
 			_ = os.Remove(tmpName)
 		}
 	}()
-	if err := tmp.Chmod(mode); err != nil {
+	if err := platform.ModeChangeError(chmodCertificateFile(tmp, mode), options.ModeLessFilesystem); err != nil {
 		return err
 	}
 	if _, err := tmp.Write(data); err != nil {

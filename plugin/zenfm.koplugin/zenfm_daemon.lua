@@ -74,6 +74,10 @@ function Daemon:is_android()
     return self.android ~= nil
 end
 
+function Daemon:is_pocketbook()
+    return self:platform() == "pocketbook"
+end
+
 function Daemon:platform()
     if self.platform_override then return self.platform_override end
     if self:is_android() then return "android" end
@@ -133,6 +137,7 @@ function Daemon:backend_dir()
 end
 
 function Daemon:backend_path()
+    if self.selected_backend_path then return self.selected_backend_path end
     return self:backend_dir() .. "/zenfm"
 end
 
@@ -150,9 +155,11 @@ end
 
 function Daemon:ensure_runtime_dir()
     local quoted = Util.sh_quote(self:runtime_dir())
+    local chmod = "chmod 700 " .. quoted
+    if self:is_pocketbook() then chmod = chmod .. " >/dev/null 2>&1 || true" end
     local command = "if [ -L " .. quoted .. " ]; then exit 1; fi; "
-        .. "umask 077; mkdir " .. quoted .. " 2>/dev/null || [ -d " .. quoted .. " ]; "
-        .. "[ ! -L " .. quoted .. " ] && chmod 700 " .. quoted
+        .. "umask 077; mkdir " .. quoted .. " 2>/dev/null || [ -d " .. quoted .. " ] || exit 1; "
+        .. "[ ! -L " .. quoted .. " ] || exit 1; " .. chmod
     return self.execute(command) == 0
 end
 
@@ -165,7 +172,9 @@ function Daemon:token_path()
 end
 
 function Daemon:ensure_dirs()
-    return Util.ensure_dir(self.state_dir) and Util.ensure_dir(self:backend_dir()) and self:ensure_runtime_dir()
+    return Util.ensure_dir(self.state_dir)
+        and (self:is_pocketbook() or Util.ensure_dir(self:backend_dir()))
+        and self:ensure_runtime_dir()
 end
 
 function Daemon:ensure_control_token()
@@ -184,6 +193,12 @@ function Daemon:ensure_backend()
     if not self:ensure_dirs() then return false, "could not create ZenFM state directory" end
     local source = self:bundled_backend()
     if not source then return false, "no ZenFM backend matches this platform or ABI" end
+    -- PocketBook's settings storage does not support executable mode bits. Run
+    -- the executable shipped with the plugin instead of copying it there.
+    if self:is_pocketbook() then
+        self.selected_backend_path = source
+        return true
+    end
     local marker_path = self:backend_dir() .. "/source.version"
     local version = Util.trim(Util.read_all(self.plugin_dir .. "/VERSION", 128) or "unknown")
     local marker = version .. "\n" .. basename(source) .. "\n" .. file_signature(source) .. "\n"
@@ -220,6 +235,7 @@ function Daemon:serve_arguments()
         "--control-socket", self:control_socket(),
         "--auto-stop", values.auto_stop_minutes == 30 and "30m" or "0",
     }
+    if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
         table.insert(arguments, "--insecure-http")
     elseif values.tls_cert ~= "" and values.tls_key ~= "" then
@@ -241,13 +257,18 @@ end
 
 function Daemon:supervisor_command()
     local supervisor = self.plugin_dir .. "/supervisor.sh"
-    self.execute("chmod 700 " .. Util.sh_quote(supervisor) .. " >/dev/null 2>&1")
-    local command = {
-        Util.sh_quote(supervisor),
+    local pocketbook = self:is_pocketbook()
+    if not pocketbook then
+        self.execute("chmod 700 " .. Util.sh_quote(supervisor) .. " >/dev/null 2>&1")
+    end
+    local command = {}
+    if pocketbook then table.insert(command, "sh") end
+    table.insert(command, Util.sh_quote(supervisor))
+    for _, argument in ipairs({
         "--pid-file", Util.sh_quote(self:pid_path()),
         "--socket-file", Util.sh_quote(self:control_socket()),
         "--port", Util.sh_quote(tostring(self.settings.values.port)),
-    }
+    }) do table.insert(command, argument) end
     if self:platform() == "kindle" then table.insert(command, "--kindle") end
     table.insert(command, "--")
     table.insert(command, self:serve_command(nil, false))
@@ -392,7 +413,9 @@ function Daemon:reset_login()
     local ready, ready_err = self:ensure_backend()
     if not ready then return false, ready_err end
     local command = Util.sh_quote(self:backend_path()) .. " reset-login --data-dir "
-        .. Util.sh_quote(self.state_dir) .. " >>" .. Util.sh_quote(self:log_path()) .. " 2>&1"
+        .. Util.sh_quote(self.state_dir)
+    if self:is_pocketbook() then command = command .. " --mode-less-filesystem" end
+    command = command .. " >>" .. Util.sh_quote(self:log_path()) .. " 2>&1"
     return self.execute(command) == 0, "reset-login failed; see " .. self:log_path()
 end
 

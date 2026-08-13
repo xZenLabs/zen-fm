@@ -293,7 +293,7 @@ describe('file browser', () => {
     await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument())
   })
 
-  it('aborts active uploads and does not start queued files when the banner is cancelled', async () => {
+  it('runs four uploads at a time, aborts active uploads, and does not start queued files when cancelled', async () => {
     const started: string[] = []
     const aborted: string[] = []
     vi.spyOn(api.files, 'uploadWithProgress').mockImplementation((path, _file, _overwrite, _onProgress, signal) => new Promise<void>((_resolve, reject) => {
@@ -310,14 +310,20 @@ describe('file browser', () => {
     await screen.findByText('Nothing here yet')
 
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
-    await user.upload(input, [new File(['one'], 'one.txt'), new File(['two'], 'two.txt'), new File(['three'], 'three.txt')])
-    await waitFor(() => expect(started).toEqual(['/one.txt', '/two.txt']))
+    await user.upload(input, [
+      new File(['one'], 'one.txt'),
+      new File(['two'], 'two.txt'),
+      new File(['three'], 'three.txt'),
+      new File(['four'], 'four.txt'),
+      new File(['five'], 'five.txt'),
+    ])
+    await waitFor(() => expect(started).toEqual(['/one.txt', '/two.txt', '/three.txt', '/four.txt']))
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument())
-    expect(aborted).toEqual(['/one.txt', '/two.txt'])
-    expect(started).not.toContain('/three.txt')
+    expect(aborted).toEqual(['/one.txt', '/two.txt', '/three.txt', '/four.txt'])
+    expect(started).not.toContain('/five.txt')
     expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled()
     expect(screen.queryByText('The operation was aborted.')).not.toBeInTheDocument()
   })
@@ -547,6 +553,30 @@ describe('file browser', () => {
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
     expect(requests).toEqual(['/one.txt', '/two.txt'])
+  })
+
+  it('dismisses a pending conflict when another upload fails', async () => {
+    vi.spyOn(api.files, 'uploadWithProgress').mockImplementation(async (path) => {
+      if (path === '/conflict.txt') {
+        const { ApiError } = await import('../api/client')
+        throw new ApiError(409, { title: 'Conflict', status: 409 })
+      }
+      if (path === '/failed.txt') {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        throw new Error('storage failed')
+      }
+    })
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, [new File(['one'], 'conflict.txt'), new File(['two'], 'failed.txt')])
+
+    expect(await screen.findByRole('heading', { name: 'File already exists' })).toBeInTheDocument()
+    expect(await screen.findByText('storage failed')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument()
   })
 
   it('shows lazy bounded image thumbnails in grid view', async () => {

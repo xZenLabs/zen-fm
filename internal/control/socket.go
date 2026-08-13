@@ -14,13 +14,18 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/xZenLabs/zen-fm/internal/platform"
 )
 
+var chmodControlSocket = os.Chmod
+
 type Server struct {
-	Path        string
-	URL         string
-	Fingerprint string
-	Stop        func()
+	Path               string
+	URL                string
+	Fingerprint        string
+	Stop               func()
+	ModeLessFilesystem bool
 
 	mu       sync.Mutex
 	listener *net.UnixListener
@@ -42,9 +47,9 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("listen on control socket: %w", err)
 	}
-	if err := os.Chmod(s.Path, 0o600); err != nil {
+	if err := s.secureSocket(); err != nil {
 		listener.Close()
-		return fmt.Errorf("secure control socket: %w", err)
+		return err
 	}
 	info, err := os.Lstat(s.Path)
 	if err != nil {
@@ -73,6 +78,13 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 		s.handle(connection)
 	}
+}
+
+func (s *Server) secureSocket() error {
+	if err := platform.ModeChangeError(chmodControlSocket(s.Path, 0o600), s.ModeLessFilesystem); err != nil {
+		return fmt.Errorf("secure control socket: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) handle(connection *net.UnixConn) {

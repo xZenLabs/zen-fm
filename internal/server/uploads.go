@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,32 +16,38 @@ import (
 
 	"github.com/xZenLabs/zen-fm/internal/auth"
 	zenfiles "github.com/xZenLabs/zen-fm/internal/files"
+	"github.com/xZenLabs/zen-fm/internal/platform"
 	"github.com/xZenLabs/zen-fm/internal/state"
 )
 
 const (
-	tusVersion          = "1.0.0"
-	defaultMaxUpload    = int64(2 << 30)
-	defaultUploadExpiry = 24 * time.Hour
-	diskReserve         = uint64(8 << 20)
-	progressTimeout     = 30 * time.Second
+	tusVersion               = "1.0.0"
+	defaultMaxUpload         = int64(2 << 30)
+	defaultUploadExpiry      = 24 * time.Hour
+	defaultUploadConcurrency = 4
+	uploadDirectoryName      = ".zenfm-internal-uploads"
+	diskReserve              = uint64(8 << 20)
+	diskCheckReserve         = diskReserve * 2
+	progressTimeout          = 30 * time.Second
 )
 
+var chmodUploadDirectory = os.Chmod
+
 type uploadManager struct {
-	server    *Server
-	dir       string
-	root      *os.Root
-	capacity  *zenfiles.Root
-	maxLength int64
-	expiry    time.Duration
-	slots     chan struct{}
-	mu        sync.Mutex
-	locks     map[string]*uploadLock
-	createMu  sync.Mutex
-	maxActive int
-	closeOnce sync.Once
-	// finalizeReader is a test seam for deterministic cancellation while a
-	// completed partial is being copied. It is nil in production.
+	server       *Server
+	root         *os.Root
+	capacity     *zenfiles.Root
+	ownsCapacity bool
+	maxLength    int64
+	expiry       time.Duration
+	slots        chan struct{}
+	mu           sync.Mutex
+	locks        map[string]*uploadLock
+	createMu     sync.Mutex
+	maxActive    int
+	closeOnce    sync.Once
+	// finalizeReader is a test seam for deterministic cancellation in the
+	// streaming fallback. It is nil in production.
 	finalizeReader func(io.Reader) io.Reader
 }
 
@@ -60,7 +67,7 @@ func newUploadManager(server *Server, dir string, maxLength int64, expiry time.D
 		expiry = defaultUploadExpiry
 	}
 	if concurrency <= 0 {
-		concurrency = 2
+		concurrency = defaultUploadConcurrency
 	}
 	if concurrency > 16 {
 		concurrency = 16
@@ -71,28 +78,94 @@ func newUploadManager(server *Server, dir string, maxLength int64, expiry time.D
 	if maxActive > 1024 {
 		maxActive = 1024
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, err
+	var root *os.Root
+	var capacity *zenfiles.Root
+	ownsCapacity := false
+	var err error
+	if dir == "" {
+		legacyDir := filepath.Join(server.cfg.Store.DataDir(), "uploads")
+		legacyInUse, legacyErr := legacyUploadDirectoryInUse(server.cfg.Store, legacyDir, server.cfg.Now())
+		if legacyErr != nil {
+			return nil, legacyErr
+		}
+		if legacyInUse {
+			dir = legacyDir
+		} else {
+			root, dir, err = server.cfg.Files.OpenInternalDirectory(uploadDirectoryName)
+			capacity = server.cfg.Files
+			if err != nil {
+				dir = legacyDir
+			} else {
+				cleanupLegacyUploadDirectory(legacyDir, dir)
+			}
+		}
 	}
-	if err := os.Chmod(dir, 0o700); err != nil {
-		return nil, err
+	if root == nil {
+		if err = os.MkdirAll(dir, 0o700); err == nil {
+			err = platform.ModeChangeError(chmodUploadDirectory(dir, 0o700), server.cfg.ModeLessFilesystem)
+		}
+		if err == nil {
+			root, err = os.OpenRoot(dir)
+		}
+		if err == nil {
+			capacity, err = zenfiles.Open(dir, zenfiles.Options{})
+			ownsCapacity = err == nil
+		}
 	}
-	root, err := os.OpenRoot(dir)
 	if err != nil {
+		if root != nil {
+			root.Close()
+		}
 		return nil, err
 	}
-	capacity, err := zenfiles.Open(dir, zenfiles.Options{})
-	if err != nil {
-		root.Close()
-		return nil, err
-	}
-	m := &uploadManager{server: server, dir: dir, root: root, capacity: capacity, maxLength: maxLength, expiry: expiry, slots: make(chan struct{}, concurrency), locks: make(map[string]*uploadLock), maxActive: maxActive}
+	server.cfg.UploadDir = dir
+	m := &uploadManager{server: server, root: root, capacity: capacity, ownsCapacity: ownsCapacity, maxLength: maxLength, expiry: expiry, slots: make(chan struct{}, concurrency), locks: make(map[string]*uploadLock), maxActive: maxActive}
 	if err := m.startupCleanup(); err != nil {
-		capacity.Close()
+		if ownsCapacity {
+			capacity.Close()
+		}
 		root.Close()
 		return nil, err
 	}
 	return m, nil
+}
+
+func legacyUploadDirectoryInUse(store *state.Store, legacyDir string, now time.Time) (bool, error) {
+	uploads, err := store.Uploads()
+	if err != nil {
+		return false, err
+	}
+	for _, upload := range uploads {
+		if !validUploadID(upload.ID) || now.Unix() >= upload.ExpiresAt {
+			continue
+		}
+		info, statErr := os.Lstat(filepath.Join(legacyDir, partialName(upload.ID)))
+		if statErr == nil && info.Mode().IsRegular() && info.Size() >= upload.Offset {
+			return true, nil
+		}
+		if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
+			return false, statErr
+		}
+	}
+	return false, nil
+}
+
+func cleanupLegacyUploadDirectory(legacyDir, activeDir string) {
+	legacyAbs, legacyErr := filepath.Abs(legacyDir)
+	activeAbs, activeErr := filepath.Abs(activeDir)
+	if legacyErr != nil || activeErr != nil || legacyAbs == activeAbs {
+		return
+	}
+	entries, err := os.ReadDir(legacyAbs)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if validPartialName(entry.Name()) {
+			_ = os.Remove(filepath.Join(legacyAbs, entry.Name()))
+		}
+	}
+	_ = os.Remove(legacyAbs)
 }
 
 func (m *uploadManager) startupCleanup() error {
@@ -123,14 +196,19 @@ func (m *uploadManager) startupCleanup() error {
 		_ = partial.Close()
 		wanted[partialName(upload.ID)] = true
 	}
-	entries, err := os.ReadDir(m.dir)
+	directory, err := m.root.Open(".")
 	if err != nil {
 		return err
+	}
+	entries, err := directory.ReadDir(-1)
+	closeErr := directory.Close()
+	if err != nil || closeErr != nil {
+		return errors.Join(err, closeErr)
 	}
 	for _, entry := range entries {
 		name := entry.Name()
 		if validPartialName(name) && !wanted[name] {
-			if err := m.capacity.Delete(name, false); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			if err := m.root.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return err
 			}
 		}
@@ -156,7 +234,9 @@ func (m *uploadManager) pruneExpired() error {
 
 func (m *uploadManager) close() {
 	m.closeOnce.Do(func() {
-		_ = m.capacity.Close()
+		if m.ownsCapacity {
+			_ = m.capacity.Close()
+		}
 		_ = m.root.Close()
 	})
 }
@@ -194,6 +274,10 @@ func (m *uploadManager) acquire() bool {
 func (m *uploadManager) release() { <-m.slots }
 
 func (m *uploadManager) ensureDisk(required uint64) error {
+	return m.ensureDiskWithReserve(required, diskReserve)
+}
+
+func (m *uploadManager) ensureDiskWithReserve(required, reserve uint64) error {
 	usage, err := m.capacity.Usage()
 	if err != nil {
 		return err
@@ -202,7 +286,7 @@ func (m *uploadManager) ensureDisk(required uint64) error {
 	if usage.Total > usage.Used {
 		available = usage.Total - usage.Used
 	}
-	if required > ^uint64(0)-diskReserve || available < required+diskReserve {
+	if required > ^uint64(0)-reserve || available < required+reserve {
 		return zenfiles.ErrTooLarge
 	}
 	return nil
@@ -212,7 +296,7 @@ func (m *uploadManager) removePartial(id string) error {
 	if !validUploadID(id) {
 		return zenfiles.ErrInvalidPath
 	}
-	err := m.capacity.Delete(partialName(id), false)
+	err := m.root.Remove(partialName(id))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -289,11 +373,7 @@ func (s *Server) createUpload(w http.ResponseWriter, r *http.Request) {
 		mapError(w, r, err)
 		return
 	}
-	requiredPartial := uint64(length)
-	if requiredPartial <= ^uint64(0)/2 {
-		requiredPartial *= 2
-	}
-	if err := s.uploads.ensureDisk(requiredPartial); err != nil {
+	if err := s.uploads.ensureDisk(uint64(length)); err != nil {
 		mapError(w, r, err)
 		return
 	}
@@ -437,11 +517,6 @@ func (s *Server) patchUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	newOffset := upload.Offset + written
 	if newOffset == upload.Length {
-		if err := ensureFilesystemSpace(s.cfg.Files, uint64(upload.Length)); err != nil {
-			s.truncateUploadPartial(id, upload.Offset)
-			mapError(w, r, err)
-			return
-		}
 		complete := upload
 		complete.Offset = newOffset
 		if err := s.finalizeUpload(r.Context(), complete); err != nil {
@@ -489,14 +564,36 @@ func (s *Server) finalizeUpload(ctx context.Context, upload state.Upload) error 
 	if err != nil {
 		return err
 	}
-	defer partial.Close()
 	info, err := partial.Stat()
 	if err != nil {
+		partial.Close()
 		return err
 	}
 	if !info.Mode().IsRegular() || info.Size() != upload.Length {
+		partial.Close()
 		return state.ErrConflict
 	}
+	if err := ctx.Err(); err != nil {
+		partial.Close()
+		return err
+	}
+	if s.uploads.finalizeReader == nil {
+		if err := partial.Close(); err != nil {
+			return err
+		}
+		moved, err := s.cfg.Files.PublishTemporary(s.uploads.root, partialName(upload.ID), upload.Path, upload.Overwrite)
+		if err != nil || moved {
+			return err
+		}
+		if err := ensureFilesystemSpace(s.cfg.Files, uint64(upload.Length)); err != nil {
+			return err
+		}
+		partial, err = s.uploads.root.OpenFile(partialName(upload.ID), os.O_RDONLY|uploadOpenFlags(), 0)
+		if err != nil {
+			return err
+		}
+	}
+	defer partial.Close()
 	var source io.Reader = partial
 	if s.uploads.finalizeReader != nil {
 		source = s.uploads.finalizeReader(source)
@@ -614,15 +711,16 @@ type diskCheckedWriter struct {
 }
 
 func (w *diskCheckedWriter) Write(p []byte) (int, error) {
-	w.since += int64(len(p))
-	if !w.checked || w.since >= 1<<20 {
-		if err := w.manager.ensureDisk(uint64(len(p))); err != nil {
+	if diskCheckDue(w.checked, w.since, len(p), uploadDiskCheckStride(cap(w.manager.slots))) {
+		if err := w.manager.ensureDiskWithReserve(uint64(len(p)), diskCheckReserve); err != nil {
 			return 0, err
 		}
 		w.checked = true
 		w.since = 0
 	}
-	return w.writer.Write(p)
+	n, err := w.writer.Write(p)
+	w.since += int64(n)
+	return n, err
 }
 
 type progressReader struct {
@@ -658,8 +756,8 @@ type diskCheckedReader struct {
 }
 
 func (r *diskCheckedReader) Read(p []byte) (int, error) {
-	if !r.checked || r.since >= 1<<20 {
-		if err := r.manager.ensureDisk(uint64(len(p))); err != nil {
+	if diskCheckDue(r.checked, r.since, len(p), uploadDiskCheckStride(cap(r.manager.slots))) {
+		if err := r.manager.ensureDiskWithReserve(uint64(len(p)), diskCheckReserve); err != nil {
 			return 0, err
 		}
 		r.checked = true
@@ -668,4 +766,18 @@ func (r *diskCheckedReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	r.since += int64(n)
 	return n, err
+}
+
+func uploadDiskCheckStride(concurrency int) int64 {
+	if concurrency <= 0 {
+		concurrency = defaultUploadConcurrency
+	}
+	return max(int64(diskReserve/uint64(concurrency)), 1)
+}
+
+func diskCheckDue(checked bool, since int64, next int, stride int64) bool {
+	if !checked || since >= stride {
+		return true
+	}
+	return int64(next) >= stride-since
 }

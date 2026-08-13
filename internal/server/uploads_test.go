@@ -9,11 +9,15 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	zenfiles "github.com/xZenLabs/zen-fm/internal/files"
 	"github.com/xZenLabs/zen-fm/internal/state"
 )
 
@@ -91,6 +95,143 @@ func TestGHSA_ffv3DeclaredLengthOffsetAndAtomicTUSFlow(t *testing.T) {
 	head.Header.Set("Tus-Resumable", tusVersion)
 	if response := serveTestRequest(a, head); response.Code != http.StatusNotFound {
 		t.Fatalf("completed metadata survived: %d", response.Code)
+	}
+}
+
+func TestTUSFinalizationPublishesStagedFileWithoutSecondCopy(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	const payload = "uploaded once"
+	created := tusCreate(t, a, cookie, csrf, "/single-write.bin", len(payload), false)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	id := strings.TrimPrefix(created.Header().Get("Location"), "/api/v1/uploads/")
+	partialBefore, err := a.server.uploads.root.Lstat(partialName(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := tusPatch(t, a, cookie, csrf, created.Header().Get("Location"), 0, payload)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("patch: %d %s", response.Code, response.Body.String())
+	}
+	destination, err := os.Stat(filepath.Join(a.files.Name(), "single-write.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(partialBefore, destination) {
+		t.Fatal("completed upload was copied into a second file instead of atomically published")
+	}
+	listing, err := a.files.List("/", true)
+	if err != nil || len(listing.Entries) != 1 || listing.Entries[0].Name != "single-write.bin" {
+		t.Fatalf("internal upload directory leaked into listing: %+v %v", listing, err)
+	}
+}
+
+func TestLegacyTUSPartialKeepsItsUploadDirectoryDuringUpgrade(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	dir := t.TempDir()
+	store, err := state.Open(filepath.Join(dir, "state", "zenfm.db"), state.Options{Now: func() time.Time { return now }, PasswordParams: fastPassword})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	root, err := zenfiles.Open(dir, zenfiles.Options{MaxWriteBytes: 1 << 20, MaxContentBytes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	legacyDir := filepath.Join(store.DataDir(), "uploads")
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const id = "abcdefghijklmnop"
+	if err := os.WriteFile(filepath.Join(legacyDir, partialName(id)), []byte("part"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	upload := state.Upload{ID: id, Path: "/resumable.bin", Length: 8, CreatedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix()}
+	if err := store.CreateUpload(upload); err != nil {
+		t.Fatal(err)
+	}
+	upload, err = store.AdvanceUpload(id, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := New(Config{Store: store, Files: root, Version: "test", Now: func() time.Time { return now }, PasswordParams: fastPassword})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	if server.cfg.UploadDir != legacyDir {
+		t.Fatalf("upload directory = %q, want legacy %q", server.cfg.UploadDir, legacyDir)
+	}
+	if stored, err := store.Upload(id); err != nil || stored.Offset != upload.Offset {
+		t.Fatalf("resumable metadata = %+v, %v", stored, err)
+	}
+	if info, err := server.uploads.root.Lstat(partialName(id)); err != nil || info.Size() != upload.Offset {
+		t.Fatalf("resumable partial = %+v, %v", info, err)
+	}
+}
+
+func TestUploadDirectoryChmodIsOptionalOnlyForModeLessFilesystem(t *testing.T) {
+	original := chmodUploadDirectory
+	chmodUploadDirectory = func(string, os.FileMode) error { return syscall.EPERM }
+	t.Cleanup(func() { chmodUploadDirectory = original })
+
+	for _, test := range []struct {
+		name     string
+		modeLess bool
+		wantErr  bool
+	}{
+		{name: "explicit mode-less filesystem", modeLess: true},
+		{name: "strict filesystem", wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			base := t.TempDir()
+			store, err := state.Open(filepath.Join(base, "state", "zenfm.db"), state.Options{PasswordParams: fastPassword})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			filesDir := filepath.Join(base, "files")
+			if err := os.Mkdir(filesDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			root, err := zenfiles.Open(filesDir, zenfiles.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
+			server, err := New(Config{
+				Store: store, Files: root, UploadDir: filepath.Join(base, "uploads"),
+				ModeLessFilesystem: test.modeLess, PasswordParams: fastPassword,
+			})
+			if test.wantErr {
+				if !errors.Is(err, syscall.EPERM) {
+					t.Fatalf("strict mode did not preserve chmod failure: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("mode-less filesystem rejected upload directory: %v", err)
+			}
+			server.Close()
+		})
+	}
+}
+
+func TestDiskCheckStrideFitsReserveAcrossUploadSlots(t *testing.T) {
+	for _, concurrency := range []int{1, defaultUploadConcurrency, 16} {
+		stride := uploadDiskCheckStride(concurrency)
+		if total := uint64(stride) * uint64(concurrency); total > diskReserve {
+			t.Fatalf("%d uploads can write %d unchecked bytes, reserve is %d", concurrency, total, diskReserve)
+		}
+		if remaining := diskCheckReserve - uint64(stride)*uint64(concurrency); remaining < diskReserve {
+			t.Fatalf("%d uploads can erode the %d-byte disk reserve to %d", concurrency, diskReserve, remaining)
+		}
+		if !diskCheckDue(true, stride-1, 1, stride) {
+			t.Fatalf("disk check was not due before upload %d crossed its %d-byte stride", concurrency, stride)
+		}
 	}
 }
 

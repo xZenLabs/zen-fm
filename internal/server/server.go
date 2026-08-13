@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,21 +27,22 @@ import (
 const sessionCookie = "zenfm_session"
 
 type Config struct {
-	Store             *state.Store
-	Files             *zenfiles.Root
-	StaticFS          fs.FS
-	Version           string
-	SecureTransport   bool
-	SessionIdle       time.Duration
-	SessionAbsolute   time.Duration
-	PasswordParams    auth.PasswordParams
-	UploadDir         string
-	MaxUploadBytes    int64
-	UploadExpiry      time.Duration
-	UploadConcurrency int
-	MaxActiveUploads  int
-	HeavyConcurrency  int
-	Now               func() time.Time
+	Store              *state.Store
+	Files              *zenfiles.Root
+	StaticFS           fs.FS
+	Version            string
+	SecureTransport    bool
+	SessionIdle        time.Duration
+	SessionAbsolute    time.Duration
+	PasswordParams     auth.PasswordParams
+	UploadDir          string
+	MaxUploadBytes     int64
+	UploadExpiry       time.Duration
+	UploadConcurrency  int
+	MaxActiveUploads   int
+	HeavyConcurrency   int
+	ModeLessFilesystem bool
+	Now                func() time.Time
 }
 
 type Server struct {
@@ -111,10 +111,6 @@ func New(cfg Config) (*Server, error) {
 		shareLimiter: newAttemptLimiter(8, time.Minute, cfg.Now),
 		heavySlots:   make(chan struct{}, cfg.HeavyConcurrency),
 		archiveLinks: make(map[string]archiveTicket),
-	}
-	if cfg.UploadDir == "" {
-		cfg.UploadDir = filepath.Join(cfg.Store.DataDir(), "uploads")
-		s.cfg.UploadDir = cfg.UploadDir
 	}
 	uploads, err := newUploadManager(s, cfg.UploadDir, cfg.MaxUploadBytes, cfg.UploadExpiry, cfg.UploadConcurrency, cfg.MaxActiveUploads)
 	if err != nil {

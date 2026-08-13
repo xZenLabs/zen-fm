@@ -28,6 +28,8 @@ const (
 	DefaultMaxWriteBytes   = int64(2 << 30)
 	DefaultMaxContentBytes = int64(4 << 20)
 	DefaultMaxWalkEntries  = 100_000
+	internalOwnerFile      = ".zenfm-owner"
+	internalOwnerContents  = "zenfm-internal-directory-v1\n"
 )
 
 var (
@@ -38,6 +40,7 @@ var (
 	ErrConflict                   = errors.New("destination already exists")
 	ErrWalkLimit                  = errors.New("operation entry limit exceeded")
 	errRenameNoReplaceUnsupported = errors.New("atomic no-replace rename is unsupported")
+	chmodFile                     = func(file *os.File, mode os.FileMode) error { return file.Chmod(mode) }
 )
 
 type Root struct {
@@ -49,9 +52,12 @@ type Root struct {
 	maxWalkEntries int
 	excluded       []string
 	excludedObject map[objectID]struct{}
+	internal       []string
+	internalObject map[objectID]struct{}
 	pseudoDevices  map[uint64]struct{}
 	publishMu      *sync.Mutex
 	renameForMove  func(*os.Root, string, *os.Root, string, bool) error
+	linkForMove    func(*os.Root, string, *os.Root, string) error
 }
 
 type objectID struct {
@@ -112,7 +118,7 @@ func Open(name string, opts Options) (*Root, error) {
 	if opts.MaxWalkEntries <= 0 {
 		opts.MaxWalkEntries = DefaultMaxWalkEntries
 	}
-	root := &Root{root: r, name: abs, advanced: abs == string(os.PathSeparator), maxWriteBytes: opts.MaxWriteBytes, maxReadBytes: opts.MaxContentBytes, maxWalkEntries: opts.MaxWalkEntries, publishMu: &sync.Mutex{}, renameForMove: defaultMoveRename}
+	root := &Root{root: r, name: abs, advanced: abs == string(os.PathSeparator), maxWriteBytes: opts.MaxWriteBytes, maxReadBytes: opts.MaxContentBytes, maxWalkEntries: opts.MaxWalkEntries, publishMu: &sync.Mutex{}, renameForMove: defaultMoveRename, linkForMove: linkNoReplace}
 	root.loadPseudoDevices()
 	return root, nil
 }
@@ -169,6 +175,9 @@ func (r *Root) clean(name string) (string, error) {
 		return "", err
 	}
 	if r.isExcluded(clean) {
+		return "", fs.ErrNotExist
+	}
+	if r.isInternal(clean) {
 		return "", fs.ErrNotExist
 	}
 	return clean, nil
@@ -249,11 +258,14 @@ func (r *Root) openParent(clean string) (*os.Root, string, error) {
 }
 
 func (r *Root) isExcludedObject(info os.FileInfo) bool {
-	if r.advanced || len(r.excludedObject) == 0 {
-		return false
-	}
 	id, ok := fileObjectID(info)
 	if !ok {
+		return false
+	}
+	if _, internal := r.internalObject[id]; internal {
+		return true
+	}
+	if r.advanced || len(r.excludedObject) == 0 {
 		return false
 	}
 	_, excluded := r.excludedObject[id]
@@ -266,6 +278,15 @@ func (r *Root) isExcluded(clean string) bool {
 	}
 	for _, excluded := range r.excluded {
 		if clean == excluded || strings.HasPrefix(clean, excluded+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Root) isInternal(clean string) bool {
+	for _, internal := range r.internal {
+		if clean == internal || strings.HasPrefix(clean, internal+"/") {
 			return true
 		}
 	}
@@ -356,15 +377,28 @@ func (r *Root) list(name string, includeHidden, skipUnreadable bool) (Listing, e
 		if clean != "." {
 			entryPath = path.Join(clean, item.Name())
 		}
+		if r.isInternal(entryPath) {
+			continue
+		}
 		if r.isExcluded(entryPath) {
 			continue
 		}
-		entry, err := r.entryFromDirEntry(entryPath, item)
+		info, err := item.Info()
 		if err != nil {
 			if skipUnreadable {
-				continue // Entries can disappear while a directory is being listed.
+				continue
 			}
 			return Listing{}, err
+		}
+		if r.isExcludedObject(info) {
+			continue
+		}
+		entry := entryFromInfo(entryPath, info)
+		entry.Symlink = item.Type()&fs.ModeSymlink != 0
+		if entry.Symlink {
+			entry.Type = "symlink"
+			entry.Regular = false
+			entry.Directory = false
 		}
 		out.Entries = append(out.Entries, entry)
 	}
@@ -375,6 +409,147 @@ func (r *Root) list(name string, includeHidden, skipUnreadable bool) (Listing, e
 		return strings.ToLower(out.Entries[i].Name) < strings.ToLower(out.Entries[j].Name)
 	})
 	return out, nil
+}
+
+// OpenInternalDirectory creates a private, descriptor-rooted directory inside
+// the served filesystem. Its reserved name and inode are hidden from every
+// public Root operation, including advanced mode and bind-mount aliases.
+func (r *Root) OpenInternalDirectory(name string) (*os.Root, string, error) {
+	if !strings.HasPrefix(name, ".zenfm-internal-") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return nil, "", ErrInvalidPath
+	}
+	r.publishMu.Lock()
+	defer r.publishMu.Unlock()
+	created := false
+	before, err := r.root.Lstat(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := r.root.Mkdir(name, 0o700); err != nil {
+			return nil, "", err
+		}
+		created = true
+		before, err = r.root.Lstat(name)
+	}
+	if err != nil {
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", err
+	}
+	if before.Mode()&fs.ModeSymlink != 0 || !before.IsDir() {
+		return nil, "", ErrInvalidPath
+	}
+	sub, err := r.root.OpenRoot(name)
+	if err != nil {
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", err
+	}
+	after, err := sub.Stat(".")
+	if err != nil || !os.SameFile(before, after) || r.pseudoInfo(after) {
+		sub.Close()
+		if created {
+			_ = r.root.Remove(name)
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return nil, "", ErrInvalidPath
+	}
+	if err := claimInternalDirectory(sub, created); err != nil {
+		if created {
+			_ = sub.Remove(internalOwnerFile)
+		}
+		sub.Close()
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", err
+	}
+	directory, err := sub.Open(".")
+	if err != nil {
+		if created {
+			_ = sub.Remove(internalOwnerFile)
+		}
+		sub.Close()
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", err
+	}
+	// FAT and Android emulated storage can be writable while rejecting chmod.
+	// The directory is still hidden from ZenFM and holds data destined for the
+	// same user-visible filesystem, so permissions are tightened best-effort.
+	if err := chmodFile(directory, 0o700); err != nil && !errors.Is(err, fs.ErrPermission) {
+		directory.Close()
+		if created {
+			_ = sub.Remove(internalOwnerFile)
+		} else {
+			r.registerInternal(name, after)
+		}
+		sub.Close()
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", err
+	}
+	closeErr := directory.Close()
+	if closeErr != nil {
+		if created {
+			_ = sub.Remove(internalOwnerFile)
+		} else {
+			r.registerInternal(name, after)
+		}
+		sub.Close()
+		if created {
+			_ = r.root.Remove(name)
+		}
+		return nil, "", closeErr
+	}
+	r.registerInternal(name, after)
+	return sub, filepath.Join(r.name, filepath.FromSlash(name)), nil
+}
+
+func (r *Root) registerInternal(name string, info os.FileInfo) {
+	if id, ok := fileObjectID(info); ok {
+		if r.internalObject == nil {
+			r.internalObject = make(map[objectID]struct{})
+		}
+		r.internalObject[id] = struct{}{}
+	}
+	found := false
+	for _, existing := range r.internal {
+		found = found || existing == name
+	}
+	if !found {
+		r.internal = append(r.internal, name)
+	}
+}
+
+func claimInternalDirectory(root *os.Root, created bool) error {
+	if created {
+		marker, err := root.OpenFile(internalOwnerFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			return err
+		}
+		_, writeErr := io.WriteString(marker, internalOwnerContents)
+		syncErr := marker.Sync()
+		closeErr := marker.Close()
+		return errors.Join(writeErr, syncErr, closeErr)
+	}
+	marker, err := root.OpenFile(internalOwnerFile, os.O_RDONLY|regularOpenFlags(), 0)
+	if err != nil {
+		return ErrInvalidPath
+	}
+	contents, readErr := io.ReadAll(io.LimitReader(marker, int64(len(internalOwnerContents)+1)))
+	closeErr := marker.Close()
+	if readErr != nil || closeErr != nil {
+		return errors.Join(readErr, closeErr)
+	}
+	if string(contents) != internalOwnerContents {
+		return ErrInvalidPath
+	}
+	return nil
 }
 
 func readDirBounded(directory *os.File, limit int) ([]os.DirEntry, error) {
@@ -455,8 +630,22 @@ func (r *Root) OpenScope(name string) (*Root, error) {
 		root: sub, name: filepath.Join(r.name, filepath.FromSlash(clean)), advanced: r.advanced,
 		maxWriteBytes: r.maxWriteBytes, maxReadBytes: r.maxReadBytes, maxWalkEntries: r.maxWalkEntries,
 		excluded: r.rebasedExclusions(clean), excludedObject: r.excludedObject,
-		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove,
+		internal: r.rebasedInternals(clean), internalObject: r.internalObject,
+		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove, linkForMove: r.linkForMove,
 	}, nil
+}
+
+func (r *Root) rebasedInternals(base string) []string {
+	values := make([]string, 0, len(r.internal))
+	for _, internal := range r.internal {
+		switch {
+		case base == ".":
+			values = append(values, internal)
+		case strings.HasPrefix(internal, base+"/"):
+			values = append(values, strings.TrimPrefix(internal, base+"/"))
+		}
+	}
+	return values
 }
 
 func (r *Root) rebasedExclusions(base string) []string {
@@ -640,6 +829,88 @@ func (r *Root) commitTempLocked(parent *os.Root, temporary, destination string, 
 	return parent.Rename(temporary, destination)
 }
 
+// PublishTemporary atomically moves a regular file from a private Root into
+// the served tree when both roots are on the same filesystem. A false moved
+// result tells the caller to use a streaming cross-filesystem fallback; the
+// source remains untouched in that case.
+func (r *Root) PublishTemporary(sourceRoot *os.Root, source, destination string, overwrite bool) (bool, error) {
+	if sourceRoot == nil || source == "" || source == "." || strings.Contains(source, "/") || strings.Contains(source, "\\") {
+		return false, ErrInvalidPath
+	}
+	clean, err := r.clean(destination)
+	if err != nil || clean == "." {
+		return false, ErrInvalidPath
+	}
+	if r.pseudoTarget(clean) {
+		return false, ErrPseudoFile
+	}
+	sourceInfo, err := sourceRoot.Lstat(source)
+	if err != nil {
+		return false, err
+	}
+	if !sourceInfo.Mode().IsRegular() {
+		return false, ErrNotRegular
+	}
+	parent, base, err := r.openParent(clean)
+	if err != nil {
+		return false, err
+	}
+	defer parent.Close()
+	parentInfo, err := parent.Stat(".")
+	if err != nil {
+		return false, err
+	}
+	if r.pseudoInfo(parentInfo) {
+		return false, ErrPseudoFile
+	}
+	r.publishMu.Lock()
+	defer r.publishMu.Unlock()
+	if existing, statErr := parent.Lstat(base); statErr == nil {
+		if !overwrite {
+			return false, ErrConflict
+		}
+		if existing.IsDir() || existing.Mode()&fs.ModeType != 0 && existing.Mode()&fs.ModeSymlink == 0 {
+			return false, ErrNotRegular
+		}
+	} else if !errors.Is(statErr, fs.ErrNotExist) {
+		return false, statErr
+	}
+	err = r.renameForMove(sourceRoot, source, parent, base, overwrite)
+	if errors.Is(err, syscall.EXDEV) {
+		return false, nil
+	}
+	if !overwrite && errors.Is(err, errRenameNoReplaceUnsupported) {
+		err = r.linkForMove(sourceRoot, source, parent, base)
+		if err == nil {
+			_ = sourceRoot.Remove(source)
+			return true, nil
+		}
+		if errors.Is(err, fs.ErrExist) {
+			return false, ErrConflict
+		}
+		// Some writable filesystems, notably FAT and Android emulated storage,
+		// support neither no-replace rename nor hard links. We still hold the
+		// publisher lock and checked that the destination is absent, so use the
+		// same portable rename fallback as WriteContext.
+		if _, statErr := parent.Lstat(base); statErr == nil {
+			return false, ErrConflict
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
+			return false, statErr
+		}
+		err = renameReplace(sourceRoot, source, parent, base)
+	}
+	if errors.Is(err, errRenameNoReplaceUnsupported) || errors.Is(err, syscall.EXDEV) {
+		return false, nil
+	}
+	if errors.Is(err, fs.ErrExist) {
+		return false, ErrConflict
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (r *Root) Mkdir(name string) (Entry, error) {
 	clean, err := r.clean(name)
 	if err != nil || clean == "." {
@@ -680,6 +951,9 @@ func (r *Root) Delete(name string, recursive bool) error {
 	info, err := parent.Lstat(base)
 	if err != nil {
 		return err
+	}
+	if r.isExcludedObject(info) {
+		return fs.ErrNotExist
 	}
 	r.publishMu.Lock()
 	defer r.publishMu.Unlock()
@@ -813,7 +1087,7 @@ func (r *Root) moveAcrossDevicesLocked(ctx context.Context, src, dst string, sou
 	destinationScope := &Root{
 		root: destinationParent, name: r.name, advanced: r.advanced,
 		maxWriteBytes: r.maxWriteBytes, maxReadBytes: r.maxReadBytes, maxWalkEntries: r.maxWalkEntries,
-		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove,
+		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove, linkForMove: r.linkForMove,
 	}
 	count := 0
 	var copiedBytes int64
@@ -972,6 +1246,13 @@ func (r *Root) copy(ctx context.Context, source, destination string, overwrite b
 		}
 		return Entry{}, ErrPseudoFile
 	}
+	if destinationInfo, statErr := destinationParent.Lstat(destinationBase); statErr == nil {
+		if r.isExcludedObject(destinationInfo) {
+			return Entry{}, fs.ErrNotExist
+		}
+	} else if !errors.Is(statErr, fs.ErrNotExist) {
+		return Entry{}, statErr
+	}
 	stage, err := auth.RandomToken(".zenfm-copy-", 128)
 	if err != nil {
 		return Entry{}, err
@@ -979,7 +1260,7 @@ func (r *Root) copy(ctx context.Context, source, destination string, overwrite b
 	destinationScope := &Root{
 		root: destinationParent, name: r.name, advanced: r.advanced,
 		maxWriteBytes: r.maxWriteBytes, maxReadBytes: r.maxReadBytes, maxWalkEntries: r.maxWalkEntries,
-		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove,
+		pseudoDevices: r.pseudoDevices, publishMu: r.publishMu, renameForMove: r.renameForMove, linkForMove: r.linkForMove,
 	}
 	count := 0
 	var copiedBytes int64
@@ -1103,7 +1384,7 @@ func copyOneBetween(ctx context.Context, source *Root, src string, destination *
 	if err != nil {
 		return err
 	}
-	if err := out.Chmod(mode); err != nil {
+	if err := chmodFile(out, mode); err != nil && !errors.Is(err, fs.ErrPermission) {
 		out.Close()
 		return err
 	}
@@ -1142,7 +1423,11 @@ func chmodCreatedDirectory(parent *os.Root, name string, mode os.FileMode) error
 	if !after.IsDir() || !os.SameFile(before, after) {
 		return ErrInvalidPath
 	}
-	return directory.Chmod(mode)
+	err = chmodFile(directory, mode)
+	if errors.Is(err, fs.ErrPermission) {
+		return nil
+	}
+	return err
 }
 
 func copyStreamWithProgress(ctx context.Context, destination io.Writer, source io.Reader, progress func(int64)) (int64, error) {
@@ -1349,21 +1634,6 @@ func (r *Root) pseudoTarget(clean string) bool {
 			return false
 		}
 	}
-}
-
-func (r *Root) entryFromDirEntry(name string, item os.DirEntry) (Entry, error) {
-	info, err := item.Info()
-	if err != nil {
-		return Entry{}, err
-	}
-	e := entryFromInfo(name, info)
-	e.Symlink = item.Type()&fs.ModeSymlink != 0
-	if e.Symlink {
-		e.Type = "symlink"
-		e.Regular = false
-		e.Directory = false
-	}
-	return e, nil
 }
 
 func entryFromInfo(name string, info os.FileInfo) Entry {

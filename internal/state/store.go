@@ -9,15 +9,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xZenLabs/zen-fm/internal/auth"
+	"github.com/xZenLabs/zen-fm/internal/platform"
 	bolt "go.etcd.io/bbolt"
 )
 
 const (
-	SetupUsername = "koreader"
-	SetupPassword = "koreader123456789"
+	SetupUsername           = "koreader"
+	SetupPassword           = "koreader123456789"
+	credentialTouchInterval = time.Minute
 )
 
 var (
@@ -31,16 +34,32 @@ var (
 	bucketUploads        = []byte("uploads")
 	ownerKey             = []byte("single")
 	settingsKey          = []byte("settings")
+	chmodDataDirectory   = os.Chmod
 )
 
 type Options struct {
-	PasswordParams auth.PasswordParams
-	Now            func() time.Time
+	PasswordParams     auth.PasswordParams
+	Now                func() time.Time
+	ModeLessFilesystem bool
 }
 
 type Store struct {
 	db  *bolt.DB
 	now func() time.Time
+
+	// Pending touches preserve exact idle-session semantics between coalesced
+	// bbolt writes. sessionMu also makes them atomic with revocation and pruning.
+	sessionMu      sync.Mutex
+	sessionTouches map[string]pendingSessionTouch
+}
+
+type pendingSessionTouch struct {
+	idleUntil   int64
+	lastSeenAt  int64
+	id          string
+	csrfToken   string
+	createdAt   int64
+	absoluteEnd int64
 }
 
 type Owner struct {
@@ -112,7 +131,7 @@ func Open(path string, opts Options) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("create data directory: %w", err)
 	}
-	if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
+	if err := platform.ModeChangeError(chmodDataDirectory(filepath.Dir(path), 0o700), opts.ModeLessFilesystem); err != nil {
 		return nil, fmt.Errorf("secure data directory: %w", err)
 	}
 	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: time.Second, NoGrowSync: false})
@@ -179,7 +198,9 @@ func (s *Store) ReplacePassword(encoded string, setupRequired bool) error {
 	if encoded == "" {
 		return errors.New("password hash is empty")
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		var owner Owner
 		if err := getJSON(tx.Bucket(bucketOwner), ownerKey, &owner); err != nil {
 			return err
@@ -195,6 +216,10 @@ func (s *Store) ReplacePassword(encoded string, setupRequired bool) error {
 		}
 		return clearBucket(tx.Bucket(bucketTokens))
 	})
+	if err == nil {
+		clear(s.sessionTouches)
+	}
+	return err
 }
 
 func (s *Store) ResetLogin(params auth.PasswordParams) error {
@@ -209,38 +234,97 @@ func (s *Store) CreateSession(rawToken, csrf string, idle, absolute time.Duratio
 	if rawToken == "" || csrf == "" || idle <= 0 || absolute <= 0 {
 		return Session{}, errors.New("invalid session parameters")
 	}
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
 	now := s.now()
 	v := Session{ID: randomID(rawToken), CSRFToken: csrf, CreatedAt: now.Unix(), LastSeenAt: now.Unix(), IdleUntil: now.Add(idle).Unix(), AbsoluteEnd: now.Add(absolute).Unix()}
 	digest := digestKey(rawToken)
 	err := s.db.Update(func(tx *bolt.Tx) error { return putJSON(tx.Bucket(bucketSessions), digest, v) })
+	if err == nil {
+		delete(s.sessionTouches, string(digest))
+	}
 	return v, err
 }
 
 func (s *Store) Session(rawToken string, idle time.Duration, touch bool) (Session, error) {
-	var v Session
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+
+	var stored Session
 	digest := digestKey(rawToken)
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	now := s.now()
+	nowUnix := now.Unix()
+	err := s.db.View(func(tx *bolt.Tx) error {
+		return getJSON(tx.Bucket(bucketSessions), digest, &stored)
+	})
+	if err != nil {
+		delete(s.sessionTouches, string(digest))
+		return stored, err
+	}
+	effective := s.sessionWithPendingTouch(digest, stored)
+	if !sessionExpired(effective, nowUnix) {
+		if !touch {
+			return effective, nil
+		}
+		s.recordSessionTouch(digest, stored, now, idle)
+		effective = s.sessionWithPendingTouch(digest, stored)
+		if !credentialTouchDue(nowUnix, stored.LastSeenAt, sessionTouchInterval(idle)) {
+			return effective, nil
+		}
+	}
+
+	expired := false
+	persistedTouch := false
+	err = s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketSessions)
-		if err := getJSON(b, digest, &v); err != nil {
+		stored = Session{}
+		if err := getJSON(b, digest, &stored); err != nil {
 			return err
 		}
-		now := s.now().Unix()
-		if now >= v.IdleUntil || now >= v.AbsoluteEnd {
-			_ = b.Delete(digest)
-			return ErrExpired
+		updateNow := s.now()
+		updateUnix := updateNow.Unix()
+		effective = s.sessionWithPendingTouch(digest, stored)
+		if sessionExpired(effective, updateUnix) {
+			if err := b.Delete(digest); err != nil {
+				return err
+			}
+			expired = true
+			return nil
 		}
-		if touch {
-			v.LastSeenAt = now
-			v.IdleUntil = min(s.now().Add(idle).Unix(), v.AbsoluteEnd)
-			return putJSON(b, digest, v)
+		if touch && credentialTouchDue(updateUnix, stored.LastSeenAt, sessionTouchInterval(idle)) {
+			stored.LastSeenAt = updateUnix
+			stored.IdleUntil = min(updateNow.Add(idle).Unix(), stored.AbsoluteEnd)
+			effective = stored
+			persistedTouch = true
+			return putJSON(b, digest, stored)
 		}
 		return nil
 	})
-	return v, err
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			delete(s.sessionTouches, string(digest))
+		}
+		return effective, err
+	}
+	if expired {
+		delete(s.sessionTouches, string(digest))
+		return effective, ErrExpired
+	}
+	if persistedTouch {
+		s.clearSessionTouchThrough(digest, stored, stored.LastSeenAt)
+	}
+	return effective, nil
 }
 
 func (s *Store) DeleteSession(rawToken string) error {
-	return s.db.Update(func(tx *bolt.Tx) error { return tx.Bucket(bucketSessions).Delete(digestKey(rawToken)) })
+	digest := digestKey(rawToken)
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+	err := s.db.Update(func(tx *bolt.Tx) error { return tx.Bucket(bucketSessions).Delete(digest) })
+	if err == nil {
+		delete(s.sessionTouches, string(digest))
+	}
+	return err
 }
 
 func (s *Store) CreateToken(rawToken string, v APIToken) error {
@@ -252,23 +336,104 @@ func (s *Store) CreateToken(rawToken string, v APIToken) error {
 
 func (s *Store) Token(rawToken string, touch bool) (APIToken, error) {
 	var v APIToken
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	key := digestKey(rawToken)
+	now := s.now().Unix()
+	err := s.db.View(func(tx *bolt.Tx) error {
+		return getJSON(tx.Bucket(bucketTokens), key, &v)
+	})
+	if err != nil {
+		return v, err
+	}
+	if now < v.ExpiresAt && (!touch || !credentialTouchDue(now, v.LastUsedAt, credentialTouchInterval)) {
+		return v, nil
+	}
+
+	expired := false
+	err = s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketTokens)
-		key := digestKey(rawToken)
+		v = APIToken{}
 		if err := getJSON(b, key, &v); err != nil {
 			return err
 		}
-		if s.now().Unix() >= v.ExpiresAt {
-			_ = b.Delete(key)
-			return ErrExpired
+		updateNow := s.now().Unix()
+		if updateNow >= v.ExpiresAt {
+			if err := b.Delete(key); err != nil {
+				return err
+			}
+			expired = true
+			return nil
 		}
-		if touch {
-			v.LastUsedAt = s.now().Unix()
+		if touch && credentialTouchDue(updateNow, v.LastUsedAt, credentialTouchInterval) {
+			v.LastUsedAt = updateNow
 			return putJSON(b, key, v)
 		}
 		return nil
 	})
+	if err == nil && expired {
+		err = ErrExpired
+	}
 	return v, err
+}
+
+func sessionExpired(v Session, now int64) bool {
+	return now >= v.IdleUntil || now >= v.AbsoluteEnd
+}
+
+func sessionTouchInterval(idle time.Duration) time.Duration {
+	interval := idle / 2
+	if interval <= 0 || interval > credentialTouchInterval {
+		return credentialTouchInterval
+	}
+	return interval
+}
+
+func (s *Store) sessionWithPendingTouch(digest []byte, stored Session) Session {
+	pending, ok := s.sessionTouches[string(digest)]
+	if !ok || !pending.matches(stored) || pending.lastSeenAt <= stored.LastSeenAt {
+		return stored
+	}
+	stored.LastSeenAt = pending.lastSeenAt
+	stored.IdleUntil = pending.idleUntil
+	return stored
+}
+
+func (s *Store) recordSessionTouch(digest []byte, stored Session, now time.Time, idle time.Duration) {
+	key := string(digest)
+	if now.Unix() <= stored.LastSeenAt {
+		return
+	}
+	pending := pendingSessionTouch{
+		id:          stored.ID,
+		csrfToken:   stored.CSRFToken,
+		createdAt:   stored.CreatedAt,
+		absoluteEnd: stored.AbsoluteEnd,
+		lastSeenAt:  now.Unix(),
+		idleUntil:   min(now.Add(idle).Unix(), stored.AbsoluteEnd),
+	}
+	if previous, ok := s.sessionTouches[key]; ok && previous.matches(stored) && previous.lastSeenAt > pending.lastSeenAt {
+		return
+	}
+	if s.sessionTouches == nil {
+		s.sessionTouches = make(map[string]pendingSessionTouch)
+	}
+	s.sessionTouches[key] = pending
+}
+
+func (s *Store) clearSessionTouchThrough(digest []byte, stored Session, lastSeenAt int64) {
+	key := string(digest)
+	pending, ok := s.sessionTouches[key]
+	if ok && pending.matches(stored) && pending.lastSeenAt <= lastSeenAt {
+		delete(s.sessionTouches, key)
+	}
+}
+
+func (p pendingSessionTouch) matches(session Session) bool {
+	return p.id == session.ID && p.csrfToken == session.CSRFToken && p.createdAt == session.CreatedAt && p.absoluteEnd == session.AbsoluteEnd
+}
+
+func credentialTouchDue(now, previous int64, interval time.Duration) bool {
+	seconds := max(int64(interval/time.Second), 1)
+	return previous == 0 || now >= previous && now-previous >= seconds
 }
 
 func (s *Store) Tokens() ([]APIToken, error) {
@@ -549,18 +714,48 @@ func (s *Store) Uploads() ([]Upload, error) {
 // upload metadata. Upload records are returned so their private partial files
 // can be removed without ever storing an arbitrary cleanup path in bbolt.
 func (s *Store) PruneExpired() ([]Upload, error) {
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
+
 	var expiredUploads []Upload
+	var expiredSessionKeys [][]byte
+	type refreshedSession struct {
+		key     []byte
+		session Session
+	}
+	var refreshedSessions []refreshedSession
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		now := s.now().Unix()
+		sessions := tx.Bucket(bucketSessions)
+		if err := sessions.ForEach(func(key, value []byte) error {
+			var stored Session
+			if json.Unmarshal(value, &stored) != nil {
+				return nil
+			}
+			effective := s.sessionWithPendingTouch(key, stored)
+			if sessionExpired(effective, now) {
+				expiredSessionKeys = append(expiredSessionKeys, append([]byte(nil), key...))
+			} else if sessionExpired(stored, now) {
+				refreshedSessions = append(refreshedSessions, refreshedSession{key: append([]byte(nil), key...), session: effective})
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		for _, key := range expiredSessionKeys {
+			if err := sessions.Delete(key); err != nil {
+				return err
+			}
+		}
+		for _, refreshed := range refreshedSessions {
+			if err := putJSON(sessions, refreshed.key, refreshed.session); err != nil {
+				return err
+			}
+		}
 		for _, spec := range []struct {
 			bucket []byte
 			expiry func([]byte) (int64, bool)
 		}{
-			{bucketSessions, func(value []byte) (int64, bool) {
-				var v Session
-				err := json.Unmarshal(value, &v)
-				return min(v.IdleUntil, v.AbsoluteEnd), err == nil
-			}},
 			{bucketTokens, func(value []byte) (int64, bool) {
 				var v APIToken
 				err := json.Unmarshal(value, &v)
@@ -623,6 +818,14 @@ func (s *Store) PruneExpired() ([]Upload, error) {
 		}
 		return nil
 	})
+	if err == nil {
+		for _, key := range expiredSessionKeys {
+			delete(s.sessionTouches, string(key))
+		}
+		for _, refreshed := range refreshedSessions {
+			s.clearSessionTouchThrough(refreshed.key, refreshed.session, refreshed.session.LastSeenAt)
+		}
+	}
 	return expiredUploads, err
 }
 

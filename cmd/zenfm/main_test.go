@@ -56,6 +56,11 @@ func TestResetLoginCommand(t *testing.T) {
 	if !strings.Contains(stdout.String(), "setup-only") {
 		t.Fatalf("output: %q", stdout.String())
 	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"reset-login", "--data-dir", dataDir, "--mode-less-filesystem"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("mode-less reset: %d %q", code, stderr.String())
+	}
 }
 
 type fakeActivity struct{ value atomic.Int64 }

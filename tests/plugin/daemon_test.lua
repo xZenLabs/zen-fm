@@ -38,6 +38,7 @@ local function fake_settings(values)
             if self.values.custom_root ~= "" then return self.values.custom_root end
             if platform == "kindle" then return "/mnt/us" end
             if platform == "kobo" then return "/mnt/onboard" end
+            if platform == "pocketbook" then return "/mnt/ext1" end
             return storage or "/home/test"
         end,
     }
@@ -146,11 +147,60 @@ test("hard-float Kindle backend", function()
 end)
 
 test("PocketBook always uses soft float", function()
+    local real_settings = setmetatable({ values = Settings.defaults() }, { __index = Settings })
+    equal(real_settings:default_root("pocketbook"), "/mnt/ext1")
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "pocketbook",
         settings = fake_settings(defaults), path_exists = function() return true end,
     }
     equal(daemon:backend_candidates()[1], "/plugin/backend/zenfm-sf")
+    equal(daemon:root(), "/mnt/ext1")
+    local arguments = table.concat(daemon:serve_arguments(), " ")
+    contains(arguments, "--root /mnt/ext1")
+    contains(arguments, "--mode-less-filesystem")
+end)
+
+test("PocketBook runs the bundled backend without copying it to settings", function()
+    local directories, copies = {}, 0
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "pocketbook",
+        settings = fake_settings(defaults),
+        path_exists = function(path) return path == "/plugin/backend/zenfm-sf" end,
+    }
+    daemon.ensure_runtime_dir = function() return true end
+
+    local previous_ensure_dir, previous_copy_atomic = Util.ensure_dir, Util.copy_atomic
+    Util.ensure_dir = function(path) table.insert(directories, path) return true end
+    Util.copy_atomic = function() copies = copies + 1 return false end
+    local called, ready, err = pcall(daemon.ensure_backend, daemon)
+    Util.ensure_dir, Util.copy_atomic = previous_ensure_dir, previous_copy_atomic
+
+    assert(called, tostring(ready))
+    assert(ready, tostring(err))
+    equal(#directories, 1)
+    equal(directories[1], "/state")
+    equal(copies, 0)
+    equal(daemon:backend_path(), "/plugin/backend/zenfm-sf")
+    contains(daemon:serve_command(nil, false), "'/plugin/backend/zenfm-sf' 'serve'")
+    local supervisor = daemon:supervisor_command()
+    contains(supervisor, "sh '/plugin/supervisor.sh'")
+    assert(not supervisor:find("/state/backend/zenfm", 1, true))
+end)
+
+test("PocketBook reset-login uses the bundled backend and mode-less storage", function()
+    local command
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "pocketbook",
+        settings = fake_settings(defaults),
+        path_exists = function(path) return path == "/plugin/backend/zenfm-sf" end,
+        execute = function(value) command = value return 0 end,
+    }
+    daemon.ensure_dirs = function() return true end
+    daemon.stop = function() return true end
+    daemon.status = function() return false end
+    local ok = daemon:reset_login()
+    assert(ok)
+    contains(command, "'/plugin/backend/zenfm-sf' reset-login --data-dir '/state' --mode-less-filesystem")
 end)
 
 test("actual PocketBook and generic ARM readers are not treated as desktop Linux", function()
@@ -207,6 +257,22 @@ test("runtime control paths stay off user storage and below Unix socket limits",
     assert(#daemon:control_socket() < 108)
     assert(not daemon:control_socket():find("/mnt/onboard", 1, true))
     contains(commands[1], "chmod 700")
+    assert(not commands[1]:find("|| true", 1, true))
+end)
+
+test("PocketBook runtime directory keeps creation checks while chmod is best effort", function()
+    local command
+    local daemon = Daemon:new{
+        plugin_dir = "/mnt/ext1/applications/koreader/plugins/zenfm.koplugin",
+        state_dir = "/mnt/ext1/applications/koreader/settings/ZenFM",
+        platform = "pocketbook", settings = fake_settings(Settings.defaults()),
+        execute = function(value) command = value return 0 end,
+    }
+    assert(daemon:ensure_runtime_dir())
+    contains(command, "|| [ -d ")
+    contains(command, "] || exit 1; [ ! -L ")
+    contains(command, "chmod 700 ")
+    contains(command, ">/dev/null 2>&1 || true")
 end)
 
 test("custom TLS arguments remain separate and quoted", function()
@@ -663,6 +729,185 @@ test("staged plugin Lua is compiled before activation", function()
     contains(syntax_err, "invalid Lua")
     local parent = directory:match("^(.*)/[^/]+$")
     if parent then Util.remove_tree(directory, parent) end
+end)
+
+test("archive extraction validates layout before preserving release modes", function()
+    local previous_archiver = package.loaded["ffi/archiver"]
+    local function extract(entries, extraction_entries)
+        local extracted, readers = {}, 0
+        package.loaded["ffi/archiver"] = {
+            Reader = {
+                new = function()
+                    readers = readers + 1
+                    -- KOReader caches headers on a Reader. Reopening this same
+                    -- object must still expose its original manifest.
+                    local selected = readers == 1 and entries or (extraction_entries or entries)
+                    local reader = { err = nil }
+                    function reader:open() return true end
+                    function reader:iterate()
+                        local index = 0
+                        return function()
+                            index = index + 1
+                            return selected[index]
+                        end
+                    end
+                    function reader:extractToPath(path, destination)
+                        table.insert(extracted, { path = path, destination = destination })
+                        return true
+                    end
+                    function reader:close() self.err = nil end
+                    return reader
+                end,
+            },
+        }
+        local called, accepted, err = pcall(Updater.extract_archive, "/update.zip", "/stage")
+        package.loaded["ffi/archiver"] = previous_archiver
+        assert(called, tostring(accepted))
+        return accepted, err, extracted, readers
+    end
+
+    local accepted, err, extracted, readers = extract({
+        { path = "zenfm.koplugin/", mode = "directory", size = 0 },
+        { path = "zenfm.koplugin/backend/", mode = "directory", size = 0 },
+        { path = "zenfm.koplugin/backend/zenfm-sf", mode = "file", size = 42 },
+    })
+    assert(accepted, tostring(err))
+    equal(readers, 2)
+    equal(#extracted, 3)
+    equal(extracted[3].path, "zenfm.koplugin/backend/zenfm-sf")
+    equal(extracted[3].destination, "/stage/zenfm.koplugin/backend/zenfm-sf")
+
+    accepted, err, extracted = extract({
+        { path = "zenfm.koplugin/main.lua", mode = "file", size = 1 },
+        { path = "zenfm.koplugin/../escape", mode = "file", size = 1 },
+    })
+    assert(not accepted)
+    contains(err, "invalid layout")
+    equal(#extracted, 0)
+
+    accepted, err, extracted = extract({
+        { path = "zenfm.koplugin/link", mode = "link", size = 0 },
+    })
+    assert(not accepted)
+    contains(err, "invalid layout")
+    equal(#extracted, 0)
+
+    accepted, err, extracted, readers = extract({
+        { path = "zenfm.koplugin/main.lua", mode = "file", size = 1 },
+    }, {
+        { path = "zenfm.koplugin/backend/zenfm-sf", mode = "file", size = 1 },
+    })
+    assert(not accepted)
+    equal(readers, 2)
+    contains(err, "changed during extraction")
+    equal(#extracted, 0)
+end)
+
+test("PocketBook activation moves the extracted tree without losing executable mode", function()
+    local base = os.tmpname() .. ".pocketbook-update"
+    local plugin_dir = base .. "/zenfm.koplugin"
+    local stage = plugin_dir .. ".update-stage"
+    local stage_root = stage .. "/zenfm.koplugin"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.ensure_dir(stage_root .. "/backend"))
+    assert(Util.write_atomic(plugin_dir .. "/old-version", "old\n", "600"))
+    assert(Util.write_atomic(stage_root .. "/supervisor.sh", "#!/bin/sh\n", "700"))
+    local backend = stage_root .. "/backend/zenfm-sf"
+    assert(Util.write_atomic(backend, "#!/bin/sh\nexit 0\n", "700"))
+    local executable_modes = Util.execute("chmod 700 " .. Util.sh_quote(backend)) == 0
+        and Util.execute("test -x " .. Util.sh_quote(backend)) == 0
+
+    local previous_copy_tree, previous_execute = Util.copy_tree, os.execute
+    local commands = {}
+    Util.copy_tree = function() error("PocketBook update copied its extracted tree") end
+    os.execute = function(command)
+        table.insert(commands, command)
+        return previous_execute(command)
+    end
+    local called, installed, detail = pcall(Updater.install_stage, {
+        plugin_dir = plugin_dir,
+        is_pocketbook = function() return true end,
+    }, stage_root, false)
+    Util.copy_tree, os.execute = previous_copy_tree, previous_execute
+
+    assert(called, tostring(installed))
+    assert(installed, tostring(detail))
+    equal(Util.trim(Util.read_all(plugin_dir .. "/backend/zenfm-sf", 64)), "#!/bin/sh\nexit 0")
+    if executable_modes then
+        equal(Util.execute("test -x " .. Util.sh_quote(plugin_dir .. "/backend/zenfm-sf")), 0)
+    end
+    for _, command in ipairs(commands) do
+        assert(not command:find("supervisor.sh", 1, true), "PocketBook activation attempted chmod")
+    end
+    local parent = base:match("^(.*)/[^/]+$")
+    if parent then Util.remove_tree(base, parent) end
+end)
+
+test("activation reports a rollback rename failure", function()
+    local base = os.tmpname() .. ".activation-rollback"
+    local plugin_dir = base .. "/zenfm.koplugin"
+    local stage_root = base .. "/stage"
+    local incoming, backup = plugin_dir .. ".incoming", plugin_dir .. ".rollback"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.ensure_dir(stage_root))
+    assert(Util.write_atomic(plugin_dir .. "/old-version", "old\n", "600"))
+    assert(Util.write_atomic(stage_root .. "/new-version", "new\n", "600"))
+
+    local previous_rename = os.rename
+    os.rename = function(source, destination)
+        if source == incoming and destination == plugin_dir then
+            return nil, "activation denied"
+        end
+        if source == backup and destination == plugin_dir then
+            return nil, "restore denied"
+        end
+        return previous_rename(source, destination)
+    end
+    local called, installed, detail = pcall(Updater.install_stage, {
+        plugin_dir = plugin_dir,
+        is_pocketbook = function() return true end,
+    }, stage_root, false)
+    os.rename = previous_rename
+
+    assert(called, tostring(installed))
+    assert(not installed)
+    contains(detail, "rollback failed")
+    contains(detail, "restore denied")
+    local parent = base:match("^(.*)/[^/]+$")
+    if parent then Util.remove_tree(base, parent) end
+end)
+
+test("pending-marker failure reports a rollback rename failure", function()
+    local base = os.tmpname() .. ".marker-rollback"
+    local plugin_dir = base .. "/zenfm.koplugin"
+    local stage_root = base .. "/stage"
+    local backup = plugin_dir .. ".rollback"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.ensure_dir(stage_root))
+    assert(Util.write_atomic(plugin_dir .. "/old-version", "old\n", "600"))
+    assert(Util.write_atomic(stage_root .. "/new-version", "new\n", "600"))
+
+    local previous_rename, previous_write_atomic = os.rename, Util.write_atomic
+    os.rename = function(source, destination)
+        if source == backup and destination == plugin_dir then return nil, "restore denied" end
+        return previous_rename(source, destination)
+    end
+    Util.write_atomic = function(path, ...)
+        if path == plugin_dir .. "/.update-pending" then return false end
+        return previous_write_atomic(path, ...)
+    end
+    local called, installed, detail = pcall(Updater.install_stage, {
+        plugin_dir = plugin_dir,
+        is_pocketbook = function() return true end,
+    }, stage_root, false)
+    os.rename, Util.write_atomic = previous_rename, previous_write_atomic
+
+    assert(called, tostring(installed))
+    assert(not installed)
+    contains(detail, "rollback failed")
+    contains(detail, "restore denied")
+    local parent = base:match("^(.*)/[^/]+$")
+    if parent then Util.remove_tree(base, parent) end
 end)
 
 test("update health verification restores a stopped service", function()

@@ -8,9 +8,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -37,6 +39,46 @@ func TestEnsureCertificate(t *testing.T) {
 	again, err := Ensure(certFile, keyFile, nil)
 	if err != nil || again != fingerprint {
 		t.Fatalf("certificate not persistent: %q %v", again, err)
+	}
+}
+
+func TestCertificateChmodIsOptionalOnlyForModeLessFilesystem(t *testing.T) {
+	originalPath := chmodCertificatePath
+	originalFile := chmodCertificateFile
+	pathCalls, fileCalls := 0, 0
+	chmodCertificatePath = func(string, os.FileMode) error {
+		pathCalls++
+		return syscall.EPERM
+	}
+	chmodCertificateFile = func(*os.File, os.FileMode) error {
+		fileCalls++
+		return syscall.EPERM
+	}
+	t.Cleanup(func() {
+		chmodCertificatePath = originalPath
+		chmodCertificateFile = originalFile
+	})
+
+	now := time.Unix(1_700_000_000, 0)
+	dir := t.TempDir()
+	manager, fingerprint, err := newManagerWithOptions(
+		filepath.Join(dir, "portable-cert.pem"), filepath.Join(dir, "portable-key.pem"), nil,
+		func() []net.IP { return nil }, func() time.Time { return now }, Options{ModeLessFilesystem: true},
+	)
+	if err != nil || manager == nil || len(fingerprint) != 64 {
+		t.Fatalf("mode-less filesystem failed to create certificate: %v, fingerprint %q", err, fingerprint)
+	}
+	if pathCalls == 0 || fileCalls == 0 {
+		t.Fatalf("chmod paths were not both exercised: paths %d, temporary files %d", pathCalls, fileCalls)
+	}
+
+	strictDir := t.TempDir()
+	_, _, err = newManagerWithOptions(
+		filepath.Join(strictDir, "cert.pem"), filepath.Join(strictDir, "key.pem"), nil,
+		func() []net.IP { return nil }, func() time.Time { return now }, Options{},
+	)
+	if !errors.Is(err, syscall.EPERM) {
+		t.Fatalf("strict mode did not preserve chmod failure: %v", err)
 	}
 }
 

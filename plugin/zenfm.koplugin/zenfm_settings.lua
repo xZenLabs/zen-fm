@@ -106,7 +106,7 @@ function Settings:default_root(platform, android_storage)
     if self.values.custom_root ~= "" then return self.values.custom_root end
     if platform == "kindle" then return "/mnt/us" end
     if platform == "kobo" then return "/mnt/onboard" end
-    if platform == "pocketbook" and Util.is_directory("/mnt/ext1") then return "/mnt/ext1" end
+    if platform == "pocketbook" then return "/mnt/ext1" end
     if platform == "android" then
         if android_storage and android_storage:sub(1, 1) == "/" then return android_storage end
         return nil

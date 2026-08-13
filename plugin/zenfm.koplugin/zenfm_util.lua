@@ -114,7 +114,7 @@ function Util.remove_tree(path, allowed_parent)
     return lfs.rmdir(path) ~= nil
 end
 
-function Util.copy_tree(source, destination, allowed_parent)
+function Util.copy_tree(source, destination, allowed_parent, is_executable)
     if not ok_lfs or not direct_child(destination, allowed_parent) then return false end
     local source_attrs = lfs.symlinkattributes(source)
     if not source_attrs or source_attrs.mode ~= "directory" or not lfs.mkdir(destination) then return false end
@@ -124,9 +124,9 @@ function Util.copy_tree(source, destination, allowed_parent)
             local attrs = lfs.symlinkattributes(from)
             if not attrs or attrs.mode == "link" then return false end
             if attrs.mode == "directory" then
-                if not Util.copy_tree(from, to, destination) then return false end
+                if not Util.copy_tree(from, to, destination, is_executable) then return false end
             elseif attrs.mode == "file" then
-                if not Util.copy_atomic(from, to, false) then return false end
+                if not Util.copy_atomic(from, to, is_executable and is_executable(from) or false) then return false end
             else
                 return false
             end

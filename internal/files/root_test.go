@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -105,6 +106,131 @@ func TestCRUDSearchCopyAndChecksum(t *testing.T) {
 	}
 	if err := r.Delete("backup", true); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestInternalDirectoryIsHiddenAndPublishesWithoutCopy(t *testing.T) {
+	r, _ := testRoot(t, Options{})
+	internal, internalPath, err := r.OpenInternalDirectory(".zenfm-internal-uploads")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer internal.Close()
+	if internalPath != filepath.Join(r.Name(), ".zenfm-internal-uploads") {
+		t.Fatalf("internal path = %q", internalPath)
+	}
+	partial, err := internal.OpenFile("upload.part", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := partial.WriteString("uploaded once"); err != nil {
+		partial.Close()
+		t.Fatal(err)
+	}
+	if err := partial.Close(); err != nil {
+		t.Fatal(err)
+	}
+	listing, err := r.List("/", true)
+	if err != nil || len(listing.Entries) != 0 {
+		t.Fatalf("private directory was listed: %+v %v", listing, err)
+	}
+	if _, err := r.Entry("/.zenfm-internal-uploads/upload.part"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("private upload was publicly addressable: %v", err)
+	}
+	moved, err := r.PublishTemporary(internal, "upload.part", "/book.epub", false)
+	if err != nil || !moved {
+		t.Fatalf("publish = %v, %v", moved, err)
+	}
+	if _, err := internal.Lstat("upload.part"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("renamed source survived: %v", err)
+	}
+	if data, err := r.ReadContent("/book.epub"); err != nil || string(data) != "uploaded once" {
+		t.Fatalf("published content = %q, %v", data, err)
+	}
+}
+
+func TestInternalDirectoryDoesNotClaimAnExistingUserDirectory(t *testing.T) {
+	r, dir := testRoot(t, Options{})
+	userDirectory := filepath.Join(dir, ".zenfm-internal-uploads")
+	if err := os.Mkdir(userDirectory, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	userFile := filepath.Join(userDirectory, "abcdefghijklmnop.part")
+	if err := os.WriteFile(userFile, []byte("user data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := r.OpenInternalDirectory(".zenfm-internal-uploads"); !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("claim existing directory = %v", err)
+	}
+	if data, err := os.ReadFile(userFile); err != nil || string(data) != "user data" {
+		t.Fatalf("existing user file = %q, %v", data, err)
+	}
+}
+
+func TestPublishTemporaryReportsCrossFilesystemFallback(t *testing.T) {
+	r, _ := testRoot(t, Options{})
+	internal, _, err := r.OpenInternalDirectory(".zenfm-internal-uploads")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer internal.Close()
+	partial, err := internal.OpenFile("upload.part", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := partial.WriteString("fallback"); err != nil {
+		partial.Close()
+		t.Fatal(err)
+	}
+	if err := partial.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r.renameForMove = func(*os.Root, string, *os.Root, string, bool) error { return syscall.EXDEV }
+	if moved, err := r.PublishTemporary(internal, "upload.part", "/book.epub", false); err != nil || moved {
+		t.Fatalf("cross-filesystem publish = %v, %v", moved, err)
+	}
+	if _, err := internal.Lstat("upload.part"); err != nil {
+		t.Fatalf("fallback source was removed: %v", err)
+	}
+	if _, err := r.Entry("/book.epub"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("fallback destination exists: %v", err)
+	}
+}
+
+func TestPublishTemporaryUsesPortableSameFilesystemRename(t *testing.T) {
+	r, _ := testRoot(t, Options{})
+	internal, _, err := r.OpenInternalDirectory(".zenfm-internal-uploads")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer internal.Close()
+	partial, err := internal.OpenFile("upload.part", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := partial.WriteString("portable"); err != nil {
+		partial.Close()
+		t.Fatal(err)
+	}
+	if err := partial.Close(); err != nil {
+		t.Fatal(err)
+	}
+	partialInfo, err := internal.Lstat("upload.part")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.renameForMove = func(*os.Root, string, *os.Root, string, bool) error { return errRenameNoReplaceUnsupported }
+	r.linkForMove = func(*os.Root, string, *os.Root, string) error { return syscall.EPERM }
+	moved, err := r.PublishTemporary(internal, "upload.part", "/book.epub", false)
+	if err != nil || !moved {
+		t.Fatalf("portable publish = %v, %v", moved, err)
+	}
+	if data, err := r.ReadContent("/book.epub"); err != nil || string(data) != "portable" {
+		t.Fatalf("portable content = %q, %v", data, err)
+	}
+	destinationInfo, err := os.Stat(filepath.Join(r.Name(), "book.epub"))
+	if err != nil || !os.SameFile(partialInfo, destinationInfo) {
+		t.Fatalf("portable publish copied instead of renamed: %v", err)
 	}
 }
 

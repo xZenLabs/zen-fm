@@ -19,6 +19,7 @@ import type {
 const API_ROOT = '/api/v1'
 const DEFAULT_TIMEOUT_MS = 30_000
 const CSRF_HEADER = 'X-ZenFM-CSRF'
+const TUS_CHUNK_SIZE = 32 * 1024 * 1024
 
 let csrfToken = ''
 let clientTimeoutMs = DEFAULT_TIMEOUT_MS
@@ -410,8 +411,12 @@ export function uploadResumable(path: string, file: File, callbacks: {
     void upload.abort(true).catch(() => undefined)
     fail(abortReason(signal))
   }
-  const clear = () => {
+  const clearStallTimer = () => {
     window.clearTimeout(stallTimer)
+    stallTimer = undefined
+  }
+  const clear = () => {
+    clearStallTimer()
     signal?.removeEventListener('abort', cancel)
   }
   const fail = (error: Error) => {
@@ -421,7 +426,7 @@ export function uploadResumable(path: string, file: File, callbacks: {
     callbacks.onError(error)
   }
   const armStallTimer = () => {
-    window.clearTimeout(stallTimer)
+    clearStallTimer()
     stallTimer = window.setTimeout(() => {
       void upload.abort()
       fail(new Error('Upload stopped after 30 seconds without progress.'))
@@ -431,15 +436,29 @@ export function uploadResumable(path: string, file: File, callbacks: {
     endpoint: `${API_ROOT}/uploads`,
     metadata: { filename: file.name, path, filetype: file.type, overwrite: String(overwrite) },
     headers: csrfToken ? { [CSRF_HEADER]: csrfToken } : {},
+    fingerprint: async (input, options) => {
+      const base = await tus.defaultOptions.fingerprint(input, options)
+      return JSON.stringify(['zenfm-tus-v1', base, path, overwrite])
+    },
+    chunkSize: TUS_CHUNK_SIZE,
+    parallelUploads: 1,
     retryDelays: [0, 1_000, 3_000, 5_000, 10_000],
     removeFingerprintOnSuccess: true,
+    onShouldRetry: (error, retryAttempt, options) => {
+      const response = error.originalResponse
+      // A 409 with the authoritative offset is recoverable TUS state. Plain
+      // destination conflicts need an immediate user decision, not retries.
+      if (response?.getStatus() === 409 && response.getHeader('Upload-Offset') == null) return false
+      return tus.defaultOptions.onShouldRetry?.(error, retryAttempt, options) ?? false
+    },
     onBeforeRequest: (request) => {
       const transport = request.getUnderlyingObject() as unknown
       if (transport instanceof XMLHttpRequest) transport.withCredentials = true
     },
     onError: fail,
     onProgress: (uploaded, total) => {
-      armStallTimer()
+      if (uploaded >= total) clearStallTimer()
+      else armStallTimer()
       callbacks.onProgress(uploaded, total)
     },
     onSuccess: () => {

@@ -46,8 +46,15 @@ for platform in ereader linux macos android; do
     fi
 done
 
-unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" | grep -q 'backend/zenfm-hf$'
-unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" | grep -q 'backend/zenfm-sf$'
+ereader_archive="$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip"
+unzip -Z1 "$ereader_archive" | grep -q 'backend/zenfm-hf$'
+unzip -Z1 "$ereader_archive" | grep -q 'backend/zenfm-sf$'
+for executable in zenfm.koplugin/backend/zenfm-sf zenfm.koplugin/supervisor.sh; do
+    if ! unzip -Z -l "$ereader_archive" "$executable" | grep -Eq '^-rwx[^ ]* .*'"$executable"'$'; then
+        echo "PocketBook executable mode is missing from $executable" >&2
+        exit 1
+    fi
+done
 for module in android_intent control daemon settings updater util; do
     unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" | grep -q "zenfm.koplugin/zenfm_$module.lua$"
 done

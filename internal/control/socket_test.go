@@ -91,6 +91,19 @@ func TestControlRefusesToReplaceRegularFile(t *testing.T) {
 	}
 }
 
+func TestControlSocketChmodIsOptionalOnlyForModeLessFilesystem(t *testing.T) {
+	original := chmodControlSocket
+	chmodControlSocket = func(string, os.FileMode) error { return syscall.EPERM }
+	t.Cleanup(func() { chmodControlSocket = original })
+
+	if err := (&Server{Path: "unused", ModeLessFilesystem: true}).secureSocket(); err != nil {
+		t.Fatalf("mode-less filesystem rejected control socket: %v", err)
+	}
+	if err := (&Server{Path: "unused"}).secureSocket(); !errors.Is(err, syscall.EPERM) {
+		t.Fatalf("strict mode did not preserve chmod failure: %v", err)
+	}
+}
+
 func command(t *testing.T, path, value string) string {
 	t.Helper()
 	connection, err := net.DialTimeout("unix", path, time.Second)

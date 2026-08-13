@@ -54,7 +54,8 @@ type UploadProgress = {
 
 const thumbnailExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff'])
 const sortPreferenceKey = 'zenfm.files.sort'
-const uploadConcurrency = 2
+const uploadConcurrency = 4
+const uploadProgressThrottleMs = 100
 const sortFields: SortField[] = ['name', 'size', 'modified']
 const defaultSortPreference: { sort: SortField; direction: SortDirection } = { sort: 'name', direction: 'asc' }
 
@@ -333,8 +334,15 @@ export function FilesPage() {
     closeMenu()
   }
 
-  const askAboutConflict = (file: File) => new Promise<ConflictChoice>((resolve) => {
-    conflictResolver.current = resolve
+  const askAboutConflict = (file: File, signal: AbortSignal) => new Promise<ConflictChoice>((resolve) => {
+    const finish = (choice: ConflictChoice) => {
+      signal.removeEventListener('abort', abort)
+      resolve(choice)
+    }
+    const abort = () => finish('cancel')
+    if (signal.aborted) return abort()
+    signal.addEventListener('abort', abort, { once: true })
+    conflictResolver.current = finish
     setConflict(file)
   })
   const resolveConflict = (choice: ConflictChoice) => {
@@ -366,17 +374,43 @@ export function FilesPage() {
     const displayProgress = new Array<number>(totalFiles).fill(0)
     const transferredProgress = new Array<number>(totalFiles).fill(0)
     const eta = new TransferEtaEstimator()
-    const updateProgress = (index: number, file: File, sent: number, transferred = true) => {
-      if (signal.aborted) return
-      const bounded = Math.max(displayProgress[index] ?? 0, Math.min(sent, file.size))
-      displayProgress[index] = bounded
-      if (transferred) transferredProgress[index] = Math.max(transferredProgress[index] ?? 0, bounded)
-      const uploadedBytes = displayProgress.reduce((total, bytes) => total + bytes, 0)
-      const transferredBytes = transferredProgress.reduce((total, bytes) => total + bytes, 0)
-      const estimatedCompletionAt = eta.update(transferredBytes, totalBytes - uploadedBytes, Date.now())
-      setUpload({ name: file.name, completedFiles, totalFiles, uploadedBytes, totalBytes, estimatedCompletionAt })
+    let uploadedBytes = 0
+    let transferredBytes = 0
+    let currentName = upload.files[0]?.file.name ?? ''
+    let progressTimer: number | undefined
+    const clearProgressTimer = () => {
+      window.clearTimeout(progressTimer)
+      progressTimer = undefined
     }
-    if (upload.files[0]) updateProgress(0, upload.files[0].file, 0)
+    const flushProgress = () => {
+      clearProgressTimer()
+      if (signal.aborted) return
+      const estimatedCompletionAt = eta.update(transferredBytes, totalBytes - uploadedBytes, Date.now())
+      setUpload({ name: currentName, completedFiles, totalFiles, uploadedBytes, totalBytes, estimatedCompletionAt })
+    }
+    const scheduleProgress = (immediate: boolean) => {
+      if (immediate) {
+        flushProgress()
+      } else if (progressTimer === undefined) {
+        progressTimer = window.setTimeout(flushProgress, uploadProgressThrottleMs)
+      }
+    }
+    const updateProgress = (index: number, file: File, sent: number, transferred = true, immediate = false) => {
+      if (signal.aborted) return
+      const previousDisplay = displayProgress[index] ?? 0
+      const bounded = Math.max(previousDisplay, Math.min(sent, file.size))
+      displayProgress[index] = bounded
+      uploadedBytes += bounded - previousDisplay
+      if (transferred) {
+        const previousTransferred = transferredProgress[index] ?? 0
+        const nextTransferred = Math.max(previousTransferred, bounded)
+        transferredProgress[index] = nextTransferred
+        transferredBytes += nextTransferred - previousTransferred
+      }
+      currentName = file.name
+      scheduleProgress(immediate)
+    }
+    if (upload.files[0]) updateProgress(0, upload.files[0].file, 0, true, true)
     for (const directory of upload.directories) {
       try {
         await api.files.createDirectory(joinPath(destinationPath, directory), signal)
@@ -390,7 +424,11 @@ export function FilesPage() {
       const decision = conflictQueue.then(async (): Promise<ConflictPolicy | 'cancel'> => {
         if (cancelled || signal.aborted) return 'cancel'
         if (conflictPolicy !== 'ask') return conflictPolicy
-        const choice = await askAboutConflict(file)
+        const choice = await askAboutConflict(file, signal)
+        if (choice === 'cancel' && signal.aborted) {
+          resolveConflict('cancel')
+          return 'cancel'
+        }
         if (choice === 'cancel') {
           cancelled = true
           controller.abort()
@@ -432,7 +470,7 @@ export function FilesPage() {
         }
       }
       completedFiles++
-      updateProgress(index, file, file.size, succeeded)
+      updateProgress(index, file, file.size, succeeded, true)
     }
     const worker = async () => {
       while (!cancelled && !signal.aborted) {
@@ -442,6 +480,7 @@ export function FilesPage() {
       }
     }
     const results = await Promise.allSettled(Array.from({ length: Math.min(uploadConcurrency, totalFiles) }, () => worker()))
+    clearProgressTimer()
     if (signal.aborted && signal.reason instanceof Error && signal.reason.name !== 'AbortError') throw signal.reason
     const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
     if (failed) throw failed.reason

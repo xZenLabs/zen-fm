@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 )
 
+var ereaderRootCandidates = [...]string{"/mnt/us", "/mnt/onboard", "/mnt/ext1"}
+
 func DefaultRoot() string {
-	for _, candidate := range []string{"/mnt/us", "/mnt/onboard"} {
+	for _, candidate := range ereaderRootCandidates {
 		if isDirectory(candidate) {
 			return candidate
 		}

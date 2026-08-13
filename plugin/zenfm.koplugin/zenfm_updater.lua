@@ -9,6 +9,9 @@ local repository = "xZenLabs/zen-fm"
 local releases_url = "https://api.github.com/repos/" .. repository .. "/releases?per_page=20"
 local maximum_metadata_bytes = 1024 * 1024
 local maximum_package_bytes = 200 * 1024 * 1024
+local maximum_archive_entries = 512
+local maximum_archive_path_bytes = 4096
+local release_root = "zenfm.koplugin"
 
 local trusted_hosts = {
     ["api.github.com"] = true,
@@ -163,6 +166,90 @@ local function plugin_version(plugin_dir)
     return Util.trim(Util.read_all(plugin_dir .. "/VERSION", 128) or "0.0.0")
 end
 
+local function valid_archive_path(path)
+    if type(path) ~= "string" or path == "" or #path > maximum_archive_path_bytes
+        or path:sub(1, 1) == "/" or path:find("\\", 1, true)
+        or path:find("//", 1, true) then
+        return false
+    end
+    for part in path:gmatch("[^/]+") do
+        if part == "." or part == ".." then return false end
+    end
+    return path == release_root
+        or path:sub(1, #release_root + 1) == release_root .. "/"
+end
+
+-- KOReader's archiver writes each entry through libarchive, retaining the mode
+-- stored in the release. This matters on PocketBook: copying an extracted
+-- executable to its settings storage loses the executable mode, and chmod is
+-- unavailable there. Validate the complete archive before writing any entry.
+function Updater.extract_archive(archive_path, destination)
+    local ok_archiver, Archiver = pcall(require, "ffi/archiver")
+    if not ok_archiver or not Archiver or not Archiver.Reader or not Archiver.Reader.new then
+        return false, "archive extraction is unavailable"
+    end
+    local created, archive = pcall(Archiver.Reader.new, Archiver.Reader)
+    if not created or not archive then return false, "archive extraction is unavailable" end
+    if not archive:open(archive_path) then
+        return false, archive.err or "could not open update archive"
+    end
+
+    local entries, manifest, total = 0, {}, 0
+    for entry in archive:iterate() do
+        entries = entries + 1
+        local declared_size = tonumber(entry.size)
+        local size = declared_size or 0
+        if entries > maximum_archive_entries or not valid_archive_path(entry.path)
+            or (entry.mode ~= "file" and entry.mode ~= "directory")
+            or (entry.path == release_root and entry.mode ~= "directory")
+            or (entry.mode == "file" and declared_size == nil)
+            or size < 0 then
+            archive:close()
+            return false, "update archive has an invalid layout"
+        end
+        total = total + size
+        if total > maximum_package_bytes then
+            archive:close()
+            return false, "update archive is too large"
+        end
+        manifest[entries] = { path = entry.path, mode = entry.mode, size = size }
+    end
+    local validation_err = archive.err
+    archive:close()
+    if validation_err then return false, validation_err end
+    if entries == 0 then return false, "update archive is empty" end
+
+    -- Reader retains parsed headers when reused. Construct a fresh reader so
+    -- this pass observes the archive as it exists immediately before writes.
+    created, archive = pcall(Archiver.Reader.new, Archiver.Reader)
+    if not created or not archive then return false, "archive extraction is unavailable" end
+    if not archive:open(archive_path) then
+        return false, archive.err or "could not reopen update archive"
+    end
+    local extracted = 0
+    for entry in archive:iterate() do
+        extracted = extracted + 1
+        local expected = manifest[extracted]
+        local declared_size = tonumber(entry.size)
+        local size = declared_size or 0
+        if not expected or entry.path ~= expected.path or entry.mode ~= expected.mode
+            or (entry.mode == "file" and declared_size == nil) or size ~= expected.size then
+            archive:close()
+            return false, "update archive changed during extraction"
+        end
+        if not archive:extractToPath(entry.path, destination .. "/" .. entry.path) then
+            local extract_err = archive.err or "could not extract update archive"
+            archive:close()
+            return false, extract_err
+        end
+    end
+    local extract_err = archive.err
+    archive:close()
+    if extract_err then return false, extract_err end
+    if extracted ~= entries then return false, "update archive changed during extraction" end
+    return true
+end
+
 function Updater.validate_lua_tree(root)
     if not ok_lfs then return false, "Lua update validation requires filesystem support" end
     local visited, total = 0, 0
@@ -227,7 +314,7 @@ local function validate_stage(daemon, directory, version)
     return root
 end
 
-local function install_stage(daemon, stage_root, resume_after_update)
+function Updater.install_stage(daemon, stage_root, resume_after_update)
     local incoming = daemon.plugin_dir .. ".incoming"
     local backup = daemon.plugin_dir .. ".rollback"
     local parent = daemon.plugin_dir:match("^(.*)/[^/]+$")
@@ -235,22 +322,45 @@ local function install_stage(daemon, stage_root, resume_after_update)
     if not Util.remove_tree(incoming, parent) or not Util.remove_tree(backup, parent) then
         return false, "could not clear bounded update staging paths"
     end
-    if not Util.copy_tree(stage_root, incoming, parent) then
+    -- Prefer moving the archive-extracted tree so executable bits from the
+    -- release survive. PocketBook stages beside the plugin below, because a
+    -- copied file cannot be made executable afterward.
+    local installed = os.rename(stage_root, incoming)
+    if not installed and not daemon:is_pocketbook() then
+        installed = Util.copy_tree(stage_root, incoming, parent, function(path)
+            return path:match("/supervisor%.sh$") ~= nil
+                or path:match("/backend/zenfm[^/]*$") ~= nil
+        end)
+    end
+    if not installed then
         return false, "could not stage plugin update"
     end
-    os.execute("chmod 700 " .. Util.sh_quote(incoming .. "/supervisor.sh") .. " >/dev/null 2>&1")
+    if not daemon:is_pocketbook() then
+        os.execute("chmod 700 " .. Util.sh_quote(incoming .. "/supervisor.sh") .. " >/dev/null 2>&1")
+    end
     if not os.rename(daemon.plugin_dir, backup) then
         Util.remove_tree(incoming, parent)
         return false, "could not create plugin rollback copy"
     end
-    if not os.rename(incoming, daemon.plugin_dir) then
-        os.rename(backup, daemon.plugin_dir)
+    local activated, activation_err = os.rename(incoming, daemon.plugin_dir)
+    if not activated then
+        local restored, restore_err = os.rename(backup, daemon.plugin_dir)
+        if not restored then
+            return false, "could not activate plugin update and rollback failed: "
+                .. tostring(restore_err or activation_err or "could not restore previous version")
+        end
         return false, "could not activate plugin update; previous version restored"
     end
     local pending = backup .. "\n" .. (resume_after_update and "resume" or "stop") .. "\n"
     if not Util.write_atomic(daemon.plugin_dir .. "/.update-pending", pending, "600") then
-        Util.remove_tree(daemon.plugin_dir, parent)
-        os.rename(backup, daemon.plugin_dir)
+        if not Util.remove_tree(daemon.plugin_dir, parent) then
+            return false, "could not mark update healthy and rollback failed: could not remove failed update"
+        end
+        local restored, restore_err = os.rename(backup, daemon.plugin_dir)
+        if not restored then
+            return false, "could not mark update healthy and rollback failed: "
+                .. tostring(restore_err or "could not restore previous version")
+        end
         return false, "could not mark update healthy; previous version restored"
     end
     return true, "ZenFM updated. Restart KOReader to finish activation."
@@ -317,12 +427,15 @@ function Updater.install_latest(daemon)
     if not downloaded then return false, download_err end
     local actual = sha256(archive)
     if not actual or actual ~= release.digest then os.remove(archive) return false, "update checksum did not match" end
-    local stage = update_dir .. "/stage"
-    if not Util.remove_tree(stage, update_dir) then return false, "could not clear update staging directory" end
+    local stage, stage_parent = update_dir .. "/stage", update_dir
+    if daemon:is_pocketbook() then
+        stage_parent = daemon.plugin_dir:match("^(.*)/[^/]+$")
+        if not stage_parent then return false, "plugin path is invalid" end
+        stage = daemon.plugin_dir .. ".update-stage"
+    end
+    if not Util.remove_tree(stage, stage_parent) then return false, "could not clear update staging directory" end
     if not Util.ensure_dir(stage) then return false, "could not create update staging directory" end
-    local ok_device, Device = pcall(require, "device")
-    if not ok_device or not Device.unpackArchive then return false, "archive extraction is unavailable" end
-    local unpacked, unpack_err = Device:unpackArchive(archive, stage)
+    local unpacked, unpack_err = Updater.extract_archive(archive, stage)
     os.remove(archive)
     if not unpacked then return false, tostring(unpack_err or "could not extract update") end
     local root, validation_err = validate_stage(daemon, stage, release.version)
@@ -333,7 +446,7 @@ function Updater.install_latest(daemon)
         local stopped, stop_err = daemon:stop()
         if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
     end
-    return install_stage(daemon, root, was_running)
+    return Updater.install_stage(daemon, root, was_running)
 end
 
 return Updater
