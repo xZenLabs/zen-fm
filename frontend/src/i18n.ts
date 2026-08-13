@@ -24,7 +24,10 @@ export function detectLocale(language = typeof navigator === 'undefined' ? 'en' 
 
 const english = {
   appName: 'ZenFM',
-  nav: { files: 'Files', shares: 'Shares', settings: 'Settings', logout: 'Sign out' },
+  nav: {
+    files: 'Files', shares: 'Shares', settings: 'Settings', logout: 'Sign out',
+    useLightMode: 'Switch to light mode', useDarkMode: 'Switch to dark mode',
+  },
   auth: {
     welcome: 'Your files, easily accessible.', username: 'Username', password: 'Password',
     signIn: 'Sign in', signingIn: 'Signing in…', failed: 'The username or password is incorrect.',
@@ -38,7 +41,7 @@ const english = {
     grid: 'Grid view', list: 'List view', hidden: 'Show hidden files', refresh: 'Refresh',
     preview: 'Open', edit: 'Edit', rename: 'Rename', move: 'Move', copy: 'Copy', delete: 'Delete', download: 'Download',
     share: 'Share', checksum: 'Checksum', folderName: 'Folder name', destination: 'Destination path', destinationFolder: 'Destination folder',
-    save: 'Save changes', editor: 'Text editor', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
+    save: 'Save changes', editor: 'Text editor', editing: 'Editing {{name}}', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
     uploading: 'Uploading {{name}} — {{progress}}%', uploadingBatch: 'Uploading · {{completed}} of {{count}} files complete · {{name}}', uploadingProgress: '{{uploaded}} of {{total}} — {{progress}}%', uploadProgress: 'Total upload progress', uploadEta: 'About {{eta}} remaining', searchResults: 'Search results', clearSearch: 'Clear search',
     calculatingCopy: 'Calculating total size…', copyProgress: 'Total copy progress', copyingProgress: 'Copying {{copied}} of {{total}} — {{progress}}%', copyEta: 'About {{eta}} remaining',
     conflictTitle: 'File already exists', conflictBody: '{{name}} already exists. Apply this choice to all conflicts in this upload.',

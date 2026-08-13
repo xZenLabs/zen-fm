@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
-import { Alert, AppBar, Box, Button, Container, Stack, Toolbar, useMediaQuery, useTheme } from '@mui/material'
+import { Alert, AppBar, Box, Button, Container, IconButton, Stack, Toolbar, Tooltip, useMediaQuery, useTheme } from '@mui/material'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import LinkRounded from '@mui/icons-material/LinkRounded'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
+import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
+import LightModeRounded from '@mui/icons-material/LightModeRounded'
 import { NavLink, Outlet } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { api, setClientTimeout } from '../api/client'
 import { useAuth } from '../auth/AuthProvider'
@@ -21,10 +23,15 @@ const nav = [
 export function AppShell() {
   const { t, i18n } = useTranslation()
   const { logout } = useAuth()
-  const { setPreference } = useThemeMode()
+  const { preference, setPreference } = useThemeMode()
+  const queryClient = useQueryClient()
   const theme = useTheme()
   const mobile = useMediaQuery(theme.breakpoints.down('sm'))
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings.get })
+  const themePreference = useMutation({
+    mutationFn: (next: 'light' | 'dark') => api.settings.update({ theme: next }),
+    onSuccess: (next) => queryClient.setQueryData(['settings'], next),
+  })
 
   useEffect(() => {
     if (!settings.data) return
@@ -34,6 +41,13 @@ export function AppShell() {
   }, [i18n, setPreference, settings.data])
 
   const insecure = window.location.protocol === 'http:'
+  const dark = theme.palette.mode === 'dark'
+  const toggleTheme = () => {
+    const next = dark ? 'light' : 'dark'
+    const previous = preference
+    setPreference(next)
+    themePreference.mutate(next, { onError: () => setPreference(previous) })
+  }
 
   return (
     <Box className="app-shell" minHeight="100dvh" pb={mobile ? 10 : 0}>
@@ -46,7 +60,16 @@ export function AppShell() {
                 {nav.map((item) => <Button key={item.to} component={NavLink} to={item.to} startIcon={item.icon} className="nav-button">{t(item.label)}</Button>)}
               </Stack>
             )}
-            <Button onClick={() => void logout()} color="inherit" startIcon={<LogoutRounded />} aria-label={t('nav.logout')} sx={{ ml: 'auto' }}>{mobile ? '' : t('nav.logout')}</Button>
+            <Stack direction="row" alignItems="center" gap={0.5} ml="auto">
+              <Tooltip title={t(dark ? 'nav.useLightMode' : 'nav.useDarkMode')}>
+                <span>
+                  <IconButton color="inherit" aria-label={t(dark ? 'nav.useLightMode' : 'nav.useDarkMode')} disabled={!settings.data || themePreference.isPending} onClick={toggleTheme}>
+                    {dark ? <LightModeRounded /> : <DarkModeRounded />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Button onClick={() => void logout()} color="inherit" startIcon={<LogoutRounded />} aria-label={t('nav.logout')}>{mobile ? '' : t('nav.logout')}</Button>
+            </Stack>
           </Toolbar>
         </Container>
       </AppBar>

@@ -70,6 +70,7 @@ function abortReason(signal: AbortSignal) {
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: BodyInit | Record<string, unknown>
+  responseType?: 'text'
   timeoutMs?: number
   skipUnauthorizedEvent?: boolean
 }
@@ -84,7 +85,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const method = options.method?.toUpperCase() ?? 'GET'
   const headers = new Headers(options.headers)
-  headers.set('Accept', 'application/json')
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) {
     headers.set(CSRF_HEADER, csrfToken)
   }
@@ -97,6 +98,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   try {
     const fetchOptions: RequestOptions = { ...options }
+    delete fetchOptions.responseType
     delete fetchOptions.timeoutMs
     delete fetchOptions.skipUnauthorizedEvent
     delete fetchOptions.body
@@ -122,6 +124,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
 
     if (response.status === 204) return undefined as T
+    if (options.responseType === 'text') return await response.text() as T
     const contentType = response.headers.get('content-type') ?? ''
     if (!contentType.includes('json')) return await response.text() as T
     const value = await response.json() as T
@@ -360,9 +363,11 @@ export const api = {
     previewUrl: (path: string, width = 1600, height = 1200) => `${API_ROOT}/files/preview${query({ path, width, height })}`,
     readText: (path: string) => request<string>(`${API_ROOT}/files/content${query({ path })}`, {
       headers: { Accept: 'text/plain' },
+      responseType: 'text',
     }),
     readPreviewText: (path: string) => request<string>(`${API_ROOT}/files/preview${query({ path })}`, {
       headers: { Accept: 'text/plain' },
+      responseType: 'text',
     }),
     readPreviewBlob: (path: string) => requestBlob(`${API_ROOT}/files/preview${query({ path })}`),
     checksum: (path: string) => request<Checksum>(`${API_ROOT}/files/checksum${query({ path })}`),

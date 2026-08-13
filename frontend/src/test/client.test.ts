@@ -30,3 +30,21 @@ describe('API client security', () => {
     unsubscribe()
   })
 })
+
+describe('API client file content', () => {
+  const jsonSource = '{\n  "enabled": true\n}\n'
+
+  it.each([
+    ['preview', '/api/v1/files/preview', () => api.files.readPreviewText('/config.json')],
+    ['editor', '/api/v1/files/content', () => api.files.readText('/config.json')],
+  ])('keeps JSON source as text for the %s', async (_name, endpoint, read) => {
+    let accept = ''
+    server.use(http.get(`http://localhost${endpoint}`, ({ request }) => {
+      accept = request.headers.get('Accept') ?? ''
+      return new HttpResponse(jsonSource, { headers: { 'Content-Type': 'application/json' } })
+    }))
+
+    await expect(read()).resolves.toBe(jsonSource)
+    expect(accept).toBe('text/plain')
+  })
+})

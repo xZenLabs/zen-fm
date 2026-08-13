@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { expect, request, test, type Page } from '@playwright/test'
+import { expect, request, test, type Locator, type Page } from '@playwright/test'
 
 const unavailable = process.env.ZENFM_E2E_UNAVAILABLE === '1'
 const normalURL = `http://127.0.0.1:${Number(process.env.ZENFM_E2E_PORT ?? 18_780)}`
@@ -15,6 +15,15 @@ async function login(page: Page, baseURL = normalURL, ownerPassword = password) 
   await page.getByLabel('Password').fill(ownerPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/files(?:\/|$)/)
+}
+
+async function expectLineNumbersAligned(container: Locator) {
+  await expect(container.locator('.cm-lineNumbers')).toBeVisible()
+  const lineBox = await container.locator('.cm-content .cm-line').first().boundingBox()
+  const numberBox = await container.locator('.cm-lineNumbers .cm-gutterElement').last().boundingBox()
+  expect(lineBox).not.toBeNull()
+  expect(numberBox).not.toBeNull()
+  expect(Math.abs((lineBox?.y ?? Number.POSITIVE_INFINITY) - (numberBox?.y ?? 0))).toBeLessThan(5)
 }
 
 test.describe('ZenFM real binary', () => {
@@ -119,16 +128,17 @@ test.describe('ZenFM real binary', () => {
     await page.getByRole('button', { name: 'New file' }).click()
     await page.getByRole('dialog', { name: 'New file' }).getByLabel('File name').fill('edit-flow.txt')
     await page.getByRole('dialog', { name: 'New file' }).getByRole('button', { name: 'Create' }).click()
-    await expect(page.getByRole('dialog', { name: 'Text editor · edit-flow.txt' })).toBeVisible()
+    const editorDialog = page.getByRole('dialog', { name: 'Editing edit-flow.txt' })
+    await expect(editorDialog).toBeVisible()
+    await expectLineNumbersAligned(editorDialog)
     await page.locator('.cm-content').fill('Before edit')
     await page.getByRole('dialog').getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByText('edit-flow.txt', { exact: true })).toBeVisible()
     await page.getByText('edit-flow.txt', { exact: true }).dblclick()
     await expect(page.getByText('Before edit', { exact: true })).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-
-    await page.getByLabel('Actions for edit-flow.txt').click()
-    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    const previewDialog = page.getByRole('dialog')
+    await expectLineNumbersAligned(previewDialog)
+    await page.getByRole('dialog').getByRole('button', { name: 'Edit' }).click()
     await page.locator('.cm-content').fill('After edit')
     await page.getByRole('dialog').getByRole('button', { name: 'Save changes' }).click()
     await page.getByText('edit-flow.txt', { exact: true }).dblclick()

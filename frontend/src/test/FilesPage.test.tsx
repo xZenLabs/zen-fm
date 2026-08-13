@@ -478,7 +478,7 @@ describe('file browser', () => {
     await user.type(screen.getByLabelText('File name'), 'notes.txt')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(await screen.findByText('Text editor · notes.txt')).toBeInTheDocument()
+    expect(await screen.findByText('Editing notes.txt')).toBeInTheDocument()
     expect(csrf).toBe('a'.repeat(32))
     expect(condition).toBe('*')
     expect(body).toBe('')

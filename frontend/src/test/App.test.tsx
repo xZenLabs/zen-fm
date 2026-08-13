@@ -153,6 +153,34 @@ describe('responsive and accessible shell', () => {
     await waitFor(() => expect(document.documentElement).toHaveAttribute('data-zenfm-theme', 'dark'))
   })
 
+  it('follows the browser theme until the header toggle saves a manual choice', async () => {
+    let saved: Record<string, unknown> | undefined
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(prefers-color-scheme: dark)', media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
+    server.use(http.put('http://localhost/api/v1/settings', async ({ request }) => {
+      saved = await request.json() as Record<string, unknown>
+      return HttpResponse.json({
+        theme: 'light', locale: 'en', showHidden: false, clientTimeoutSeconds: 30,
+        advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend',
+      })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await screen.findByRole('heading', { name: 'Files' })
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-zenfm-theme', 'dark'))
+    const signOut = screen.getByRole('button', { name: 'Sign out' })
+    const themeToggle = screen.getByRole('button', { name: 'Switch to light mode' })
+    expect(themeToggle.closest('.MuiToolbar-root')).toContainElement(signOut)
+
+    await user.click(themeToggle)
+
+    await waitFor(() => expect(saved).toEqual({ theme: 'light' }))
+    expect(document.documentElement).toHaveAttribute('data-zenfm-theme', 'light')
+  })
+
   it('shows the running backend version in settings', async () => {
     server.use(http.get('http://localhost/api/v1/settings', () => HttpResponse.json({
       theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30,

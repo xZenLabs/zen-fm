@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, createTheme } from '@mui/material'
@@ -114,15 +114,33 @@ it('places preview close in the title bar and download in the footer', () => {
   expect(download.closest('.MuiDialogActions-root')).toBeInTheDocument()
 })
 
-it('uses a dark editor-like surface for opened text files', async () => {
+it('shows opened text in a light read-only editor with line numbers and an Edit button', async () => {
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('Readable text', { headers: { 'Content-Type': 'text/plain' } })))
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+  const onEdit = vi.fn()
+  render(<ThemeProvider theme={createTheme({ palette: { mode: 'light' } })}><QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} onEdit={onEdit} /></QueryClientProvider></ThemeProvider>)
 
   const text = await screen.findByText('Readable text')
-  expect(text).toHaveStyle({ backgroundColor: '#010409', color: '#e6edf3' })
-  expect(screen.getByRole('dialog', { name: 'notes.txt' })).toHaveStyle({ backgroundColor: '#0d1117' })
+  const editor = text.closest('.cm-editor')
+  const scroller = editor?.querySelector('.cm-scroller')
+  expect(editor?.closest('.cm-theme-light')).toBeInTheDocument()
+  expect(scroller?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
+  expect(scroller?.querySelector('.cm-content')).toHaveAttribute('contenteditable', 'false')
+  expect(screen.getByRole('dialog', { name: 'notes.txt' })).toHaveStyle({ backgroundColor: '#fff' })
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  expect(onEdit).toHaveBeenCalledOnce()
+})
+
+it('shows JSON source in the viewer when the server labels it application/json', async () => {
+  const source = '{\n  "enabled": true\n}'
+  server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse(source, { headers: { 'Content-Type': 'application/json' } })))
+  const entry: FileEntry = { name: 'config.json', path: '/config.json', type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'application/json' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+
+  await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent('"enabled": true'))
+  expect(document.querySelector('.cm-lineNumbers')).toBeInTheDocument()
 })
 
 it('uses a full-height dark CodeMirror theme in dark mode', () => {
@@ -131,6 +149,13 @@ it('uses a full-height dark CodeMirror theme in dark mode', () => {
   const editor = view.container.querySelector('.cm-theme-dark')
   expect(editor).toBeInTheDocument()
   expect(editor).toHaveStyle({ height: '100%' })
+  expect(editor?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
+})
+
+it('syntax-highlights Lua source by filename', () => {
+  const view = render(<TextEditor name="main.lua" value={'local enabled = true\nreturn enabled'} onChange={() => undefined} />)
+
+  expect(view.container.querySelectorAll('.cm-line span').length).toBeGreaterThan(0)
 })
 
 it('loads editable text through the bounded exact-source endpoint', async () => {
@@ -149,7 +174,7 @@ it('loads editable text through the bounded exact-source endpoint', async () => 
   render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider>)
 
   await waitFor(() => expect(requestedContent).toBe(true))
-  const dialog = screen.getByRole('dialog', { name: 'Text editor · notes.txt' })
+  const dialog = screen.getByRole('dialog', { name: 'Editing notes.txt' })
   expect(dialog).toHaveClass('MuiDialog-paperFullScreen')
   expect(within(dialog).getByRole('button', { name: 'Close' }).closest('.MuiDialogTitle-root')).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()

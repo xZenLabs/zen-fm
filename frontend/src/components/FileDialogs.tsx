@@ -5,6 +5,7 @@ import {
   MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import CloseRounded from '@mui/icons-material/CloseRounded'
+import EditRounded from '@mui/icons-material/EditRounded'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -34,7 +35,7 @@ export function canEdit(entry: FileEntry) {
   return isTextEntry(entry) && entry.size <= MAX_EDITABLE_TEXT_BYTES
 }
 
-export function FilePreviewDialog({ entry, onClose }: { entry: FileEntry | null; onClose: () => void }) {
+export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry | null; onClose: () => void; onEdit?: () => void }) {
   const { t } = useTranslation()
   const ext = extension(entry?.name ?? '')
   const mime = entry?.mimeType ?? ''
@@ -89,14 +90,14 @@ export function FilePreviewDialog({ entry, onClose }: { entry: FileEntry | null;
     else if (['html', 'htm'].includes(ext)) preview = <Box className="html-preview" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text.data ?? '', { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'img', 'link', 'meta', 'base'], FORBID_ATTR: ['style'] }) }} />
     else if (['md', 'markdown'].includes(ext)) preview = <Box className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(text.data ?? '') }} />
     else if (ext === 'csv' && csv) preview = <Box className="csv-preview" sx={{ overflow: 'auto' }}><table><thead>{csv.rows[0] && <tr>{csv.rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr>}</thead><tbody>{csv.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table>{csv.truncated && <Typography variant="caption" color="text.secondary">Preview truncated.</Typography>}</Box>
-    else preview = <Box component="pre" sx={{ p: 2, m: 0, overflow: 'auto', fontSize: '.86rem', whiteSpace: 'pre-wrap', bgcolor: '#010409', color: '#e6edf3', border: '1px solid #30363d', borderRadius: 1, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>{text.data}</Box>
+    else preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly /></Suspense>
   }
 
   return (
-    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" slotProps={{ paper: { sx: { bgcolor: '#0d1117', color: '#e6edf3', backgroundImage: 'none' } } }}>
+    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></DialogTitle>
-      <DialogContent dividers sx={{ minHeight: 240, borderColor: '#30363d' }}>{preview}</DialogContent>
-      <DialogActions>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}</DialogActions>
+      <DialogContent dividers sx={{ minHeight: 240 }}>{preview}</DialogContent>
+      <DialogActions>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}{entry && onEdit && canEdit(entry) && <Button variant="contained" startIcon={<EditRounded />} onClick={onEdit}>{t('files.edit')}</Button>}</DialogActions>
     </Dialog>
   )
 }
@@ -119,7 +120,7 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
 
   return (
     <Dialog open={Boolean(entry)} onClose={save.isPending ? undefined : onClose} fullScreen>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editor')} · {entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editing', { name: entry?.name })}</Box><IconButton aria-label={t('common.close')} onClick={onClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
       <DialogContent dividers sx={{ p: 0, minHeight: 0, flex: 1 }}>
         {entry && !editable ? <Box p={2}><Typography color="text.secondary">{t('files.editorUnavailable')}</Typography></Box> : file.isPending ? <LoadingPane /> : file.error ? <Box p={2}><ErrorPane error={file.error} /></Box> : (
           <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={value} onChange={setValue} /></Suspense>
