@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type KeyboardEvent, type PropsWithChildren } from 'react'
 import { CssBaseline, ThemeProvider, createTheme, useMediaQuery } from '@mui/material'
 import type { ThemePreference } from './api/types'
 
@@ -8,6 +8,16 @@ interface ThemeModeValue {
 }
 
 const ThemeModeContext = createContext<ThemeModeValue>({ preference: 'system', setPreference: () => undefined })
+
+function activateDialogPrimaryAction(event: KeyboardEvent<HTMLElement>) {
+  if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+  const target = event.target
+  if (target instanceof HTMLElement && target.closest('.cm-content[contenteditable="true"]')) return
+  const primaryAction = event.currentTarget.querySelector<HTMLElement>('.MuiDialogActions-root .MuiButton-contained:not(.Mui-disabled)')
+  if (!primaryAction) return
+  event.preventDefault()
+  if (!event.repeat) primaryAction.click()
+}
 
 export function ZenThemeProvider({ children }: PropsWithChildren) {
   const systemDark = useMediaQuery('(prefers-color-scheme: dark)')
@@ -71,7 +81,7 @@ export function ZenThemeProvider({ children }: PropsWithChildren) {
       },
       MuiTextField: { defaultProps: { size: 'small' } },
       MuiPaper: { defaultProps: { elevation: 0 } },
-      MuiDialog: { defaultProps: { fullWidth: true } },
+      MuiDialog: { defaultProps: { fullWidth: true, onKeyDown: activateDialogPrimaryAction } },
     },
   }), [accent, buttonText, dark])
 

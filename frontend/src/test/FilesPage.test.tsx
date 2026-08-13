@@ -549,12 +549,40 @@ describe('file browser', () => {
 
     await user.click(screen.getByRole('button', { name: 'New file' }))
     await user.type(screen.getByLabelText('File name'), 'notes.txt')
-    await user.click(screen.getByRole('button', { name: 'Create' }))
+    await user.keyboard('{Enter}')
 
     expect(await screen.findByText('Editing notes.txt')).toBeInTheDocument()
     expect(csrf).toBe('a'.repeat(32))
     expect(condition).toBe('*')
     expect(body).toBe('')
+
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeInTheDocument())
+    const editor = document.querySelector<HTMLElement>('.cm-content')!
+    await user.click(editor)
+    await user.keyboard('first{Enter}second')
+    await waitFor(() => expect(editor.querySelectorAll('.cm-line')).toHaveLength(2))
+    expect(screen.getByText('Editing notes.txt')).toBeInTheDocument()
+    expect(condition).toBe('*')
+    expect(body).toBe('')
+  })
+
+  it('opens the editor with Enter from a text preview', async () => {
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [{ name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }],
+      })),
+      http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text('Preview text')),
+      http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('Preview text')),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.dblClick(await screen.findByRole('row', { name: /notes\.txt/ }))
+    await screen.findByText('Preview text')
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByText('Editing notes.txt')).toBeInTheDocument()
   })
 
   it('applies replace all to the current conflict and every remaining upload', async () => {

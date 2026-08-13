@@ -21,8 +21,8 @@ jobs:
     name: govulncheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/checkout@7.0.1
+      - uses: actions/setup-go@7.0.0
         with:
           go-version: '1.26.5'
           cache: true
@@ -34,8 +34,8 @@ jobs:
     name: OSV dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: google/osv-scanner-action/osv-scanner-action@8deb546fdb875b9996d27d4950be7312dac076a1 # v2.5.0
+      - uses: actions/checkout@7.0.1
+      - uses: google/osv-scanner-action/osv-scanner-action@2.5.0
         with:
           scan-args: |-
             --recursive
@@ -48,8 +48,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@7.0.1
+      - uses: actions/setup-node@7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -65,8 +65,8 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      - uses: actions/checkout@7.0.1
+      - uses: actions/dependency-review-action@5.0.0
         with:
           fail-on-severity: high
 

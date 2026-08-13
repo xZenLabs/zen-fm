@@ -8,7 +8,7 @@ trap 'rm -rf "$TMP"' EXIT INT TERM
 printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" >> "$ZENFM_FIREWALL_LOG"' > "$TMP/iptables"
 printf '%s\n' '#!/bin/sh' '[ -z "${ZENFM_BACKEND_LOG:-}" ] || printf "%s\\n" "$$" >> "$ZENFM_BACKEND_LOG"' 'exec /bin/sleep "${ZENFM_BACKEND_SLEEP:-0.05}"' > "$TMP/backend"
 printf '%s\n' '#!/bin/sh' 'case "$1" in *.*) echo "sleep: invalid number '\''$1'\''" >&2; exit 1 ;; esac' 'exec /bin/sleep "$@"' > "$TMP/sleep"
-printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "$1" >> "$ZENFM_USLEEP_LOG"' > "$TMP/usleep"
+printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "$1" >> "$ZENFM_USLEEP_LOG"' '/bin/sleep 0.01' > "$TMP/usleep"
 chmod +x "$TMP/iptables" "$TMP/backend" "$ROOT/plugin/zenfm.koplugin/supervisor.sh"
 chmod +x "$TMP/sleep" "$TMP/usleep"
 runtime_id=$(basename "$TMP" | tr -cd '[:alnum:]' | awk '{ value=$0; if (length(value) > 12) value=substr(value, length(value)-11); print value }')

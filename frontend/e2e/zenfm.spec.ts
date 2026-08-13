@@ -153,14 +153,20 @@ test.describe('ZenFM real binary', () => {
 
     await page.getByLabel('Actions for renamed-flow.txt').click()
     await page.getByRole('menuitem', { name: 'Copy' }).click()
-    await page.getByRole('dialog').getByLabel('Destination path').fill('/copy-flow.txt')
-    await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click()
-    await expect(page.getByText('copy-flow.txt', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'New folder' }).click()
+    await page.getByRole('dialog', { name: 'New folder' }).getByLabel('Folder name').fill('copy-target')
+    await page.getByRole('dialog', { name: 'New folder' }).getByRole('button', { name: 'Create' }).click()
+    await page.getByText('copy-target', { exact: true }).dblclick()
+    await page.getByText('Nothing here yet').click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Paste' }).click()
+    await expect(page.getByText('renamed-flow.txt', { exact: true })).toBeVisible()
 
-    await page.getByLabel('Actions for copy-flow.txt').click()
+    await page.getByLabel('Actions for renamed-flow.txt').click()
     await page.getByRole('menuitem', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete copy-flow.txt?' }).getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText('copy-flow.txt', { exact: true })).toHaveCount(0)
+    await page.getByRole('dialog', { name: 'Delete renamed-flow.txt?' }).getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByText('renamed-flow.txt', { exact: true })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Home' }).click()
+    await expect(page.getByText('renamed-flow.txt', { exact: true })).toBeVisible()
   })
 
   test('uses bounded media previews and does not raster-preview SVG', async ({ page }) => {
