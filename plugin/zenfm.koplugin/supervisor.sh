@@ -76,6 +76,9 @@ process_matches() {
     kill -0 "$pid" 2>/dev/null || return 1
     current_start=$(process_start "$pid")
     [ -n "$current_start" ] && [ "$current_start" = "$start" ] || return 1
+    # Linux start ticks identify the same process across an intentional exec.
+    # The lower-resolution ps fallback still needs the executable check below.
+    if [ -r "/proc/$pid/stat" ]; then return 0; fi
     current_exe=$(process_exe "$pid")
     [ -n "$current_exe" ] || return 1
     [ "$current_exe" = "$recorded_exe" ] || [ "$current_exe" = "$expected_exe" ]
@@ -234,8 +237,8 @@ esac
 child=$!
 child_start=$(process_start "$child")
 [ -n "$child_start" ] || { echo "could not identify ZenFM child process" >&2; exit 1; }
-printf '%s\n' "$child" > "$lock_dir/child.pid"
 printf '%s\n' "$child_start" > "$lock_dir/child.start"
+printf '%s\n' "$child" > "$lock_dir/child.pid"
 printf '%s\n' "$expected_exe" > "$lock_dir/child.expected"
 attempt=0
 child_exe=

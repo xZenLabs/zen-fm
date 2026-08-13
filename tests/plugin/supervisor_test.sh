@@ -128,6 +128,7 @@ while [ ! -s "$TMP/server.pid" ] && [ "$attempt" -lt 50 ]; do sleep 0.02; attemp
 attempt=0
 while [ ! -s "$TMP/server.pid.lock/child.pid" ] && [ "$attempt" -lt 50 ]; do sleep 0.02; attempt=$((attempt + 1)); done
 [ -s "$TMP/server.pid.lock/child.pid" ]
+[ -s "$TMP/server.pid.lock/child.start" ]
 old_child=$(sed -n '1p' "$TMP/server.pid.lock/child.pid")
 kill -0 "$old_child"
 kill -9 "$crashed"
