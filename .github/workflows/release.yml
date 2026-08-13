@@ -260,7 +260,7 @@ jobs:
         run: |
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
-          GRADLE_BIN=gradle sh android/build.sh testReleaseUnitTest
+          ANDROID_NDK_HOME="$ANDROID_HOME/ndk/25.2.9519653" GRADLE_BIN=gradle sh android/build.sh testReleaseUnitTest
           apksigner verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

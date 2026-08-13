@@ -60,7 +60,7 @@ export function SettingsPage() {
     <Stack gap={2.5}>
       <PageHeader title={t('settings.title')} />
         <Card variant="outlined"><CardContent><Stack gap={2.5}>
-          <Box><Typography variant="h2">{t('settings.appearance')}</Typography><Typography variant="body2" color="text.secondary">Root: {settings.data.root}</Typography></Box>
+          <Box><Typography variant="h2">{t('settings.general')}</Typography><Typography variant="body2" color="text.secondary">{t('settings.version')}: {settings.data.version}</Typography><Typography variant="body2" color="text.secondary">{t('settings.root')}: {settings.data.root}</Typography></Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
             <TextField select fullWidth label={t('settings.theme')} value={form.theme ?? 'system'} onChange={(event) => setForm((old) => ({ ...old, theme: event.target.value as ThemePreference }))}><MenuItem value="system">{t('settings.system')}</MenuItem><MenuItem value="light">{t('settings.light')}</MenuItem><MenuItem value="dark">{t('settings.dark')}</MenuItem></TextField>
             <TextField select fullWidth label={t('settings.language')} value={form.locale ?? 'en'} onChange={(event) => setForm((old) => ({ ...old, locale: event.target.value }))}>{supportedLocales.map((locale) => <MenuItem key={locale} value={locale}>{new Intl.DisplayNames([i18n.language], { type: 'language' }).of(locale) ?? locale}</MenuItem>)}</TextField>

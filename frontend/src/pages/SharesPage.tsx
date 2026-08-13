@@ -62,7 +62,7 @@ export function SharesPage() {
           ))}</Stack>
         )}
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs"><Stack component="form" onSubmit={submit}><DialogTitle>{t('shares.create')}</DialogTitle><DialogContent><Stack gap={2} pt={0.5}>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs"><Stack component="form" onSubmit={submit}><DialogTitle>{t('shares.create')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><Stack gap={2} pt={0.5}>
         <TextField required autoFocus label={t('shares.path')} placeholder="/Books" value={path} onChange={(event) => setPath(event.target.value)} />
         <TextField label={t('shares.name')} value={name} onChange={(event) => setName(event.target.value)} />
         <TextField label={t('shares.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />

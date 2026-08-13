@@ -42,7 +42,8 @@ test.describe('ZenFM real binary', () => {
     await page.getByRole('button', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(`${normalURL}/login`)
     await login(page)
-    expect(await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }))).toEqual({ local: 0, session: 0 })
+    expect(await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) })))
+      .toEqual({ local: ['zenfm.files.sort'], session: [] })
   })
 
   test('expires a browser session at the server absolute deadline', async ({ page }) => {
@@ -58,12 +59,12 @@ test.describe('ZenFM real binary', () => {
     await page.getByLabel('Folder name').fill('E2E Folder')
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
     await expect(page.getByText('E2E Folder', { exact: true })).toBeVisible()
-    await page.getByText('E2E Folder', { exact: true }).click()
+    await page.getByText('E2E Folder', { exact: true }).dblclick()
 
     await page.getByRole('button', { name: 'New folder' }).click()
     await page.getByLabel('Folder name').fill('Nested')
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
-    await page.getByText('Nested', { exact: true }).click()
+    await page.getByText('Nested', { exact: true }).dblclick()
 
     await page.locator('input[type="file"]').setInputFiles({
       name: 'e2e-note.txt',
@@ -194,14 +195,25 @@ test.describe('ZenFM real binary', () => {
     await expect(page.getByRole('menuitem', { name: 'Edit' })).toHaveCount(0)
   })
 
-  test('refetches hidden entries when the per-view toggle changes', async ({ page }) => {
+  test('refetches hidden entries after saving the general setting', async ({ page }) => {
     await login(page)
     const uploaded = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('path=%2F.hidden-e2e.txt'))
     await page.locator('input[type="file"]').setInputFiles({ name: '.hidden-e2e.txt', mimeType: 'text/plain', buffer: Buffer.from('quiet') })
     expect((await uploaded).ok()).toBe(true)
     await expect(page.getByText('.hidden-e2e.txt', { exact: true })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Show hidden files' }).click()
+    const saved = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().endsWith('/api/v1/settings'))
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    expect((await saved).ok()).toBe(true)
+    await page.getByRole('link', { name: 'Files' }).click()
     await expect(page.getByText('.hidden-e2e.txt', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('switch', { name: 'Show hidden files' }).click()
+    const reset = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().endsWith('/api/v1/settings'))
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    expect((await reset).ok()).toBe(true)
   })
 
   test('shows the explicit HTTP transport warning', async ({ page }) => {

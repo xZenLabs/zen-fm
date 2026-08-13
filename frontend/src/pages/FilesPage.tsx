@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type MouseEvent } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent, Checkbox,
-  Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment,
-  LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Switch, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, TableSortLabel, TextField, Tooltip, Typography,
+  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent,
+  Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment,
+  LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TableSortLabel, TextField, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import InsertDriveFileRounded from '@mui/icons-material/InsertDriveFileRounded'
@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
 import { api, isConflictError, uploadResumable } from '../api/client'
 import type { FileEntry, SortDirection, SortField } from '../api/types'
-import { filesRoute, formatBytes, formatDate, joinPath, publicShareUrl } from '../utils'
+import { filesRoute, formatBytes, formatDate, formatDuration, formatShortDate, joinPath, publicShareUrl, TransferEtaEstimator } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { canEdit, CreateShareDialog, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
 import { PageHeader } from '../components/PageHeader'
@@ -43,9 +43,18 @@ type ConflictPolicy = 'ask' | 'replace' | 'skip'
 type DroppedMove = { entry: FileEntry; destination: string }
 type UploadFile = { file: File; relativePath: string }
 type UploadBatch = { directories: string[]; files: UploadFile[] }
+type UploadProgress = {
+  name: string
+  completedFiles: number
+  totalFiles: number
+  uploadedBytes: number
+  totalBytes: number
+  estimatedCompletionAt: number
+}
 
 const thumbnailExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff'])
 const sortPreferenceKey = 'zenfm.files.sort'
+const uploadConcurrency = 2
 const sortFields: SortField[] = ['name', 'size', 'modified']
 const defaultSortPreference: { sort: SortField; direction: SortDirection } = { sort: 'name', direction: 'asc' }
 
@@ -139,9 +148,12 @@ export function FilesPage() {
   const params = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const theme = useTheme()
+  const mobile = useMediaQuery(theme.breakpoints.down('sm'))
   const uploadInput = useRef<HTMLInputElement>(null)
+  const uploadAbort = useRef<AbortController | null>(null)
   const path = `/${params['*'] ?? ''}`.replaceAll('//', '/')
-  const [view, setView] = useState<ViewMode>('list')
+  const [view, setView] = useState<ViewMode>(() => mobile ? 'grid' : 'list')
   const [sortPreference, setSortPreference] = useState(storedSortPreference)
   const { sort, direction } = sortPreference
   const [showHidden, setShowHidden] = useState(false)
@@ -160,7 +172,8 @@ export function FilesPage() {
   const [folderName, setFolderName] = useState('')
   const [deleting, setDeleting] = useState<FileEntry[]>([])
   const [notice, setNotice] = useState('')
-  const [upload, setUpload] = useState<{ name: string; progress: number } | null>(null)
+  const [upload, setUpload] = useState<UploadProgress | null>(null)
+  const [uploadClock, setUploadClock] = useState(() => Date.now())
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [droppedMove, setDroppedMove] = useState<DroppedMove | null>(null)
   const [conflict, setConflict] = useState<File | null>(null)
@@ -185,6 +198,10 @@ export function FilesPage() {
   }, [preferences.data])
 
   useEffect(() => {
+    if (mobile) setView((current) => current === 'list' ? 'grid' : current)
+  }, [mobile])
+
+  useEffect(() => {
     try { localStorage.setItem(sortPreferenceKey, JSON.stringify(sortPreference)) } catch {
       // Private browsing may disable persistent storage.
     }
@@ -197,6 +214,16 @@ export function FilesPage() {
     setSelected(null)
     setSelectedPaths(new Set())
   }, [path])
+
+  const uploadActive = Boolean(upload)
+  useEffect(() => {
+    if (!uploadActive) return
+    setUploadClock(Date.now())
+    const interval = window.setInterval(() => setUploadClock(Date.now()), 1_000)
+    return () => window.clearInterval(interval)
+  }, [uploadActive])
+
+  useEffect(() => () => uploadAbort.current?.abort(), [])
 
   useEffect(() => {
     const openPageContextMenu = (event: globalThis.MouseEvent) => {
@@ -315,62 +342,132 @@ export function FilesPage() {
     conflictResolver.current = null
     setConflict(null)
   }
-  const uploadFile = (file: File, destination: string, overwrite: boolean) => {
-    if (file.size < 8 * 1024 * 1024) return api.files.upload(destination, file, overwrite)
-    return new Promise<void>((resolve, reject) => uploadResumable(destination, file, {
-      onProgress: (sent, total) => setUpload({ name: file.name, progress: total ? Math.round(sent / total * 100) : 0 }),
+  const uploadFile = async (file: File, destination: string, overwrite: boolean, onProgress: (sent: number) => void, signal: AbortSignal) => {
+    if (file.size < 8 * 1024 * 1024) {
+      await api.files.uploadWithProgress(destination, file, overwrite, (sent) => onProgress(sent), signal)
+      return
+    }
+    await new Promise<void>((resolve, reject) => uploadResumable(destination, file, {
+      onProgress: (sent) => { if (!signal.aborted) onProgress(sent) },
       onSuccess: resolve,
       onError: reject,
-    }, overwrite))
+    }, overwrite, signal))
   }
 
-  const uploadFiles = async (upload: UploadBatch, destinationPath: string) => {
+  const uploadFiles = async (upload: UploadBatch, destinationPath: string, controller: AbortController) => {
+    const { signal } = controller
     let conflictPolicy: ConflictPolicy = 'ask'
+    const totalBytes = upload.files.reduce((total, item) => total + item.file.size, 0)
+    const totalFiles = upload.files.length
+    let completedFiles = 0
+    let nextFile = 0
+    let cancelled = false
+    let conflictQueue = Promise.resolve()
+    const displayProgress = new Array<number>(totalFiles).fill(0)
+    const transferredProgress = new Array<number>(totalFiles).fill(0)
+    const eta = new TransferEtaEstimator()
+    const updateProgress = (index: number, file: File, sent: number, transferred = true) => {
+      if (signal.aborted) return
+      const bounded = Math.max(displayProgress[index] ?? 0, Math.min(sent, file.size))
+      displayProgress[index] = bounded
+      if (transferred) transferredProgress[index] = Math.max(transferredProgress[index] ?? 0, bounded)
+      const uploadedBytes = displayProgress.reduce((total, bytes) => total + bytes, 0)
+      const transferredBytes = transferredProgress.reduce((total, bytes) => total + bytes, 0)
+      const estimatedCompletionAt = eta.update(transferredBytes, totalBytes - uploadedBytes, Date.now())
+      setUpload({ name: file.name, completedFiles, totalFiles, uploadedBytes, totalBytes, estimatedCompletionAt })
+    }
+    if (upload.files[0]) updateProgress(0, upload.files[0].file, 0)
     for (const directory of upload.directories) {
       try {
-        await api.files.createDirectory(joinPath(destinationPath, directory))
+        await api.files.createDirectory(joinPath(destinationPath, directory), signal)
       } catch (error) {
         // Dropping a folder onto an existing tree merges it; file conflicts are
         // still resolved individually below.
         if (!isConflictError(error)) throw error
       }
     }
-    for (const { file, relativePath } of upload.files) {
+    const decideConflict = (file: File) => {
+      const decision = conflictQueue.then(async (): Promise<ConflictPolicy | 'cancel'> => {
+        if (cancelled || signal.aborted) return 'cancel'
+        if (conflictPolicy !== 'ask') return conflictPolicy
+        const choice = await askAboutConflict(file)
+        if (choice === 'cancel') {
+          cancelled = true
+          controller.abort()
+          return 'cancel'
+        }
+        conflictPolicy = choice === 'replace-all' ? 'replace' : 'skip'
+        return conflictPolicy
+      })
+      conflictQueue = decision.then(() => undefined, () => undefined)
+      return decision
+    }
+    const uploadOne = async (index: number) => {
+      const item = upload.files[index]
+      if (!item) return
+      const { file, relativePath } = item
       const destination = joinPath(destinationPath, relativePath)
       let overwrite = conflictPolicy === 'replace'
-      setUpload({ name: file.name, progress: 0 })
+      let succeeded = false
       for (;;) {
+        if (cancelled || signal.aborted) return
+        updateProgress(index, file, 0)
         try {
-          await uploadFile(file, destination, overwrite)
-          setUpload({ name: file.name, progress: 100 })
+          await uploadFile(file, destination, overwrite, (sent) => updateProgress(index, file, sent), signal)
+          succeeded = true
           break
         } catch (error) {
-          if (!isConflictError(error)) throw error
-          if (conflictPolicy === 'skip') break
-          const choice = await askAboutConflict(file)
-          if (choice === 'cancel') {
-            setUpload(null)
-            refresh()
-            return
+          if (!isConflictError(error)) {
+            cancelled = true
+            if (!signal.aborted) controller.abort(error)
+            throw error
           }
-          conflictPolicy = choice === 'replace-all' ? 'replace' : 'skip'
-          if (conflictPolicy === 'skip') break
+          const decision = await decideConflict(file)
+          if (decision === 'cancel') return
+          if (decision === 'skip') {
+            updateProgress(index, file, file.size, false)
+            break
+          }
           overwrite = true
         }
       }
+      completedFiles++
+      updateProgress(index, file, file.size, succeeded)
     }
-    setUpload(null)
+    const worker = async () => {
+      while (!cancelled && !signal.aborted) {
+        const index = nextFile++
+        if (index >= upload.files.length) return
+        await uploadOne(index)
+      }
+    }
+    const results = await Promise.allSettled(Array.from({ length: Math.min(uploadConcurrency, totalFiles) }, () => worker()))
+    if (signal.aborted && signal.reason instanceof Error && signal.reason.name !== 'AbortError') throw signal.reason
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failed) throw failed.reason
     refresh()
   }
 
   const safeUploadFiles = async (upload: UploadBatch, destinationPath: string) => {
     if (upload.directories.length === 0 && upload.files.length === 0) return
+    const controller = new AbortController()
+    uploadAbort.current?.abort()
+    uploadAbort.current = controller
     try {
-      await uploadFiles(upload, destinationPath)
+      await uploadFiles(upload, destinationPath, controller)
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : t('common.error'))
-      setUpload(null)
+      if (!(error instanceof Error && error.name === 'AbortError')) setNotice(error instanceof Error ? error.message : t('common.error'))
+    } finally {
+      if (uploadAbort.current === controller) {
+        uploadAbort.current = null
+        setUpload(null)
+      }
     }
+  }
+
+  const cancelUpload = () => {
+    uploadAbort.current?.abort()
+    if (conflictResolver.current) resolveConflict('cancel')
   }
 
   const chooseUploadFiles = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -508,17 +605,6 @@ export function FilesPage() {
     setSelectedPaths(new Set([entry.path]))
   }
 
-  const toggleSelected = (entry: FileEntry) => {
-    setSelected(entry)
-    selectionAnchor.current = entry.path
-    setSelectedPaths((current) => {
-      const next = new Set(current)
-      if (next.has(entry.path)) next.delete(entry.path)
-      else next.add(entry.path)
-      return next
-    })
-  }
-
   const startArchiveDownload = async (paths: string[], filename: string) => {
     try {
       const ticket = await api.files.createArchiveTicket(paths)
@@ -529,12 +615,6 @@ export function FilesPage() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : t('common.error'))
     }
-  }
-
-  const archiveSelected = () => {
-    const paths = selectedEntries.map((entry) => entry.path)
-    if (paths.length === 0) return
-    void startArchiveDownload(paths, 'zenfm-selection.zip')
   }
 
   const downloadEntries = (targets: FileEntry[]) => {
@@ -563,13 +643,15 @@ export function FilesPage() {
 
   const breadcrumbs = path.split('/').filter(Boolean)
   const disk = listing.data?.disk ?? usage.data
+  const uploadPercentage = upload && upload.totalBytes > 0 ? Math.min(100, Math.round(upload.uploadedBytes / upload.totalBytes * 100)) : 0
+  const uploadEtaSeconds = upload?.estimatedCompletionAt ? Math.max(0, (upload.estimatedCompletionAt - uploadClock) / 1_000) : 0
 
   return (
     <Box className={`file-drop-zone${dropTarget === path ? ' drop-active' : ''}`} onContextMenu={openFolderMenu} onDragOver={(event) => prepareDrop(event, path)} onDrop={(event) => acceptDrop(event, path)} sx={{ flex: 1, minWidth: 0 }}>
       <Stack gap={2.5}>
-        <PageHeader title={searchTerm ? t('files.searchResults') : t('nav.files')} middle={selectedEntries.length > 0 ? <Box bgcolor="action.hover" borderRadius={2} px={1} py={0.5} overflow="auto"><Stack direction="row" gap={0.5} alignItems="center" sx={{ whiteSpace: 'nowrap' }}><Typography px={0.5}>{t('files.selected', { count: selectedEntries.length })}</Typography><Button size="small" startIcon={<DownloadRounded />} onClick={() => void archiveSelected()}>{t('files.downloadZip')}</Button><Button size="small" startIcon={<DriveFileMoveRounded />} onClick={() => beginAction('move', selectedEntries)}>{t('files.move')}</Button><Button size="small" startIcon={<ContentCopyRounded />} onClick={() => beginAction('copy', selectedEntries)}>{t('files.copy')}</Button><Button size="small" color="error" startIcon={<DeleteOutlineRounded />} onClick={() => beginDelete(selectedEntries)}>{t('files.delete')}</Button><Tooltip title={t('files.clearSelection')}><IconButton size="small" aria-label={t('files.clearSelection')} onClick={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null }}><CloseRounded /></IconButton></Tooltip></Stack></Box> : undefined} actions={<Stack direction="row" gap={1} flexWrap="wrap">
+        <PageHeader title={searchTerm ? t('files.searchResults') : t('nav.files')} actions={<Stack direction="row" gap={1} flexWrap="wrap">
             <input ref={uploadInput} type="file" multiple hidden onChange={(event) => void chooseUploadFiles(event)} />
-            <Button variant="contained" startIcon={<UploadRounded />} onClick={() => uploadInput.current?.click()}>{t('files.upload')}</Button>
+            <Button variant="contained" startIcon={<UploadRounded />} disabled={uploadActive} onClick={() => uploadInput.current?.click()}>{t('files.upload')}</Button>
             <Button variant="outlined" startIcon={<NoteAddRounded />} onClick={() => setNewFileOpen(true)}>{t('files.newFile')}</Button>
             <Button variant="outlined" startIcon={<CreateNewFolderRounded />} onClick={() => setNewFolderOpen(true)}>{t('files.newFolder')}</Button>
           </Stack>}>
@@ -586,7 +668,6 @@ export function FilesPage() {
           <Stack direction={{ xs: 'column', lg: 'row' }} gap={1.5} alignItems={{ lg: 'center' }}>
             <TextField component="form" onSubmit={submitSearch} value={searchDraft} onChange={(event) => { setSearchDraft(event.target.value); if (!event.target.value) setSearchTerm('') }} placeholder={t('files.search')} sx={{ flex: 1, minWidth: 220 }} inputProps={{ 'aria-label': t('files.search') }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRounded /></InputAdornment>, endAdornment: searchDraft ? <InputAdornment position="end"><IconButton edge="end" size="small" aria-label={t('files.clearSearch')} onClick={() => { setSearchDraft(''); setSearchTerm('') }} sx={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}><CloseRounded /></IconButton></InputAdornment> : undefined }} />
             <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
-              <FormControlLabel control={<Switch checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />} label={t('files.hidden')} />
               <Tooltip title={t('files.refresh')}><IconButton onClick={refresh}><RefreshRounded /></IconButton></Tooltip>
               <Box role="group" aria-label="View" sx={{ display: 'flex', gap: 0.25, p: 0.375, borderRadius: 999, bgcolor: 'action.hover' }}>
                 <IconButton size="small" aria-label={t('files.grid')} aria-pressed={view === 'grid'} onClick={() => setView('grid')} sx={{ borderRadius: 999, bgcolor: view === 'grid' ? 'background.paper' : 'transparent', boxShadow: view === 'grid' ? 1 : 0, '&:hover': { bgcolor: view === 'grid' ? 'background.paper' : 'action.selected' } }}><GridViewRounded /></IconButton>
@@ -596,30 +677,33 @@ export function FilesPage() {
           </Stack>
         </CardContent></Card>
 
-        {upload && <Alert icon={<UploadRounded />}><Stack width="100%" gap={0.5}><Typography>{t('files.uploading', { name: upload.name, progress: upload.progress })}</Typography><LinearProgress variant="determinate" value={upload.progress} /></Stack></Alert>}
+        {upload && <Alert icon={<UploadRounded />} action={<Button color="inherit" size="small" onClick={cancelUpload}>{t('common.cancel')}</Button>}><Stack width="100%" gap={0.5}>
+          <Typography>{t('files.uploadingBatch', { completed: upload.completedFiles, count: upload.totalFiles, name: upload.name })}</Typography>
+          <Typography variant="caption" color="text.secondary">{t('files.uploadingProgress', { uploaded: formatBytes(upload.uploadedBytes), total: formatBytes(upload.totalBytes), progress: uploadPercentage })}</Typography>
+          <LinearProgress aria-label={t('files.uploadProgress')} variant="determinate" value={uploadPercentage} />
+          {uploadEtaSeconds > 0 && <Typography variant="caption" color="text.secondary">{t('files.uploadEta', { eta: formatDuration(uploadEtaSeconds) })}</Typography>}
+        </Stack></Alert>}
         {disk && <Typography variant="caption" color="text.secondary">{formatBytes(disk.used)} of {formatBytes(disk.total)} used</Typography>}
         <Box className="file-listing" minHeight="calc(100dvh - 370px)">
           {(listing.isPending || search.isFetching) ? <LoadingPane /> : listing.error ? <ErrorPane error={listing.error} retry={refresh} /> : search.error ? <ErrorPane error={search.error} /> : entries.length === 0 ? (
             <Box textAlign="center" py={10}><FolderRounded sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} /><Typography variant="h2">{t('files.empty')}</Typography><Typography color="text.secondary" mt={0.5}>{t('files.emptyHint')}</Typography></Box>
           ) : view === 'grid' ? (
-            <Box role="list" display="grid" gridTemplateColumns="repeat(auto-fill, minmax(190px, 1fr))" gap={1.5}>
+            <Box role="list" display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap={1.5}>
               {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
                 <CardActionArea component="div" onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
-                  <CardContent><Stack direction="row" alignItems="flex-start" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type === 'directory' ? 'Folder' : formatBytes(entry.size)}</Typography></Box>{(entry.type === 'file' || entry.type === 'directory') && <Checkbox size="small" checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}<IconButton size="small" aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
+                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{formatBytes(entry.size)} · {formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
                 </CardActionArea>
               </Card>)}
             </Box>
           ) : (
             <Card variant="outlined"><TableContainer><Table size="small" aria-label={t('nav.files')} sx={{ minWidth: 640 }}>
               <TableHead onContextMenu={(event) => event.stopPropagation()}><TableRow>
-                <TableCell padding="checkbox" />
                 <TableCell sortDirection={sort === 'name' ? direction : false}><TableSortLabel active={sort === 'name'} direction={sort === 'name' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('name')}>{t('files.name')}</TableSortLabel></TableCell>
                 <TableCell align="right" sortDirection={sort === 'size' ? direction : false}><TableSortLabel active={sort === 'size'} direction={sort === 'size' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('size')}>{t('files.size')}</TableSortLabel></TableCell>
                 <TableCell sortDirection={sort === 'modified' ? direction : false}><TableSortLabel active={sort === 'modified'} direction={sort === 'modified' ? direction : 'asc'} hideSortIcon={false} onClick={() => sortBy('modified')}>{t('files.modified')}</TableSortLabel></TableCell>
                 <TableCell aria-label="Actions" />
               </TableRow></TableHead>
               <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover draggable={entry.type !== 'special'} selected={selectedPaths.has(entry.path)} className={`file-row${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragStart={(event) => startMoveDrag(event, entry)} onDragEnd={endMoveDrag} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : rejectMoveDrop} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : rejectMoveDrop} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>
-                <TableCell padding="checkbox">{(entry.type === 'file' || entry.type === 'directory') && <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': `Select ${entry.name}` }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry)} />}</TableCell>
                 <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(entry.modifiedAt)}</TableCell>

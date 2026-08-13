@@ -138,6 +138,22 @@ func TestHealthIsRedactedAndHardened(t *testing.T) {
 	}
 }
 
+func TestSettingsReportRunningBackendVersion(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	for _, response := range []*httptest.ResponseRecorder{
+		a.request(http.MethodGet, "/api/v1/settings", nil, cookie, "", ""),
+		a.request(http.MethodPut, "/api/v1/settings", strings.NewReader(`{"theme":"dark"}`), cookie, csrf, ""),
+	} {
+		if response.Code != http.StatusOK {
+			t.Fatalf("settings: %d %s", response.Code, response.Body.String())
+		}
+		if version := decodeMap(t, response)["version"]; version != "test" {
+			t.Fatalf("settings version = %v, want backend version", version)
+		}
+	}
+}
+
 func TestWalkLimitMapsToBoundedResponse(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/search", nil)

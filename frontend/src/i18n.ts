@@ -39,11 +39,11 @@ const english = {
     preview: 'Open', edit: 'Edit', rename: 'Rename', move: 'Move', copy: 'Copy', delete: 'Delete', download: 'Download',
     share: 'Share', checksum: 'Checksum', folderName: 'Folder name', destination: 'Destination path', destinationFolder: 'Destination folder',
     save: 'Save changes', editor: 'Text editor', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
-    uploading: 'Uploading {{name}} — {{progress}}%', searchResults: 'Search results', clearSearch: 'Clear search',
+    uploading: 'Uploading {{name}} — {{progress}}%', uploadingBatch: 'Uploading · {{completed}} of {{count}} files complete · {{name}}', uploadingProgress: '{{uploaded}} of {{total}} — {{progress}}%', uploadProgress: 'Total upload progress', uploadEta: 'About {{eta}} remaining', searchResults: 'Search results', clearSearch: 'Clear search',
     calculatingCopy: 'Calculating total size…', copyProgress: 'Total copy progress', copyingProgress: 'Copying {{copied}} of {{total}} — {{progress}}%', copyEta: 'About {{eta}} remaining',
     conflictTitle: 'File already exists', conflictBody: '{{name}} already exists. Apply this choice to all conflicts in this upload.',
     skipAll: 'Skip all', replace: 'Replace', replaceAll: 'Replace all',
-    selected: '{{count}} selected', itemsSelected: '{{count}} items selected', actionItems: '{{action}} {{count}} items', deleteItems: 'Delete {{count}} items?', downloadZip: 'Download ZIP', clearSelection: 'Clear selection',
+    itemsSelected: '{{count}} items selected', actionItems: '{{action}} {{count}} items', deleteItems: 'Delete {{count}} items?',
     confirmMove: 'Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?',
   },
   shares: {
@@ -54,7 +54,8 @@ const english = {
     unlock: 'Unlock', download: 'Download', expired: 'This link is unavailable or has expired.',
   },
   settings: {
-    title: 'Settings', appearance: 'Appearance', theme: 'Theme', language: 'Language',
+    title: 'Settings', general: 'General', theme: 'Theme', language: 'Language',
+    version: 'Version', root: 'Root',
     light: 'Light', dark: 'Dark', system: 'System', showHidden: 'Show hidden files',
     timeout: 'Client timeout', timeoutHint: 'Stop waiting for ordinary server requests after this many seconds.',
     account: 'Account', tokens: 'Personal API tokens', tokenHint: 'Tokens are shown once and never stored by this browser.',

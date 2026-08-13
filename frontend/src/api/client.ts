@@ -63,6 +63,10 @@ function query(params: Record<string, string | number | boolean | undefined>) {
   return encoded ? `?${encoded}` : ''
 }
 
+function abortReason(signal: AbortSignal) {
+  return signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError')
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: BodyInit | Record<string, unknown>
   timeoutMs?: number
@@ -124,6 +128,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return value
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
+      if (externalSignal?.aborted) throw abortReason(externalSignal)
       throw new ApiError(408, { title: 'Request timed out', status: 408 })
     }
     throw error
@@ -165,6 +170,54 @@ async function requestBlob(path: string): Promise<Blob> {
   } finally {
     window.clearTimeout(timeout)
   }
+}
+
+function uploadWithProgress(path: string, file: File, overwrite: boolean, onProgress: (sent: number, total: number) => void, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    let settled = false
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      signal?.removeEventListener('abort', abort)
+      callback()
+    }
+    const abort = () => {
+      request.abort()
+      finish(() => reject(signal ? abortReason(signal) : new DOMException('The operation was aborted.', 'AbortError')))
+    }
+    if (signal?.aborted) {
+      reject(abortReason(signal))
+      return
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    request.open('PUT', new URL(`${API_ROOT}/files/content${query({ path })}`, window.location.origin).toString())
+    request.withCredentials = true
+    request.setRequestHeader('Accept', 'application/json')
+    request.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+    if (!overwrite) request.setRequestHeader('If-None-Match', '*')
+    if (csrfToken) request.setRequestHeader(CSRF_HEADER, csrfToken)
+    request.upload.onprogress = (event) => { if (!settled) onProgress(event.loaded, event.lengthComputable ? event.total : file.size) }
+    request.onerror = () => finish(() => reject(new ApiError(0, { title: 'Upload failed', status: 0 })))
+    request.onabort = () => finish(() => reject(signal?.aborted ? abortReason(signal) : new ApiError(408, { title: 'Upload interrupted', status: 408 })))
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(file.size, file.size)
+        finish(resolve)
+        return
+      }
+      let problem: ProblemDetails | undefined
+      if (request.getResponseHeader('Content-Type')?.includes('json') && request.responseText) {
+        try { problem = JSON.parse(request.responseText) as ProblemDetails } catch { /* The status still identifies the failure. */ }
+      }
+      if (request.status === 401) {
+        csrfToken = ''
+        unauthorizedListeners.forEach((listener) => listener())
+      }
+      finish(() => reject(new ApiError(request.status, problem)))
+    }
+    request.send(file)
+  })
 }
 
 interface CopyProgressEvent {
@@ -263,9 +316,10 @@ export const api = {
   },
   files: {
     list: (path: string, hidden?: boolean) => request<FileListing>(`${API_ROOT}/files${query({ path, hidden })}`),
-    createDirectory: (path: string) => request<void>(`${API_ROOT}/files/directory`, {
+    createDirectory: (path: string, signal?: AbortSignal) => request<void>(`${API_ROOT}/files/directory`, {
       method: 'POST',
       body: { path },
+      signal,
     }),
     createText: (path: string) => request<void>(`${API_ROOT}/files/content${query({ path })}`, {
       method: 'PUT',
@@ -284,6 +338,7 @@ export const api = {
       body: file,
       timeoutMs: 0,
     }),
+    uploadWithProgress: (path: string, file: File, overwrite: boolean, onProgress: (sent: number, total: number) => void, signal?: AbortSignal) => uploadWithProgress(path, file, overwrite, onProgress, signal),
     remove: (path: string, recursive: boolean) => request<void>(`${API_ROOT}/files${query({ path, recursive })}`, {
       method: 'DELETE',
     }),
@@ -347,18 +402,26 @@ export function uploadResumable(path: string, file: File, callbacks: {
   onProgress: (uploaded: number, total: number) => void
   onSuccess: () => void
   onError: (error: Error) => void
-}, overwrite = false) {
+}, overwrite = false, signal?: AbortSignal) {
   let stallTimer: number | undefined
   let settled = false
-  const clearStallTimer = () => window.clearTimeout(stallTimer)
+  const cancel = () => {
+    if (!signal) return
+    void upload.abort(true).catch(() => undefined)
+    fail(abortReason(signal))
+  }
+  const clear = () => {
+    window.clearTimeout(stallTimer)
+    signal?.removeEventListener('abort', cancel)
+  }
   const fail = (error: Error) => {
     if (settled) return
     settled = true
-    clearStallTimer()
+    clear()
     callbacks.onError(error)
   }
   const armStallTimer = () => {
-    clearStallTimer()
+    window.clearTimeout(stallTimer)
     stallTimer = window.setTimeout(() => {
       void upload.abort()
       fail(new Error('Upload stopped after 30 seconds without progress.'))
@@ -382,12 +445,16 @@ export function uploadResumable(path: string, file: File, callbacks: {
     onSuccess: () => {
       if (settled) return
       settled = true
-      clearStallTimer()
+      clear()
       callbacks.onSuccess()
     },
   })
+  if (signal?.aborted) cancel()
+  else signal?.addEventListener('abort', cancel, { once: true })
+  if (settled) return upload
   armStallTimer()
   upload.findPreviousUploads().then((previous) => {
+    if (settled) return
     const first = previous[0]
     if (first) upload.resumeFromPreviousUpload(first)
     upload.start()

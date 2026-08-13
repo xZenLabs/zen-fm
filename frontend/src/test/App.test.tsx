@@ -133,9 +133,11 @@ describe('responsive and accessible shell', () => {
     expect(document.querySelector('.zen-mark')).toHaveAttribute('src', '/zen-fm.svg')
     expect(media).toHaveBeenCalledWith(expect.stringContaining('max-width'))
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' })
-    expect(within(navigation).getByRole('link', { name: 'Files' })).toBeInTheDocument()
+    const filesLink = within(navigation).getByRole('link', { name: 'Files' })
+    expect(filesLink).toBeInTheDocument()
     expect(within(navigation).getByRole('link', { name: 'Shares' })).toBeInTheDocument()
     expect(within(navigation).getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Grid view' })).toHaveAttribute('aria-pressed', 'true'))
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
     expect(getComputedStyle(screen.getByRole('button', { name: 'Upload' })).minHeight).toBe('44px')
   })
@@ -149,5 +151,22 @@ describe('responsive and accessible shell', () => {
 
     await screen.findByRole('heading', { name: 'Files' })
     await waitFor(() => expect(document.documentElement).toHaveAttribute('data-zenfm-theme', 'dark'))
+  })
+
+  it('shows the running backend version in settings', async () => {
+    server.use(http.get('http://localhost/api/v1/settings', () => HttpResponse.json({
+      theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30,
+      advancedMode: false, root: '/mnt/us', secureTransport: true, version: '9.8.7-backend',
+    })))
+    renderApp('/settings')
+
+    expect(await screen.findByText('Version: 9.8.7-backend')).toBeInTheDocument()
+  })
+
+  it('places the hidden-file preference in general settings', async () => {
+    renderApp('/settings')
+
+    expect(await screen.findByRole('heading', { name: 'General' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Show hidden files' })).toBeInTheDocument()
   })
 })

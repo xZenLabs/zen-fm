@@ -35,7 +35,10 @@ func TestAdvancedPseudoGuardFollowsFilesystemIdentityThroughAlias(t *testing.T) 
 	if err != nil || len(listing.Entries) != 1 || !listing.Entries[0].Symlink {
 		t.Fatalf("pseudo alias was not safely listed: %+v %v", listing, err)
 	}
-	if _, err := r.ReadContent(aliasPath + "/version"); !errors.Is(err, ErrPseudoFile) {
+	if !r.Pseudo(aliasPath + "/version") {
+		t.Fatal("pseudo content alias was not identified by filesystem identity")
+	}
+	if _, err := r.ReadContent(aliasPath + "/version"); !errors.Is(err, ErrInvalidPath) {
 		t.Fatalf("pseudo content alias bypassed guard: %v", err)
 	}
 	result, err := r.Search(context.Background(), aliasPath, "version", true, 10)

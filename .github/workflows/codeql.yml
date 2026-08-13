@@ -65,7 +65,7 @@ jobs:
           ZENFM_RELEASE_PUBLIC_KEY_HEX: 0000000000000000000000000000000000000000000000000000000000000000
         run: |
           sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
-          GRADLE_BIN=gradle sh android/build.sh
+          ANDROID_NDK_HOME="$ANDROID_HOME/ndk/25.2.9519653" GRADLE_BIN=gradle sh android/build.sh
 
       - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:

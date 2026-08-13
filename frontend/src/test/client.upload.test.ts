@@ -23,7 +23,9 @@ vi.mock('tus-js-client', () => ({
   },
 }))
 
-import { uploadResumable } from '../api/client'
+import { delay, http, HttpResponse } from 'msw'
+import { api, uploadResumable } from '../api/client'
+import { server } from './server'
 
 describe('resumable upload transport', () => {
   afterEach(() => {
@@ -69,5 +71,35 @@ describe('resumable upload transport', () => {
     await vi.advanceTimersByTimeAsync(30_001)
     expect(onError).toHaveBeenCalledOnce()
     expect(tusState.instances[0]!.abort).not.toHaveBeenCalled()
+  })
+
+  it('terminates a resumable upload when its signal is cancelled', async () => {
+    const controller = new AbortController()
+    const onError = vi.fn()
+    uploadResumable('/large.bin', new File(['large'], 'large.bin'), {
+      onProgress: vi.fn(),
+      onSuccess: vi.fn(),
+      onError,
+    }, false, controller.signal)
+
+    controller.abort()
+    await Promise.resolve()
+
+    expect(tusState.instances[0]!.abort).toHaveBeenCalledWith(true)
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ name: 'AbortError' }))
+    expect(tusState.instances[0]!.start).not.toHaveBeenCalled()
+  })
+
+  it('aborts a direct upload when its signal is cancelled', async () => {
+    server.use(http.put('*/api/v1/files/content', async () => {
+      await delay(1_000)
+      return new HttpResponse(null, { status: 204 })
+    }))
+    const controller = new AbortController()
+    const upload = api.files.uploadWithProgress('/notes.txt', new File(['notes'], 'notes.txt'), false, vi.fn(), controller.signal)
+
+    controller.abort()
+
+    await expect(upload).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

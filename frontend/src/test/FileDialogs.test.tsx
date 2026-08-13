@@ -172,7 +172,7 @@ it('offers an explicit replacement after a copy destination conflict', async () 
       const body = await request.json() as { overwrite: boolean }
       overwriteRequests.push(body.overwrite)
       if (!body.overwrite) {
-        return HttpResponse.json({ title: 'Conflict', status: 409, detail: 'destination already exists' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+        return new HttpResponse('{"copiedBytes":10}\n{"copiedBytes":10,"error":{"title":"Conflict","status":409,"detail":"destination already exists"}}\n', { headers: { 'Content-Type': 'application/x-ndjson' } })
       }
       return new HttpResponse(null, { status: 204 })
     }),
@@ -193,6 +193,36 @@ it('offers an explicit replacement after a copy destination conflict', async () 
   expect(overwriteRequests).toEqual([false])
   await user.click(screen.getByRole('button', { name: 'Replace' }))
   await waitFor(() => expect(overwriteRequests).toEqual([false, true]))
+  expect(onDone).toHaveBeenCalledOnce()
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+it('moves an entry into a folder chosen in the dialog', async () => {
+  const requests: Array<{ source: string; destination: string; overwrite: boolean }> = []
+  server.use(
+    http.get('http://localhost/api/v1/files', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path')
+      if (path === '/Downloads') return HttpResponse.json({ path, advancedMode: false, entries: [{ name: 'KOReader', path: '/Downloads/KOReader', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }] })
+      return HttpResponse.json({ path, advancedMode: false, entries: [] })
+    }),
+    http.post('http://localhost/api/v1/files/move', async ({ request }) => {
+      requests.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+      return new HttpResponse(null, { status: 204 })
+    }),
+  )
+  const entry: FileEntry = { name: 'solitaire.koplugin', path: '/Downloads/solitaire.koplugin', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const onClose = vi.fn()
+  const onDone = vi.fn()
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><PathActionDialog action="move" entries={[entry]} onClose={onClose} onDone={onDone} /></QueryClientProvider>)
+
+  expect(await screen.findByText('/Downloads')).toBeInTheDocument()
+  await user.click(await screen.findByRole('button', { name: 'KOReader' }))
+  expect(await screen.findByText('/Downloads/KOReader')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Confirm' }))
+
+  await waitFor(() => expect(requests).toEqual([{ source: '/Downloads/solitaire.koplugin', destination: '/Downloads/KOReader/solitaire.koplugin', overwrite: false }]))
   expect(onDone).toHaveBeenCalledOnce()
   expect(onClose).toHaveBeenCalledOnce()
 })

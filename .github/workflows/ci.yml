@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Lua and packaging tools
-        run: sudo apt-get update && sudo apt-get install -y jq lua5.1 shellcheck zip unzip openssl
+        run: sudo apt-get update && sudo apt-get install -y jq lua5.1 lua-filesystem shellcheck zip unzip openssl
       - name: Validate shell syntax
         shell: bash
         run: |
@@ -129,14 +129,16 @@ jobs:
         with:
           gradle-version: '8.6'
       - name: Install Android SDK and pinned NDK
-        run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
+        run: |
+          sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> "$GITHUB_ENV"
       - name: Compile both Android ABIs and run JVM tests
         env:
           ZENFM_ANDROID_DEV_UNSIGNED: '1'
         run: GRADLE_BIN=gradle sh android/build.sh testDebugUnitTest
 
   package-builds:
-    name: Four KOReader bundles and APK
+    name: Build and verify development packages
     needs: frontend
     runs-on: macos-latest
     timeout-minutes: 60
@@ -166,8 +168,10 @@ jobs:
       - name: Stage the tested frontend for Go embedding
         run: sh scripts/stage-webui.sh .release/frontend
       - name: Install Android SDK and pinned NDK
-        run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
-      - name: Verify legacy compiler pin and build all supported packages
+        run: |
+          sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> "$GITHUB_ENV"
+      - name: Build and verify cross-platform development packages
         env:
           ZENFM_ANDROID_DEV_UNSIGNED: '1'
         run: |
@@ -175,7 +179,8 @@ jobs:
           sh build.sh --dev-unsigned
           version=$(sed -n '1p' VERSION)
           sh scripts/verify-release-assets.sh dist "$version"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload development packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: development-installable-packages
           path: |
@@ -187,29 +192,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  source-sbom:
-    name: Source SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Generate SPDX JSON SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-        with:
-          path: .
-          format: spdx-json
-          output-file: zenfm-source.spdx.json
-          upload-artifact: false
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: zenfm-source-sbom
-          path: zenfm-source.spdx.json
-          if-no-files-found: error
-          retention-days: 14
-
   required:
     name: CI required checks
     if: always()
-    needs: [go-vet, go-race, go-fuzz, frontend, plugin, android, package-builds, source-sbom]
+    needs: [go-vet, go-race, go-fuzz, frontend, plugin, android, package-builds]
     runs-on: ubuntu-latest
     steps:
       - name: Require every CI gate
@@ -221,7 +207,6 @@ jobs:
           PLUGIN: ${{ needs.plugin.result }}
           ANDROID: ${{ needs.android.result }}
           PACKAGES: ${{ needs.package-builds.result }}
-          SBOM: ${{ needs.source-sbom.result }}
         run: |
           test "$GO_VET" = success
           test "$GO_RACE" = success
@@ -230,4 +215,3 @@ jobs:
           test "$PLUGIN" = success
           test "$ANDROID" = success
           test "$PACKAGES" = success
-          test "$SBOM" = success

@@ -70,6 +70,12 @@ function ZenFM:onResume()
     if self.android_pending then self:schedule_android_poll(self.android_pending) end
 end
 
+function ZenFM:onExit()
+    self.android_pending = nil
+    self.android_running = false
+    self.daemon:stop()
+end
+
 function ZenFM:begin_android_action(action, complete)
     if self.android_pending then
         notice(_("Another ZenFM Android request is still pending."), true)

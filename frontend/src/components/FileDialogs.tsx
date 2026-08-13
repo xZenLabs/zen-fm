@@ -5,6 +5,8 @@ import {
   MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import CloseRounded from '@mui/icons-material/CloseRounded'
+import FolderRounded from '@mui/icons-material/FolderRounded'
+import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { api, isConflictError } from '../api/client'
@@ -142,6 +144,14 @@ interface CopyProgressState {
   measuring: boolean
 }
 
+function parentPath(path: string) {
+  return path.slice(0, Math.max(0, path.lastIndexOf('/'))) || '/'
+}
+
+function isMoveDestinationAllowed(destination: string, entry: FileEntry) {
+  return entry.type !== 'directory' || (destination !== entry.path && !destination.startsWith(`${entry.path}/`))
+}
+
 export function PathActionDialog({ action, entries, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
@@ -152,10 +162,15 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
   const entry = entries[0] ?? null
   const multiple = entries.length > 1
   const entriesKey = entries.map((item) => item.path).join('\n')
+  const destinationFolders = useQuery({
+    queryKey: ['move-destination-folders', destination],
+    queryFn: () => api.files.list(destination),
+    enabled: action === 'move' && Boolean(destination),
+  })
   useEffect(() => {
     if (!entry || !action) return
-    const parent = entry.path.slice(0, Math.max(0, entry.path.lastIndexOf('/'))) || '/'
-    setDestination(action === 'rename' ? entry.name : multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`)
+    const parent = parentPath(entry.path)
+    setDestination(action === 'rename' ? entry.name : action === 'move' || multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`)
   }, [action, entriesKey, entry, multiple])
 
   const mutate = useMutation({
@@ -169,7 +184,7 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
         copyPlan.current = plan
       }
       const completedBytes = action === 'copy' && plan
-        ? entries.reduce((total, item) => total + (completed.current.has(item.path) ? (plan!.bytes.get(item.path) ?? 0) : 0), 0)
+        ? entries.reduce((total, item) => total + (completed.current.has(item.path) ? (plan.bytes.get(item.path) ?? 0) : 0), 0)
         : 0
       if (action === 'copy' && plan) {
         const now = Date.now()
@@ -178,12 +193,12 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
       for (const item of entries) {
         if (completed.current.has(item.path)) continue
         const target = action === 'rename'
-          ? `${item.path.slice(0, Math.max(0, item.path.lastIndexOf('/')))}/${destination}`.replaceAll('//', '/')
-          : multiple ? joinPath(destination, item.name) : destination
+          ? `${parentPath(item.path)}/${destination}`.replaceAll('//', '/')
+          : action === 'move' || multiple ? joinPath(destination, item.name) : destination
         try {
           const replaceConflict = overwrite && conflictPath.current === item.path
           if (action === 'copy' && plan) {
-            const itemBase = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan!.bytes.get(candidate.path) ?? 0) : 0), 0)
+            const itemBase = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan.bytes.get(candidate.path) ?? 0) : 0), 0)
             const itemBytes = plan.bytes.get(item.path) ?? 0
             try {
               await api.files.copyWithProgress(item.path, target, replaceConflict, (copiedBytes) => {
@@ -198,7 +213,7 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
           else await api.files.move(item.path, target, replaceConflict)
           completed.current.add(item.path)
           if (action === 'copy' && plan) {
-            const copiedBytes = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan!.bytes.get(candidate.path) ?? 0) : 0), 0)
+            const copiedBytes = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan.bytes.get(candidate.path) ?? 0) : 0), 0)
             setCopyProgress((current) => current && { ...current, copiedBytes, updatedAt: Date.now() })
           }
           conflictPath.current = null
@@ -227,20 +242,29 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
   const etaSeconds = copyProgress && activeCopiedBytes > 0 && elapsedSeconds > 0 && copyProgress.copiedBytes < copyProgress.totalBytes
     ? (copyProgress.totalBytes - copyProgress.copiedBytes) / (activeCopiedBytes / elapsedSeconds)
     : 0
+  const folders = destinationFolders.data?.entries.filter((item) => item.type === 'directory' && entries.every((source) => isMoveDestinationAllowed(item.path, source))) ?? []
+  const movingToCurrentFolder = action === 'move' && entries.every((item) => parentPath(item.path) === destination)
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
         <DialogTitle>{action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2, overflow: 'visible' }}>
           {multiple && <Typography color="text.secondary" mb={2}>{t('files.itemsSelected', { count: entries.length })}</Typography>}
-          <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
+          {action === 'move' ? <Stack gap={1.5}>
+            <Typography variant="body2" color="text.secondary">{t('files.destinationFolder')}</Typography>
+            <Typography aria-live="polite" className="file-name" fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">{destination}</Typography>
+            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, maxHeight: 288, overflowY: 'auto' }}>
+              <Button type="button" fullWidth color="inherit" startIcon={<ArrowBackRounded />} disabled={destination === '/'} onClick={() => { setDestination(parentPath(destination)); mutate.reset() }} sx={{ justifyContent: 'flex-start', borderRadius: 0 }}>..</Button>
+              {destinationFolders.isPending ? <LoadingPane /> : destinationFolders.error ? <Box p={2}><ErrorPane error={destinationFolders.error} /></Box> : folders.length === 0 ? <Typography color="text.secondary" p={2}>{t('files.empty')}</Typography> : folders.map((folder) => <Button type="button" key={folder.path} fullWidth color="inherit" startIcon={<FolderRounded />} onClick={() => { setDestination(folder.path); mutate.reset() }} sx={{ justifyContent: 'flex-start', borderRadius: 0 }}>{folder.name}</Button>)}
+            </Box>
+          </Stack> : <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />}
           {action === 'copy' && mutate.isPending && copyProgress && <Stack gap={0.5} mt={2}>
             <Typography variant="body2">{copyProgress.measuring ? t('files.calculatingCopy') : t('files.copyingProgress', { copied: formatBytes(copyProgress.copiedBytes), total: formatBytes(copyProgress.totalBytes), progress: percentage })}</Typography>
             <LinearProgress aria-label={t('files.copyProgress')} variant={copyProgress.measuring ? 'indeterminate' : 'determinate'} value={percentage} />
             {etaSeconds > 0 && <Typography variant="caption" color="text.secondary">{t('files.copyEta', { eta: formatDuration(etaSeconds) })}</Typography>}
           </Stack>}
         </DialogContent>
-        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
+        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || movingToCurrentFolder || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>
     </Dialog>
   )
@@ -258,7 +282,7 @@ export function CreateShareDialog({ entry, onClose, onCreated }: { entry: FileEn
   return (
     <Dialog open={Boolean(entry)} onClose={create.isPending ? undefined : onClose} maxWidth="xs">
       <DialogTitle>{t('shares.create')}</DialogTitle>
-      <DialogContent><Stack gap={2} pt={0.5}>
+      <DialogContent sx={{ pt: 2, overflow: 'visible' }}><Stack gap={2} pt={0.5}>
         <Typography color="text.secondary" className="file-name">{entry?.path}</Typography>
         <TextField label={t('shares.name')} value={name} onChange={(event) => setName(event.target.value)} />
         <TextField label={t('shares.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />

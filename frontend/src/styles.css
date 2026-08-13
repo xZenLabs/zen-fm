@@ -7,7 +7,8 @@ a { color: inherit; }
 [data-zenfm-theme='dark'] .zen-mark { filter: invert(1); }
 .nav-button.active { background: color-mix(in srgb, currentColor 9%, transparent); }
 .bottom-nav { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; min-height: 68px; padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); backdrop-filter: blur(18px); background: color-mix(in srgb, Canvas 88%, transparent); border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
-.bottom-nav-button { flex: 1; display: flex !important; flex-direction: column; gap: 2px; min-width: 0 !important; font-size: .7rem !important; }
+.bottom-nav-button { flex: 1; display: flex !important; flex-direction: column; gap: 2px; min-width: 0 !important; font-size: .8rem !important; }
+.bottom-nav-button > svg { font-size: 1.5rem !important; }
 .bottom-nav-button.active { color: var(--zenfm-accent-blue); }
 .page-header { min-height: 88px; }
 .file-card, .file-row { transition: transform .15s ease, border-color .15s ease, background-color .15s ease; }

@@ -9,6 +9,12 @@ mkdir -p "$TMP/bin" "$ROOT/plugin"
 cp "$SOURCE_ROOT/build.sh" "$SOURCE_ROOT/VERSION" "$SOURCE_ROOT/LICENSE" \
     "$SOURCE_ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/"
 cp -R "$SOURCE_ROOT/plugin/zenfm.koplugin" "$ROOT/plugin/"
+VERSION=$(sed -n '1p' "$ROOT/VERSION")
+META_VERSION=$(sed -n 's/^[[:space:]]*version = "\([^"]*\)",[[:space:]]*$/\1/p' "$ROOT/plugin/zenfm.koplugin/_meta.lua")
+[ "$META_VERSION" = "$VERSION" ] || {
+    echo "plugin _meta.lua version $META_VERSION does not match VERSION $VERSION" >&2
+    exit 1
+}
 for binary in zenfm-hf zenfm-sf zenfm-linux-arm64 zenfm-linux-amd64 zenfm-darwin; do
     printf '#!/bin/sh\nexit 0\n' > "$TMP/bin/$binary"
     chmod +x "$TMP/bin/$binary"
@@ -25,7 +31,6 @@ mkdir -p "$ROOT/dist/stale-directory"
 printf 'stale\n' > "$ROOT/dist/.stale"
 printf 'stale\n' > "$ROOT/dist/stale-directory/old-package"
 "$ROOT/build.sh" --package-only "$TMP/bin" --apk "$TMP/ZenFM.apk"
-VERSION=$(sed -n '1p' "$ROOT/VERSION")
 [ ! -e "$ROOT/dist/.stale" ]
 [ ! -e "$ROOT/dist/stale-directory" ]
 

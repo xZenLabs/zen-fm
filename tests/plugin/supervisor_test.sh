@@ -48,7 +48,8 @@ grep -q -- "-N $install_two_chain" "$TMP/firewall-installs.log"
 # An incomplete ownership record with a live owner represents the narrow
 # mkdir-to-metadata initialization window. It must fail closed, not be removed.
 mkdir "$TMP/server.pid.lock"
-if "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
+if ZENFM_USLEEP_LOG="$TMP/usleep.log" PATH="$TMP:$PATH" \
+    "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
     --pid-file "$TMP/server.pid" --socket-file "$TMP/server.sock" --port 8443 -- "$TMP/backend" 2>/dev/null; then
     echo "supervisor recovered an ownerless incomplete lock" >&2
     exit 1
@@ -60,7 +61,8 @@ sleep 5 &
 initializer=$!
 mkdir "$TMP/server.pid.lock"
 printf '%s\n' "$initializer" > "$TMP/server.pid.lock/owner"
-if "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
+if ZENFM_USLEEP_LOG="$TMP/usleep.log" PATH="$TMP:$PATH" \
+    "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
     --pid-file "$TMP/server.pid" --socket-file "$TMP/server.sock" --port 8443 -- "$TMP/backend" 2>/dev/null; then
     echo "supervisor recovered a live incomplete lock" >&2
     kill "$initializer" 2>/dev/null || true

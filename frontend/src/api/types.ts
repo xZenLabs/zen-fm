@@ -20,6 +20,7 @@ export interface Settings {
   advancedMode: boolean
   root: string
   secureTransport: boolean
+  version: string
 }
 
 export interface FileEntry {

@@ -226,6 +226,7 @@ type settingsResponse struct {
 	AdvancedMode    bool   `json:"advancedMode"`
 	Root            string `json:"root"`
 	SecureTransport bool   `json:"secureTransport"`
+	Version         string `json:"version"`
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +235,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, settingsResponse{Settings: settings, AdvancedMode: s.cfg.Files.Advanced(), Root: s.cfg.Files.Name(), SecureTransport: s.cfg.SecureTransport})
+	writeJSON(w, http.StatusOK, settingsResponse{Settings: settings, AdvancedMode: s.cfg.Files.Advanced(), Root: s.cfg.Files.Name(), SecureTransport: s.cfg.SecureTransport, Version: s.cfg.Version})
 }
 
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
@@ -284,5 +285,5 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, settingsResponse{Settings: settings, AdvancedMode: s.cfg.Files.Advanced(), Root: s.cfg.Files.Name(), SecureTransport: s.cfg.SecureTransport})
+	writeJSON(w, http.StatusOK, settingsResponse{Settings: settings, AdvancedMode: s.cfg.Files.Advanced(), Root: s.cfg.Files.Name(), SecureTransport: s.cfg.SecureTransport, Version: s.cfg.Version})
 }

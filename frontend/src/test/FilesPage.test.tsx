@@ -1,8 +1,10 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from './server'
 import { renderApp } from './renderApp'
+import { api } from '../api/client'
+import { formatShortDate } from '../utils'
 
 describe('file browser', () => {
   it('shows an icon-only clear action only while the search field has text', async () => {
@@ -19,13 +21,13 @@ describe('file browser', () => {
     expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
   })
 
-  it('refetches entries with the explicit hidden-file filter', async () => {
+  it('uses the saved hidden-file setting without a per-view toggle', async () => {
     const hiddenQueries: string[] = []
     const visibleEntries = [
       { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
       { name: 'dev', path: '/dev', type: 'special', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
     ]
-    const settings = { theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30, advancedMode: true, root: '/', secureTransport: true }
+    const settings = { theme: 'system', locale: 'en', showHidden: true, clientTimeoutSeconds: 30, advancedMode: true, root: '/', secureTransport: true }
     server.use(
       http.get('http://localhost/api/v1/files', ({ request }) => {
         const hidden = new URL(request.url).searchParams.get('hidden') ?? ''
@@ -37,16 +39,13 @@ describe('file browser', () => {
       }),
       http.get('http://localhost/api/v1/settings', () => HttpResponse.json(settings)),
     )
-    const user = userEvent.setup()
     renderApp('/files')
 
-    expect(await screen.findByText('Books')).toBeInTheDocument()
-    expect(screen.getByText('Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted.')).toBeInTheDocument()
-    expect(screen.queryByText('.zenfm.db')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('switch', { name: 'Show hidden files' }))
     expect(await screen.findByText('.zenfm.db')).toBeInTheDocument()
-    expect(hiddenQueries).toContain('false')
+    expect(screen.getByText('Books')).toBeInTheDocument()
+    expect(screen.getByText('Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted.')).toBeInTheDocument()
     expect(hiddenQueries).toContain('true')
+    expect(screen.queryByRole('switch', { name: 'Show hidden files' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Actions for dev' })).toBeInTheDocument()
   })
 
@@ -130,26 +129,30 @@ describe('file browser', () => {
     expect(alpha).toHaveClass('selected')
     expect(bravo).toHaveClass('selected')
     expect(charlie).toHaveClass('selected')
-    expect(screen.getByText('3 selected')).toBeInTheDocument()
 
     fireEvent.click(bravo, { ctrlKey: true })
     fireEvent.click(delta, { metaKey: true })
     expect(bravo).not.toHaveClass('selected')
     expect(delta).toHaveClass('selected')
-    expect(screen.getByText('3 selected')).toBeInTheDocument()
   })
 
   it('moves and deletes every selected item and shows the selection count in each dialog', async () => {
     const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
     const deletions: string[] = []
     server.use(
-      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
-        path: '/', advancedMode: false,
-        entries: [
-          { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
-          { name: 'bravo.txt', path: '/bravo.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
-        ],
-      })),
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path')
+        return HttpResponse.json(path === '/'
+          ? {
+              path, advancedMode: false,
+              entries: [
+                { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+                { name: 'bravo.txt', path: '/bravo.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+                { name: 'Archive', path: '/Archive', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+              ],
+            }
+          : { path, advancedMode: false, entries: [] })
+      }),
       http.post('http://localhost/api/v1/files/move', async ({ request }) => {
         moves.push(await request.json() as { source: string; destination: string; overwrite: boolean })
         return new HttpResponse(null, { status: 204 })
@@ -167,7 +170,7 @@ describe('file browser', () => {
     expect(alpha).toHaveStyle({ cursor: 'pointer' })
     fireEvent.click(alpha)
     fireEvent.click(bravo, { ctrlKey: true })
-    expect(screen.getByText('2 selected').closest('.page-header')).toBeInTheDocument()
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument()
 
     fireEvent.contextMenu(bravo, { clientX: 200, clientY: 100 })
     const menu = screen.getByRole('menu')
@@ -176,9 +179,7 @@ describe('file browser', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Delete 2 items' })).toBeInTheDocument()
     await user.click(within(menu).getByRole('menuitem', { name: 'Move 2 items' }))
     const moveDialog = screen.getByRole('dialog', { name: 'Move 2 items' })
-    const destination = within(moveDialog).getByLabelText('Destination folder')
-    await user.clear(destination)
-    await user.type(destination, '/Archive')
+    await user.click(await within(moveDialog).findByRole('button', { name: 'Archive' }))
     await user.click(within(moveDialog).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(moves).toEqual([
       { source: '/alpha.txt', destination: '/Archive/alpha.txt', overwrite: false },
@@ -188,7 +189,8 @@ describe('file browser', () => {
 
     fireEvent.click(alpha)
     fireEvent.click(bravo, { metaKey: true })
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.contextMenu(bravo, { clientX: 200, clientY: 100 })
+    await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Delete 2 items' }))
     const deleteDialog = screen.getByRole('dialog', { name: 'Delete 2 items?' })
     expect(deleteDialog).toHaveTextContent('2 items selected')
     await user.click(within(deleteDialog).getByRole('button', { name: 'Delete' }))
@@ -236,7 +238,7 @@ describe('file browser', () => {
         path: '/', advancedMode: false,
         entries: [{ name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }],
       })),
-      http.put('http://localhost/api/v1/files/content', ({ request }) => {
+      http.put('*/api/v1/files/content', ({ request }) => {
         uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
         return new HttpResponse(null, { status: 204 })
       }),
@@ -258,6 +260,68 @@ describe('file browser', () => {
     expect(folder).not.toHaveClass('drop-target')
   })
 
+  it('shows total bytes, percentage, and ETA for an upload batch', async () => {
+    let finishSecond: () => void = () => undefined
+    vi.spyOn(api.files, 'uploadWithProgress').mockImplementation(async (path, file, _overwrite, onProgress) => {
+      if (path === '/alpha.bin') {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        onProgress(file.size, file.size)
+        return
+      }
+      await new Promise<void>((resolve) => {
+        finishSecond = () => { onProgress(file.size, file.size); resolve() }
+      })
+    })
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, [new File(['aaaa'], 'alpha.bin'), new File(['bbbb'], 'bravo.bin')])
+
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 650)) })
+    expect(screen.getByText('Uploading · 1 of 2 files complete · alpha.bin')).toBeInTheDocument()
+    expect(screen.getByText('4 B of 8 B — 50%')).toBeInTheDocument()
+    expect(screen.getByText(/About \d+ seconds remaining/)).toBeInTheDocument()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1_100)) })
+    expect(screen.getByText('About 1 second remaining')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Total upload progress' })).toHaveAttribute('aria-valuenow', '50')
+    await act(async () => {
+      finishSecond()
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument())
+  })
+
+  it('aborts active uploads and does not start queued files when the banner is cancelled', async () => {
+    const started: string[] = []
+    const aborted: string[] = []
+    vi.spyOn(api.files, 'uploadWithProgress').mockImplementation((path, _file, _overwrite, _onProgress, signal) => new Promise<void>((_resolve, reject) => {
+      started.push(path)
+      const abort = () => {
+        aborted.push(path)
+        reject(signal?.reason instanceof Error ? signal.reason : new DOMException('Aborted', 'AbortError'))
+      }
+      if (signal?.aborted) abort()
+      else signal?.addEventListener('abort', abort, { once: true })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.upload(input, [new File(['one'], 'one.txt'), new File(['two'], 'two.txt'), new File(['three'], 'three.txt')])
+    await waitFor(() => expect(started).toEqual(['/one.txt', '/two.txt']))
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument())
+    expect(aborted).toEqual(['/one.txt', '/two.txt'])
+    expect(started).not.toContain('/three.txt')
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled()
+    expect(screen.queryByText('The operation was aborted.')).not.toBeInTheDocument()
+  })
+
   it('preserves a dropped directory tree instead of uploading the directory as a file', async () => {
     const createdDirectories: string[] = []
     const uploadedPaths: string[] = []
@@ -267,7 +331,7 @@ describe('file browser', () => {
         createdDirectories.push(body.path)
         return new HttpResponse(null, { status: 201 })
       }),
-      http.put('http://localhost/api/v1/files/content', ({ request }) => {
+      http.put('*/api/v1/files/content', ({ request }) => {
         uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
         return new HttpResponse(null, { status: 201 })
       }),
@@ -392,7 +456,7 @@ describe('file browser', () => {
     let condition = ''
     let body = 'not-empty'
     server.use(
-      http.put('http://localhost/api/v1/files/content', async ({ request }) => {
+      http.put('*/api/v1/files/content', async ({ request }) => {
         csrf = request.headers.get('X-ZenFM-CSRF') ?? ''
         condition = request.headers.get('If-None-Match') ?? ''
         body = await request.text()
@@ -416,7 +480,7 @@ describe('file browser', () => {
 
   it('applies replace all to the current conflict and every remaining upload', async () => {
     const requests: string[] = []
-    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+    server.use(http.put('*/api/v1/files/content', ({ request }) => {
       const path = new URL(request.url).searchParams.get('path') ?? ''
       const condition = request.headers.get('If-None-Match') ?? ''
       requests.push(`${path}:${condition}`)
@@ -434,18 +498,18 @@ describe('file browser', () => {
     ])
 
     expect(await screen.findByRole('heading', { name: 'File already exists' })).toBeInTheDocument()
-    expect(requests).toEqual(['/one.txt:*'])
+    expect(requests).toEqual(['/one.txt:*', '/two.txt:*'])
     expect(screen.getByRole('button', { name: 'Skip all' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Upload with new name' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Replace all' }))
-    await waitFor(() => expect(requests).toEqual(['/one.txt:*', '/one.txt:', '/two.txt:']))
+    await waitFor(() => expect(requests).toEqual(['/one.txt:*', '/two.txt:*', '/one.txt:', '/two.txt:']))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
   })
 
   it('skips every conflict after choosing skip all but keeps uploading new files', async () => {
     const requests: string[] = []
-    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+    server.use(http.put('*/api/v1/files/content', ({ request }) => {
       const path = new URL(request.url).searchParams.get('path') ?? ''
       requests.push(path)
       if (path !== '/new.txt') return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
@@ -469,7 +533,7 @@ describe('file browser', () => {
 
   it('cancels the rest of an upload batch from the conflict dialog', async () => {
     const requests: string[] = []
-    server.use(http.put('http://localhost/api/v1/files/content', ({ request }) => {
+    server.use(http.put('*/api/v1/files/content', ({ request }) => {
       requests.push(new URL(request.url).searchParams.get('path') ?? '')
       return HttpResponse.json({ title: 'Conflict', status: 409 }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
     }))
@@ -482,7 +546,7 @@ describe('file browser', () => {
     await user.click(await screen.findByRole('button', { name: 'Cancel' }))
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'File already exists' })).not.toBeInTheDocument())
-    expect(requests).toEqual(['/one.txt'])
+    expect(requests).toEqual(['/one.txt', '/two.txt'])
   })
 
   it('shows lazy bounded image thumbnails in grid view', async () => {
@@ -512,7 +576,27 @@ describe('file browser', () => {
     expect(screen.queryByRole('img', { name: 'vector.svg' })).not.toBeInTheDocument()
   })
 
-  it('archives selected regular entries and never offers special entries for selection', async () => {
+  it('shows size and modified date for files and folders in grid view', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T12:00:00Z' },
+        { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 512, modifiedAt: '2026-01-02T12:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const folder = screen.getByRole('listitem', { name: 'Books' })
+    const file = screen.getByRole('listitem', { name: 'notes.txt' })
+    expect(within(folder).getByText(`0 B · ${formatShortDate('2026-01-01T12:00:00Z')}`)).toBeInTheDocument()
+    expect(folder).not.toHaveTextContent('Folder')
+    expect(within(file).getByText(`512 B · ${formatShortDate('2026-01-02T12:00:00Z')}`)).toBeInTheDocument()
+    expect(getComputedStyle(within(folder).getByTestId('FolderRoundedIcon').parentElement!).alignItems).toBe('center')
+  })
+
+  it('archives highlighted regular entries without showing selection checkboxes', async () => {
     let archived: string[] = []
     server.use(
       http.get('http://localhost/api/v1/files', () => HttpResponse.json({
@@ -533,10 +617,15 @@ describe('file browser', () => {
     const user = userEvent.setup()
     renderApp('/files')
 
-    await user.click(await screen.findByRole('checkbox', { name: 'Select Books' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Select notes.txt' }))
-    expect(screen.queryByRole('checkbox', { name: 'Select socket' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Download ZIP' }))
+    const books = await screen.findByRole('row', { name: /Books/ })
+    const notes = screen.getByRole('row', { name: /notes\.txt/ })
+    fireEvent.click(books)
+    fireEvent.click(notes, { ctrlKey: true })
+    expect(books).toHaveClass('selected')
+    expect(notes).toHaveClass('selected')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    fireEvent.contextMenu(notes, { clientX: 200, clientY: 100 })
+    await user.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Download 2 items' }))
     await waitFor(() => expect(archived).toEqual(['/Books', '/notes.txt']))
     await waitFor(() => expect(downloadURL).toContain('/api/v1/files/archive/'))
     expect(new URL(downloadURL).pathname).toBe('/api/v1/files/archive/zfm_archive_test')
