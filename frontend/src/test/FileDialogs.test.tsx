@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, createTheme } from '@mui/material'
 import { http, HttpResponse } from 'msw'
-import { canEdit, FileEditorDialog, FilePreviewDialog, PathActionDialog } from './FileDialogs'
-import TextEditor from './TextEditor'
-import { server } from '../test/server'
+import { canEdit, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
+import TextEditor from '../components/TextEditor'
+import { server } from './server'
 import type { FileEntry } from '../api/types'
 
 it('sanitizes an HTML preview before inserting it into the document', async () => {

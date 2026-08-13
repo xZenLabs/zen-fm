@@ -61,7 +61,7 @@
 
 - All applicable upstream advisory regressions pass.
 - No known unaccepted critical/high dependency or code-scanning finding.
-- Race, unit, browser, plugin, package-layout, old-kernel QEMU, and physical
-  Kindle 4/5 and PW1 checks pass.
+- Automated race, unit, browser, plugin, and package-layout checks pass.
+- Manual old-kernel QEMU and physical Kindle 4/5 and PW1 checks pass.
 - Release bundles and the APK have GitHub-recorded SHA-256 digests and build
   provenance; the APK is signed with the persistent Android release key.

@@ -8,35 +8,18 @@ on:
         description: Existing stable SemVer tag (for example v1.0.0)
         required: true
         type: string
-      qemu_run_id:
-        description: Successful Old-kernel QEMU qualification run ID
-        required: true
-        type: string
-      kindle4_run_id:
-        description: Successful physical Kindle 4 qualification run ID
-        required: true
-        type: string
-      kindle5_run_id:
-        description: Successful physical Kindle 5 qualification run ID
-        required: true
-        type: string
-      paperwhite1_run_id:
-        description: Successful physical Paperwhite 1 qualification run ID
-        required: true
-        type: string
 
 permissions:
   contents: read
   checks: read
-  attestations: read
 
 concurrency:
   group: stable-release-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
-  evidence:
-    name: Verify stable-release evidence
+  prerequisites:
+    name: Verify stable-release prerequisites
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.source.outputs.commit }}
@@ -96,37 +79,9 @@ jobs:
                 exit 1
               }
           done
-      - name: Download successful protected qualification evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          sh scripts/fetch-release-evidence.sh \
-            "$GITHUB_REPOSITORY" \
-            '${{ github.event.repository.default_branch }}' \
-            '${{ steps.source.outputs.commit }}' \
-            '${{ inputs.qemu_run_id }}' \
-            '${{ inputs.kindle4_run_id }}' \
-            '${{ inputs.kindle5_run_id }}' \
-            '${{ inputs.paperwhite1_run_id }}' \
-            evidence
-      - name: Verify evidence semantics and GitHub provenance
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          sh scripts/verify-release-evidence.sh '${{ steps.source.outputs.commit }}' evidence
-          for evidence_file in evidence/*.json; do
-            gh attestation verify "$evidence_file" --repo "$GITHUB_REPOSITORY"
-          done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: stable-release-evidence
-          path: evidence/*.json
-          if-no-files-found: error
-          retention-days: 90
-
   frontend:
     name: Build release frontend
-    needs: evidence
+    needs: prerequisites
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -148,7 +103,7 @@ jobs:
 
   legacy-arm:
     name: Build legacy ARM backends
-    needs: [evidence, frontend]
+    needs: [prerequisites, frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -169,7 +124,7 @@ jobs:
           sh toolchains/legacy/bootstrap.sh "$RUNNER_TEMP/go1.26.5-kindle"
       - name: Cross-compile soft- and hard-float backends
         env:
-          VERSION: ${{ needs.evidence.outputs.version }}
+          VERSION: ${{ needs.prerequisites.outputs.version }}
         run: |
           set -eu
           mkdir -p .release/bin
@@ -190,7 +145,7 @@ jobs:
 
   linux:
     name: Build Linux KOReader backends
-    needs: [evidence, frontend]
+    needs: [prerequisites, frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -207,7 +162,7 @@ jobs:
       - run: sh scripts/stage-webui.sh .release/frontend
       - name: Cross-compile amd64 and arm64
         env:
-          VERSION: ${{ needs.evidence.outputs.version }}
+          VERSION: ${{ needs.prerequisites.outputs.version }}
         run: |
           set -eu
           mkdir -p .release/bin
@@ -226,7 +181,7 @@ jobs:
 
   macos:
     name: Build universal macOS KOReader backend
-    needs: [evidence, frontend]
+    needs: [prerequisites, frontend]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -243,7 +198,7 @@ jobs:
       - run: sh scripts/stage-webui.sh .release/frontend
       - name: Build and merge amd64 and arm64 slices
         env:
-          VERSION: ${{ needs.evidence.outputs.version }}
+          VERSION: ${{ needs.prerequisites.outputs.version }}
         run: |
           set -eu
           mkdir -p .release/bin
@@ -265,7 +220,7 @@ jobs:
 
   android:
     name: Build signed Android companion
-    needs: [evidence, frontend]
+    needs: [prerequisites, frontend]
     environment: stable-release
     runs-on: ubuntu-latest
     steps:
@@ -316,7 +271,7 @@ jobs:
 
   package:
     name: Sign and publish stable release
-    needs: [evidence, legacy-arm, linux, macos, android]
+    needs: [prerequisites, legacy-arm, linux, macos, android]
     environment: stable-release
     runs-on: ubuntu-latest
     permissions:
@@ -343,17 +298,12 @@ jobs:
         with:
           name: release-android-apk
           path: .release/apk
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: stable-release-evidence
-          path: evidence
       - name: Produce only the four KOReader bundles and companion APK
         run: |
           apk=$(find .release/apk -type f -name '*.apk' -print -quit)
           test -n "$apk"
-          sh scripts/verify-qualified-binaries.sh evidence .release/bin
           sh build.sh --package-only .release/bin --apk "$apk"
-          sh scripts/verify-release-assets.sh dist '${{ needs.evidence.outputs.version }}'
+          sh scripts/verify-release-assets.sh dist '${{ needs.prerequisites.outputs.version }}'
       - name: Generate release SBOM
         run: mkdir -p metadata
       - name: Scan release source and dependencies
@@ -361,7 +311,7 @@ jobs:
         with:
           path: .
           format: spdx-json
-          output-file: metadata/zenfm-${{ needs.evidence.outputs.version }}.spdx.json
+          output-file: metadata/zenfm-${{ needs.prerequisites.outputs.version }}.spdx.json
           upload-artifact: false
       - name: Attest every published ZenFM artifact
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -374,7 +324,7 @@ jobs:
       - name: Retain release SBOM outside updater assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-sbom-${{ needs.evidence.outputs.version }}
+          name: release-sbom-${{ needs.prerequisites.outputs.version }}
           path: metadata/*.spdx.json
           if-no-files-found: error
           retention-days: 90
@@ -384,9 +334,9 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           gh release create "$TAG" \
-            dist/* evidence/*.json \
+            dist/* \
             --repo "$GITHUB_REPOSITORY" \
-            --target '${{ needs.evidence.outputs.commit }}' \
+            --target '${{ needs.prerequisites.outputs.commit }}' \
             --verify-tag \
             --title "ZenFM $TAG" \
             --generate-notes

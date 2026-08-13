@@ -18,6 +18,6 @@ pass an output directory as the first argument when CI needs a different cache
 location. Release builds use this compiler only for the ARM soft-float and
 hard-float backends.
 
-The patch is intentionally not claimed as an upstream Go configuration. Stable
-release promotion still requires the old-kernel QEMU job and physical Kindle
-4/5 and Paperwhite 1 smoke-test attestations described in the release process.
+The patch is intentionally not claimed as an upstream Go configuration. Before
+stable release promotion, manually run the old-kernel QEMU and physical Kindle
+4/5 and Paperwhite 1 smoke tests described in the release process.

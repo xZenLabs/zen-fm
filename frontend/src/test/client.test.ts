@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
-import { api, onUnauthorized } from './client'
-import { server } from '../test/server'
+import { api, onUnauthorized } from '../api/client'
+import { server } from './server'
 
 describe('API client security', () => {
   it('keeps the session CSRF value in memory and sends it on mutations', async () => {

@@ -3,7 +3,7 @@
 html, body, #root { min-height: 100%; margin: 0; }
 body { min-width: 320px; }
 a { color: inherit; }
-.zen-mark { display: block; width: 34px; height: 34px; flex: 0 0 34px; object-fit: contain; }
+.zen-mark { display: block; width: 34px; height: 34px; flex: 0 0 34px; object-fit: contain; color-scheme: only light; }
 [data-zenfm-theme='dark'] .zen-mark { filter: invert(1); }
 .nav-button.active { background: color-mix(in srgb, currentColor 9%, transparent); }
 .bottom-nav { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; min-height: 68px; padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); backdrop-filter: blur(18px); background: color-mix(in srgb, Canvas 88%, transparent); border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }

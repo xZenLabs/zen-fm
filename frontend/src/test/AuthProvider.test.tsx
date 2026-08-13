@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { useAuth, AuthProvider } from './AuthProvider'
-import { server } from '../test/server'
+import { useAuth, AuthProvider } from '../auth/AuthProvider'
+import { server } from './server'
 
 function Probe() {
   const { status, refresh, validationError } = useAuth()

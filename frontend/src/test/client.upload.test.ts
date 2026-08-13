@@ -23,7 +23,7 @@ vi.mock('tus-js-client', () => ({
   },
 }))
 
-import { uploadResumable } from './client'
+import { uploadResumable } from '../api/client'
 
 describe('resumable upload transport', () => {
   afterEach(() => {

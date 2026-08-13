@@ -1,4 +1,4 @@
-import i18n, { detectLocale } from './i18n'
+import i18n, { detectLocale } from '../i18n'
 
 describe('locales', () => {
   it('reuses translated File Browser phrases and falls back for ZenFM-specific copy', () => {

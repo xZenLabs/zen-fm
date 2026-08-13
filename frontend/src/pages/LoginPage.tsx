@@ -31,7 +31,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout title={t('appName')} subtitle={t('auth.welcome')}>
+    <AuthLayout title={t('appName')} subtitle={t('auth.welcome')} inlineLogo>
       <Stack component="form" gap={2} onSubmit={(event) => void submit(event)}>
         {error && <Alert severity="error">{error}</Alert>}
         <TextField id="username" label={t('auth.username')} name="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required />

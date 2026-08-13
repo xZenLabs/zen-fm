@@ -110,7 +110,7 @@ func regressionIdentifiers(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	markdownTest, err := os.ReadFile(filepath.Join(root, "frontend", "src", "components", "FileDialogs.test.tsx"))
+	markdownTest, err := os.ReadFile(filepath.Join(root, "frontend", "src", "test", "FileDialogs.test.tsx"))
 	if err != nil {
 		t.Fatal(err)
 	}

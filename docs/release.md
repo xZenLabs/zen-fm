@@ -1,10 +1,10 @@
 # ZenFM release process
 
 ZenFM publishes only the four KOReader bundles and Android companion below as
-installable artifacts. Qualification evidence is non-installable release
-metadata. The SPDX SBOM is generated, GitHub-attested, and retained as a
-workflow artifact. Updaters accept only the five exact installable asset names
-and verify the SHA-256 digests recorded by GitHub for those assets.
+installable artifacts. The SPDX SBOM is generated, GitHub-attested, and
+retained as a workflow artifact. Updaters accept only the five exact
+installable asset names and verify the SHA-256 digests recorded by GitHub for
+those assets.
 
 | Installable artifact | Contents |
 | --- | --- |
@@ -51,60 +51,31 @@ Linux/ARM `epoll_wait` compatibility patch. Stable builds bootstrap into a
 fresh runner directory and never substitute an unpatched or end-of-life Go
 1.19/1.20 compiler.
 
-The compiler patch is necessary, but it is not hardware evidence. Before a
-stable release, run `Old-kernel QEMU qualification` on the protected
-`zenfm-old-kernel-qemu` self-hosted runner. That runner must expose an
-executable `ZENFM_OLD_KERNEL_QEMU_HARNESS` and a genuine Kindle-era Linux 2.6
-QEMU image. The harness must boot and exercise both ARM float ABIs and write the
-`zenfm-old-kernel-qemu-v1` JSON contract checked by
-`scripts/run-old-kernel-qemu-smoke.sh`.
+The compiler patch is necessary, but it does not prove compatibility with an
+old kernel. Before a stable release, manually run the QEMU harness against both
+ARM float ABIs using a genuine Kindle-era Linux 2.6 image. The helper
+`scripts/run-old-kernel-qemu-smoke.sh` validates the harness result.
 
-Both qualification runner classes must be dedicated and ephemeral (or restored
-to a known-clean snapshot after each job). Keep their harness executable
-outside the checkout, owned by the runner administrator, and never place
-release-signing secrets on them. The environment reviewer must inspect the tag
-commit before allowing repository code to execute on a device-connected host.
-Runner images must provide `jq`, `patch`, `tar`, and either `curl` or `wget`;
-the setup actions supply the pinned Go and Node host toolchains. Keep the
-self-hosted Actions runner current enough for the commit-pinned Node 24 action
-runtime.
+## Physical Kindle qualification
 
-## Physical Kindle attestations
-
-Run `Physical Kindle qualification` three times against the same stable tag:
+Manually smoke-test the same stable tag on:
 
 1. `kindle4`
 2. `kindle5`
 3. `paperwhite1`
 
-These jobs run only on the protected `zenfm-physical-kindle` self-hosted runner.
-The runner must have the selected physical device attached and provide
-`ZENFM_PHYSICAL_KINDLE_HARNESS`. The external harness performs start, login,
-browse, upload, download, TLS-fingerprint, and stop checks, and records only a
-one-way serial hash—not a device serial. The workflow rejects incomplete JSON,
-then uses GitHub OIDC to attest the evidence file and uploads it with the exact
-tested commit in the artifact name.
-
-A person clicking a workflow button is not a smoke-test result. Missing
-runners, harnesses, devices, JSON checks, or GitHub attestations fail closed.
-The stable-release workflow requires the successful QEMU run ID and all three
-physical run IDs, verifies their workflow identity, protected default-branch
-origin, commit, evidence schema, and GitHub provenance, and publishes the
-records alongside the release. Each record contains the independently computed
-SHA-256 digests of both legacy ARM backends. All four records must agree, each
-physical harness must identify one of those exact binaries as the binary it
-tested, and packaging fails unless the release's hard- and soft-float binaries
-match those digests byte-for-byte.
+Use `scripts/run-physical-kindle-smoke.sh` with the selected device and attached
+hardware. The external harness performs start, login, browse, upload, download,
+TLS-fingerprint, and stop checks. Review the results before manually dispatching
+the stable-release workflow; GitHub Actions does not enforce these manual
+qualification checks.
 
 ## Signing configuration
 
-Create two protected GitHub environments:
-
-- `stable-release-qualification` protects the QEMU and hardware runner jobs.
-  Require trusted reviewers and restrict deployment branches to `main`.
-- `stable-release` protects access to the Android release key and publication.
-  Require independent reviewers, restrict it to `main`, and prevent
-  administrators from bypassing the rule where repository policy permits.
+Create a protected `stable-release` GitHub environment. It protects access to
+the Android release key and publication. Require independent reviewers,
+restrict it to `main`, and prevent administrators from bypassing the rule where
+repository policy permits.
 
 Store these values as environment secrets on `stable-release`:
 
@@ -158,16 +129,14 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 
 1. Set `VERSION` to a stable `major.minor.patch`, pass every required check,
    and create the matching existing tag `v<version>`.
-2. Run the QEMU qualification and the three physical-device qualifications for
-   that tag by dispatching each workflow from `main` and supplying the tag as
-   `release_ref`. Record their GitHub Actions run IDs.
-3. Dispatch `Stable release` from `main` with the tag and four run IDs.
-4. Approve the `stable-release` environment only after reviewing the evidence
-   summaries and expected source commit.
+2. Manually run the old-kernel QEMU qualification and the three physical-device
+   qualifications against that exact tag.
+3. Dispatch `Stable release` from `main` with the tag.
+4. Approve the `stable-release` environment only after reviewing the manual
+   test results and expected source commit.
 5. Download the published assets, verify GitHub artifact attestations, and
    install-test the final archives before announcement.
 
-The workflow will not manufacture or waive old-kernel or physical-device
-evidence. Pre-releases need a separate explicitly documented workflow if the
-project later chooses to publish them; the stable workflow rejects prerelease
-versions.
+The stable workflow rejects prerelease versions. It verifies the tag and
+required GitHub checks, but manual QEMU and device qualification remains the
+release owner's responsibility.

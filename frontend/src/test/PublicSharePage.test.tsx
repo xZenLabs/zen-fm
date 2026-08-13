@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { server } from '../test/server'
-import { renderApp } from '../test/renderApp'
+import { server } from './server'
+import { renderApp } from './renderApp'
 
 it('navigates nested public directories with capability-relative API paths', async () => {
   const requestedPaths: string[] = []

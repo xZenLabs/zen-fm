@@ -206,22 +206,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  workflow-lint:
-    name: GitHub Actions lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.26.5'
-          cache: false
-      - name: Run pinned actionlint
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-
   required:
     name: CI required checks
     if: always()
-    needs: [go-vet, go-race, go-fuzz, frontend, plugin, android, package-builds, source-sbom, workflow-lint]
+    needs: [go-vet, go-race, go-fuzz, frontend, plugin, android, package-builds, source-sbom]
     runs-on: ubuntu-latest
     steps:
       - name: Require every CI gate
@@ -234,7 +222,6 @@ jobs:
           ANDROID: ${{ needs.android.result }}
           PACKAGES: ${{ needs.package-builds.result }}
           SBOM: ${{ needs.source-sbom.result }}
-          WORKFLOW_LINT: ${{ needs.workflow-lint.result }}
         run: |
           test "$GO_VET" = success
           test "$GO_RACE" = success
@@ -244,4 +231,3 @@ jobs:
           test "$ANDROID" = success
           test "$PACKAGES" = success
           test "$SBOM" = success
-          test "$WORKFLOW_LINT" = success

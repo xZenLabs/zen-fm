@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { server } from '../test/server'
-import { renderApp } from '../test/renderApp'
+import { server } from './server'
+import { renderApp } from './renderApp'
 
 describe('file browser', () => {
   it('shows an icon-only clear action only while the search field has text', async () => {
