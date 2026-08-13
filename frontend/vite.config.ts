@@ -1,7 +1,7 @@
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { mockApiPlugin } from './dev/mockApi'
+import { mockApiPlugin } from './dev/mockApi.ts'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), ...(mock ? [mockApiPlugin()] : [])],
     build: {
+      target: ['chrome107', 'edge107', 'firefox104', 'safari16'],
       outDir: 'dist',
       emptyOutDir: true,
       sourcemap: false,

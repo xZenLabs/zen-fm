@@ -14,5 +14,3 @@ effect for reused material.
   © KOReader contributors. <https://github.com/koreader/koreader>
 - **Bouncy Castle Java** — Bouncy Castle License, © The Legion of the
   Bouncy Castle Inc. <https://www.bouncycastle.org/licence.html>
-
-Dependency license metadata is included in release SBOMs.

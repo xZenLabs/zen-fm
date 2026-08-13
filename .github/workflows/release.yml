@@ -304,30 +304,10 @@ jobs:
           test -n "$apk"
           sh build.sh --package-only .release/bin --apk "$apk"
           sh scripts/verify-release-assets.sh dist '${{ needs.prerequisites.outputs.version }}'
-      - name: Generate release SBOM
-        run: mkdir -p metadata
-      - name: Scan release source and dependencies
-        uses: anchore/sbom-action@v0.24.0
-        with:
-          path: .
-          format: spdx-json
-          output-file: metadata/zenfm-${{ needs.prerequisites.outputs.version }}.spdx.json
-          upload-artifact: false
       - name: Attest every published ZenFM artifact
         uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: dist/*
-      - name: Attest release SBOM
-        uses: actions/attest-build-provenance@v4.2.2
-        with:
-          subject-path: metadata/*.spdx.json
-      - name: Retain release SBOM outside updater assets
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: release-sbom-${{ needs.prerequisites.outputs.version }}
-          path: metadata/*.spdx.json
-          if-no-files-found: error
-          retention-days: 90
       - name: Publish immutable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

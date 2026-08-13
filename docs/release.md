@@ -1,10 +1,8 @@
 # ZenFM release process
 
 ZenFM publishes only the four KOReader bundles and Android companion below as
-installable artifacts. The SPDX SBOM is generated, GitHub-attested, and
-retained as a workflow artifact. Updaters accept only the five exact
-installable asset names and verify the SHA-256 digests recorded by GitHub for
-those assets.
+installable artifacts. Updaters accept only the five exact installable asset
+names and verify the SHA-256 digests recorded by GitHub for those assets.
 
 | Installable artifact | Contents |
 | --- | --- |
@@ -30,10 +28,10 @@ Protect `main` and require these checks before a release tag can be created:
 
 - `CI required checks`, which aggregates Go vet and race tests, the fuzz smoke test,
   Node 24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
-  KOReader Lua/shell/package tests, Android compile and JVM tests, source SBOM
-  generation, and a real build/layout validation of all four KOReader bundles
-  plus both-ABI APK. Pull-request packages are deliberately unsigned
-  development artifacts and are never published.
+  KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
+  build/layout validation of all four KOReader bundles plus both-ABI APK.
+  Pull-request packages are deliberately unsigned development artifacts and
+  are never published.
 - `Security required checks`, which aggregates `govulncheck`, OSV Scanner, npm
   audit, and the pull-request dependency review when applicable.
 - CodeQL `Analyze go`, `Analyze javascript-typescript`, and
