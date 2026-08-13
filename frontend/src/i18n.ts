@@ -40,6 +40,7 @@ const english = {
     share: 'Share', checksum: 'Checksum', folderName: 'Folder name', destination: 'Destination path', destinationFolder: 'Destination folder',
     save: 'Save changes', editor: 'Text editor', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
     uploading: 'Uploading {{name}} — {{progress}}%', searchResults: 'Search results', clearSearch: 'Clear search',
+    calculatingCopy: 'Calculating total size…', copyProgress: 'Total copy progress', copyingProgress: 'Copying {{copied}} of {{total}} — {{progress}}%', copyEta: 'About {{eta}} remaining',
     conflictTitle: 'File already exists', conflictBody: '{{name}} already exists. Apply this choice to all conflicts in this upload.',
     skipAll: 'Skip all', replace: 'Replace', replaceAll: 'Replace all',
     selected: '{{count}} selected', itemsSelected: '{{count}} items selected', actionItems: '{{action}} {{count}} items', deleteItems: 'Delete {{count}} items?', downloadZip: 'Download ZIP', clearSelection: 'Clear selection',

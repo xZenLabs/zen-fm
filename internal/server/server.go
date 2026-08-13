@@ -167,6 +167,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/files/content", s.require(true, false, http.HandlerFunc(s.getFileContent)))
 	s.mux.Handle("PUT /api/v1/files/content", s.require(true, true, http.HandlerFunc(s.putFile)))
 	s.mux.Handle("POST /api/v1/files/move", s.require(true, true, http.HandlerFunc(s.moveFile)))
+	s.mux.Handle("POST /api/v1/files/copy-size", s.require(true, false, http.HandlerFunc(s.copySizes)))
 	s.mux.Handle("POST /api/v1/files/copy", s.require(true, true, http.HandlerFunc(s.copyFile)))
 	s.mux.Handle("GET /api/v1/files/raw", s.require(true, false, http.HandlerFunc(s.rawFile)))
 	s.mux.Handle("GET /api/v1/files/preview", s.require(true, false, http.HandlerFunc(s.previewFile)))
@@ -340,23 +341,28 @@ func problem(w http.ResponseWriter, r *http.Request, status int, title, detail s
 }
 
 func mapError(w http.ResponseWriter, r *http.Request, err error) {
+	status, title, detail := describeError(err)
+	problem(w, r, status, title, detail)
+}
+
+func describeError(err error) (int, string, string) {
 	switch {
 	case errors.Is(err, zenfiles.ErrInvalidPath):
-		problem(w, r, http.StatusBadRequest, "Invalid Path", "the path is not canonical or is outside the configured root")
+		return http.StatusBadRequest, "Invalid Path", "the path is not canonical or is outside the configured root"
 	case errors.Is(err, osErrNotExist()):
-		problem(w, r, http.StatusNotFound, "Not Found", "the requested path does not exist")
+		return http.StatusNotFound, "Not Found", "the requested path does not exist"
 	case errors.Is(err, zenfiles.ErrConflict):
-		problem(w, r, http.StatusConflict, "Conflict", err.Error())
+		return http.StatusConflict, "Conflict", err.Error()
 	case errors.Is(err, state.ErrConflict):
-		problem(w, r, http.StatusConflict, "Conflict", "stored operation state conflicts with the request")
+		return http.StatusConflict, "Conflict", "stored operation state conflicts with the request"
 	case errors.Is(err, zenfiles.ErrTooLarge), errors.Is(err, zenfiles.ErrWalkLimit):
-		problem(w, r, http.StatusRequestEntityTooLarge, "Too Large", err.Error())
+		return http.StatusRequestEntityTooLarge, "Too Large", err.Error()
 	case errors.Is(err, zenfiles.ErrNotRegular), errors.Is(err, zenfiles.ErrPseudoFile):
-		problem(w, r, http.StatusUnsupportedMediaType, "Unsupported File", err.Error())
+		return http.StatusUnsupportedMediaType, "Unsupported File", err.Error()
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
-		problem(w, r, http.StatusRequestTimeout, "Timed Out", "the operation exceeded its deadline")
+		return http.StatusRequestTimeout, "Timed Out", "the operation exceeded its deadline"
 	default:
-		problem(w, r, http.StatusInternalServerError, "Internal Server Error", "the operation could not be completed")
+		return http.StatusInternalServerError, "Internal Server Error", "the operation could not be completed"
 	}
 }
 

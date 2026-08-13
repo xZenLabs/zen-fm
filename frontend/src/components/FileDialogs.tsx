@@ -12,7 +12,7 @@ import type { CreateShareInput, FileEntry } from '../api/types'
 import { ErrorPane, LoadingPane } from './Feedback'
 import { renderMarkdown } from '../markdown'
 import { parseCsv } from '../csv'
-import { joinPath } from '../utils'
+import { formatBytes, formatDuration, joinPath } from '../utils'
 
 const TextEditor = lazy(() => import('./TextEditor'))
 
@@ -133,11 +133,22 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
 
 type PathAction = 'rename' | 'move' | 'copy'
 
+interface CopyProgressState {
+  copiedBytes: number
+  totalBytes: number
+  baseBytes: number
+  startedAt: number
+  updatedAt: number
+  measuring: boolean
+}
+
 export function PathActionDialog({ action, entries, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
   const completed = useRef(new Set<string>())
   const conflictPath = useRef<string | null>(null)
+  const copyPlan = useRef<{ bytes: Map<string, number>; totalBytes: number } | null>(null)
+  const [copyProgress, setCopyProgress] = useState<CopyProgressState | null>(null)
   const entry = entries[0] ?? null
   const multiple = entries.length > 1
   const entriesKey = entries.map((item) => item.path).join('\n')
@@ -150,6 +161,20 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
   const mutate = useMutation({
     mutationFn: async (overwrite: boolean) => {
       if (!entry || !action) return
+      let plan = copyPlan.current
+      if (action === 'copy' && !plan) {
+        setCopyProgress({ copiedBytes: 0, totalBytes: 0, baseBytes: 0, startedAt: 0, updatedAt: 0, measuring: true })
+        const measured = await api.files.copySize(entries.map((item) => item.path))
+        plan = { bytes: new Map(measured.items.map((item) => [item.source, item.bytes])), totalBytes: measured.totalBytes }
+        copyPlan.current = plan
+      }
+      const completedBytes = action === 'copy' && plan
+        ? entries.reduce((total, item) => total + (completed.current.has(item.path) ? (plan!.bytes.get(item.path) ?? 0) : 0), 0)
+        : 0
+      if (action === 'copy' && plan) {
+        const now = Date.now()
+        setCopyProgress({ copiedBytes: completedBytes, totalBytes: plan.totalBytes, baseBytes: completedBytes, startedAt: now, updatedAt: now, measuring: false })
+      }
       for (const item of entries) {
         if (completed.current.has(item.path)) continue
         const target = action === 'rename'
@@ -157,9 +182,25 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
           : multiple ? joinPath(destination, item.name) : destination
         try {
           const replaceConflict = overwrite && conflictPath.current === item.path
-          if (action === 'copy') await api.files.copy(item.path, target, replaceConflict)
+          if (action === 'copy' && plan) {
+            const itemBase = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan!.bytes.get(candidate.path) ?? 0) : 0), 0)
+            const itemBytes = plan.bytes.get(item.path) ?? 0
+            try {
+              await api.files.copyWithProgress(item.path, target, replaceConflict, (copiedBytes) => {
+                const now = Date.now()
+                setCopyProgress((current) => current && { ...current, copiedBytes: itemBase + Math.min(copiedBytes, itemBytes), updatedAt: now })
+              })
+            } catch (error) {
+              setCopyProgress((current) => current && { ...current, copiedBytes: itemBase, updatedAt: Date.now() })
+              throw error
+            }
+          }
           else await api.files.move(item.path, target, replaceConflict)
           completed.current.add(item.path)
+          if (action === 'copy' && plan) {
+            const copiedBytes = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan!.bytes.get(candidate.path) ?? 0) : 0), 0)
+            setCopyProgress((current) => current && { ...current, copiedBytes, updatedAt: Date.now() })
+          }
           conflictPath.current = null
         } catch (error) {
           if (isConflictError(error)) conflictPath.current = item.path
@@ -173,11 +214,19 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
   useEffect(() => {
     completed.current.clear()
     conflictPath.current = null
+    copyPlan.current = null
+    setCopyProgress(null)
     resetMutation()
   }, [action, entriesKey, resetMutation])
 
   const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate(false) }
   const conflict = isConflictError(mutate.error)
+  const percentage = copyProgress && copyProgress.totalBytes > 0 ? Math.min(100, Math.round(copyProgress.copiedBytes / copyProgress.totalBytes * 100)) : 0
+  const activeCopiedBytes = copyProgress ? copyProgress.copiedBytes - copyProgress.baseBytes : 0
+  const elapsedSeconds = copyProgress ? (copyProgress.updatedAt - copyProgress.startedAt) / 1000 : 0
+  const etaSeconds = copyProgress && activeCopiedBytes > 0 && elapsedSeconds > 0 && copyProgress.copiedBytes < copyProgress.totalBytes
+    ? (copyProgress.totalBytes - copyProgress.copiedBytes) / (activeCopiedBytes / elapsedSeconds)
+    : 0
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
@@ -185,6 +234,11 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
         <DialogContent>
           {multiple && <Typography color="text.secondary" mb={2}>{t('files.itemsSelected', { count: entries.length })}</Typography>}
           <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />
+          {action === 'copy' && mutate.isPending && copyProgress && <Stack gap={0.5} mt={2}>
+            <Typography variant="body2">{copyProgress.measuring ? t('files.calculatingCopy') : t('files.copyingProgress', { copied: formatBytes(copyProgress.copiedBytes), total: formatBytes(copyProgress.totalBytes), progress: percentage })}</Typography>
+            <LinearProgress aria-label={t('files.copyProgress')} variant={copyProgress.measuring ? 'indeterminate' : 'determinate'} value={percentage} />
+            {etaSeconds > 0 && <Typography variant="caption" color="text.secondary">{t('files.copyEta', { eta: formatDuration(etaSeconds) })}</Typography>}
+          </Stack>}
         </DialogContent>
         <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>

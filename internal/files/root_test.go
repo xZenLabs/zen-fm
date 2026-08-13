@@ -108,6 +108,29 @@ func TestCRUDSearchCopyAndChecksum(t *testing.T) {
 	}
 }
 
+func TestCopySizeAndByteProgressIncludeNestedFiles(t *testing.T) {
+	r, _ := testRoot(t, Options{})
+	if _, err := r.Mkdir("source"); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{"source/one.txt": "one", "source/two.txt": "second"} {
+		if _, err := r.Write(name, strings.NewReader(content), false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	total, err := r.CopySize(context.Background(), "/source")
+	if err != nil || total != 9 {
+		t.Fatalf("copy size = %d, %v; want 9", total, err)
+	}
+	var copied int64
+	if _, err := r.CopyWithByteProgress(context.Background(), "/source", "/destination", false, func(written int64) { copied += written }); err != nil {
+		t.Fatal(err)
+	}
+	if copied != total {
+		t.Fatalf("copy progress = %d, want %d", copied, total)
+	}
+}
+
 func TestCopyAndMoveCanExplicitlyReplaceDirectories(t *testing.T) {
 	r, directory := testRoot(t, Options{})
 	for _, name := range []string{"copy-source", "copy-target", "move-source", "move-target"} {

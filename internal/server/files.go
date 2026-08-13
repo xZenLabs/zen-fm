@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -152,6 +153,27 @@ type transferRequest struct {
 	Overwrite   bool   `json:"overwrite"`
 }
 
+type copySizeRequest struct {
+	Sources []string `json:"sources"`
+}
+
+type copySizeItem struct {
+	Source string `json:"source"`
+	Bytes  int64  `json:"bytes"`
+}
+
+type copyProgressError struct {
+	Title  string `json:"title"`
+	Status int    `json:"status"`
+	Detail string `json:"detail"`
+}
+
+type copyProgressEvent struct {
+	CopiedBytes int64              `json:"copiedBytes"`
+	Done        bool               `json:"done,omitempty"`
+	Error       *copyProgressError `json:"error,omitempty"`
+}
+
 func (s *Server) moveFile(w http.ResponseWriter, r *http.Request) {
 	if !s.acquireHeavy(w, r) {
 		return
@@ -184,11 +206,93 @@ func (s *Server) copyFile(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusBadRequest, "Invalid Request", "invalid copy request")
 		return
 	}
+	if strings.Contains(r.Header.Get("Accept"), "application/x-ndjson") {
+		s.copyFileWithProgress(w, r, request)
+		return
+	}
 	if _, err := s.cfg.Files.CopyWithProgress(r.Context(), request.Source, request.Destination, request.Overwrite, s.touch); err != nil {
 		mapError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) copyFileWithProgress(w http.ResponseWriter, r *http.Request, request transferRequest) {
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	encoder := json.NewEncoder(w)
+	controller := http.NewResponseController(w)
+	send := func(event copyProgressEvent) error {
+		if err := encoder.Encode(event); err != nil {
+			return err
+		}
+		return controller.Flush()
+	}
+	if err := send(copyProgressEvent{}); err != nil {
+		return
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	var copiedBytes, reportedBytes int64
+	lastReport := time.Now()
+	var streamErr error
+	progress := func(written int64) {
+		s.touch()
+		copiedBytes += written
+		if written == 0 || streamErr != nil {
+			return
+		}
+		if copiedBytes-reportedBytes < 1<<20 && time.Since(lastReport) < 250*time.Millisecond {
+			return
+		}
+		streamErr = send(copyProgressEvent{CopiedBytes: copiedBytes})
+		if streamErr != nil {
+			cancel()
+			return
+		}
+		reportedBytes = copiedBytes
+		lastReport = time.Now()
+	}
+	_, err := s.cfg.Files.CopyWithByteProgress(ctx, request.Source, request.Destination, request.Overwrite, progress)
+	if streamErr != nil {
+		return
+	}
+	if err != nil {
+		status, title, detail := describeError(err)
+		_ = send(copyProgressEvent{CopiedBytes: copiedBytes, Error: &copyProgressError{Title: title, Status: status, Detail: detail}})
+		return
+	}
+	_ = send(copyProgressEvent{CopiedBytes: copiedBytes, Done: true})
+}
+
+func (s *Server) copySizes(w http.ResponseWriter, r *http.Request) {
+	if !s.acquireHeavy(w, r) {
+		return
+	}
+	defer s.releaseHeavy()
+	var request copySizeRequest
+	if err := readJSON(w, r, &request, 64<<10); err != nil || len(request.Sources) == 0 || len(request.Sources) > 1000 {
+		problem(w, r, http.StatusBadRequest, "Invalid Request", "copy size request must contain 1 to 1000 sources")
+		return
+	}
+	items := make([]copySizeItem, 0, len(request.Sources))
+	var total int64
+	for _, source := range request.Sources {
+		bytes, err := s.cfg.Files.CopySize(r.Context(), source)
+		if err != nil {
+			mapError(w, r, err)
+			return
+		}
+		items = append(items, copySizeItem{Source: source, Bytes: bytes})
+		total += bytes
+		s.touch()
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Items      []copySizeItem `json:"items"`
+		TotalBytes int64          `json:"totalBytes"`
+	}{Items: items, TotalBytes: total})
 }
 
 func (s *Server) rawFile(w http.ResponseWriter, r *http.Request) {

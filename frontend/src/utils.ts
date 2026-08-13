@@ -5,6 +5,15 @@ export function formatBytes(bytes: number) {
   return `${(bytes / 1024 ** exponent).toLocaleString(undefined, { maximumFractionDigits: exponent ? 1 : 0 })} ${units[exponent]}`
 }
 
+export function formatDuration(seconds: number) {
+  const roundedSeconds = Math.max(1, Math.ceil(seconds))
+  if (roundedSeconds < 60) return `${roundedSeconds} ${roundedSeconds === 1 ? 'second' : 'seconds'}`
+  const minutes = Math.ceil(roundedSeconds / 60)
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+  const hours = Math.ceil(minutes / 60)
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+}
+
 export function formatDate(value?: string) {
   if (!value) return '—'
   const date = new Date(value)

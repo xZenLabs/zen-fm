@@ -313,6 +313,58 @@ func TestFileWorkflowAndTraversalRegression(t *testing.T) {
 	}
 }
 
+func TestCopySizeAndStreamingProgress(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	if _, err := a.files.Write("first.bin", strings.NewReader(strings.Repeat("a", 256<<10)), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.files.Write("second.bin", strings.NewReader("zen"), false); err != nil {
+		t.Fatal(err)
+	}
+
+	plan := a.request(http.MethodPost, "/api/v1/files/copy-size", strings.NewReader(`{"sources":["/first.bin","/second.bin"]}`), cookie, csrf, "")
+	if plan.Code != http.StatusOK {
+		t.Fatalf("copy size: %d %s", plan.Code, plan.Body.String())
+	}
+	var measured struct {
+		Items []copySizeItem `json:"items"`
+		Total int64          `json:"totalBytes"`
+	}
+	if err := json.Unmarshal(plan.Body.Bytes(), &measured); err != nil {
+		t.Fatal(err)
+	}
+	if measured.Total != 256<<10+3 || len(measured.Items) != 2 {
+		t.Fatalf("copy size response = %+v", measured)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/files/copy", strings.NewReader(`{"source":"/first.bin","destination":"/copied.bin"}`))
+	req.RemoteAddr = "192.0.2.1:1234"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/x-ndjson")
+	req.Header.Set("X-ZenFM-CSRF", csrf)
+	req.AddCookie(cookie)
+	recorder := httptest.NewRecorder()
+	a.handler.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "application/x-ndjson" {
+		t.Fatalf("streaming copy: %d %s", recorder.Code, recorder.Body.String())
+	}
+	lines := strings.Split(strings.TrimSpace(recorder.Body.String()), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("copy progress events = %q", recorder.Body.String())
+	}
+	var first, last copyProgressEvent
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &last); err != nil {
+		t.Fatal(err)
+	}
+	if first.CopiedBytes != 0 || last.CopiedBytes != 256<<10 || !last.Done || last.Error != nil {
+		t.Fatalf("copy progress first=%+v last=%+v", first, last)
+	}
+}
+
 func TestTransferRequiresAndHonorsExplicitDirectoryReplacement(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf := a.finishSetup()

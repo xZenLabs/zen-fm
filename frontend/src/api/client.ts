@@ -1,6 +1,7 @@
 import * as tus from 'tus-js-client'
 import type {
   Checksum,
+  CopySizePlan,
   DiskUsage,
   CreatedToken,
   CreateShareInput,
@@ -166,6 +167,74 @@ async function requestBlob(path: string): Promise<Blob> {
   }
 }
 
+interface CopyProgressEvent {
+  copiedBytes: number
+  done?: boolean
+  error?: ProblemDetails
+}
+
+async function copyWithProgress(source: string, destination: string, overwrite: boolean, onProgress: (copiedBytes: number) => void) {
+  const controller = new AbortController()
+  let timeout = clientTimeoutMs > 0 ? window.setTimeout(() => controller.abort(), clientTimeoutMs) : undefined
+  const headers = new Headers({ Accept: 'application/x-ndjson', 'Content-Type': 'application/json' })
+  if (csrfToken) headers.set(CSRF_HEADER, csrfToken)
+  try {
+    const response = await fetch(`${API_ROOT}/files/copy`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ source, destination, overwrite }),
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+    window.clearTimeout(timeout)
+    timeout = undefined
+    if (!response.ok) {
+      let problem: ProblemDetails | undefined
+      if (response.headers.get('content-type')?.includes('json')) problem = await response.json() as ProblemDetails
+      if (response.status === 401) {
+        csrfToken = ''
+        unauthorizedListeners.forEach((listener) => listener())
+      }
+      throw new ApiError(response.status, problem)
+    }
+    setCsrfFrom(undefined, response)
+    if (response.status === 204) return
+    if (!response.body) throw new ApiError(500, { title: 'Invalid copy progress response', status: 500 })
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffered = ''
+    let done = false
+    const consume = (line: string) => {
+      if (!line.trim()) return
+      const event = JSON.parse(line) as CopyProgressEvent
+      if (event.error) throw new ApiError(event.error.status ?? 500, event.error)
+      if (Number.isFinite(event.copiedBytes) && event.copiedBytes >= 0) onProgress(event.copiedBytes)
+      if (event.done) done = true
+    }
+    for (;;) {
+      const chunk = await reader.read()
+      buffered += decoder.decode(chunk.value, { stream: !chunk.done })
+      let newline = buffered.indexOf('\n')
+      while (newline >= 0) {
+        consume(buffered.slice(0, newline))
+        buffered = buffered.slice(newline + 1)
+        newline = buffered.indexOf('\n')
+      }
+      if (chunk.done) break
+    }
+    consume(buffered)
+    if (!done) throw new ApiError(500, { title: 'Copy progress ended unexpectedly', status: 500 })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(408, { title: 'Request timed out', status: 408 })
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export const api = {
   session: {
     get: () => request<Session>(`${API_ROOT}/session`, { skipUnauthorizedEvent: true }),
@@ -226,6 +295,11 @@ export const api = {
       method: 'POST',
       body: { source, destination, overwrite },
     }),
+    copySize: (sources: string[]) => request<CopySizePlan>(`${API_ROOT}/files/copy-size`, {
+      method: 'POST',
+      body: { sources },
+    }),
+    copyWithProgress: (source: string, destination: string, overwrite: boolean, onProgress: (copiedBytes: number) => void) => copyWithProgress(source, destination, overwrite, onProgress),
     rawUrl: (path: string) => `${API_ROOT}/files/raw${query({ path })}`,
     previewUrl: (path: string, width = 1600, height = 1200) => `${API_ROOT}/files/preview${query({ path, width, height })}`,
     readText: (path: string) => request<string>(`${API_ROOT}/files/content${query({ path })}`, {

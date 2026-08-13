@@ -90,6 +90,11 @@ export interface DiskUsage {
   total: number
 }
 
+export interface CopySizePlan {
+  items: Array<{ source: string; bytes: number }>
+  totalBytes: number
+}
+
 export interface ProblemDetails {
   type?: string
   title?: string

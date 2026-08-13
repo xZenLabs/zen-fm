@@ -817,7 +817,11 @@ func (r *Root) moveAcrossDevicesLocked(ctx context.Context, src, dst string, sou
 	}
 	count := 0
 	var copiedBytes int64
-	if err := copyOneBetween(ctx, r, src, destinationScope, stage, &count, &copiedBytes, progress, true); err != nil {
+	var byteProgress func(int64)
+	if progress != nil {
+		byteProgress = func(int64) { progress() }
+	}
+	if err := copyOneBetween(ctx, r, src, destinationScope, stage, &count, &copiedBytes, byteProgress, true); err != nil {
 		_ = destinationParent.RemoveAll(stage)
 		return Entry{}, err
 	}
@@ -870,10 +874,71 @@ func (r *Root) Copy(ctx context.Context, source, destination string, overwrite b
 }
 
 func (r *Root) CopyWithProgress(ctx context.Context, source, destination string, overwrite bool, progress func()) (Entry, error) {
+	if progress == nil {
+		return r.copy(ctx, source, destination, overwrite, nil)
+	}
+	return r.copy(ctx, source, destination, overwrite, func(int64) { progress() })
+}
+
+func (r *Root) CopyWithByteProgress(ctx context.Context, source, destination string, overwrite bool, progress func(int64)) (Entry, error) {
 	return r.copy(ctx, source, destination, overwrite, progress)
 }
 
-func (r *Root) copy(ctx context.Context, source, destination string, overwrite bool, progress func()) (Entry, error) {
+func (r *Root) CopySize(ctx context.Context, source string) (int64, error) {
+	clean, err := r.clean(source)
+	if err != nil || clean == "." {
+		return 0, ErrInvalidPath
+	}
+	count := 0
+	var total int64
+	if err := r.copySize(ctx, clean, &count, &total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func (r *Root) copySize(ctx context.Context, source string, count *int, total *int64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	*count++
+	if *count > r.maxWalkEntries {
+		return ErrWalkLimit
+	}
+	if r.pseudoTarget(source) {
+		return ErrPseudoFile
+	}
+	info, err := r.lstat(source, false, false)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&fs.ModeSymlink != 0 || info.Mode()&fs.ModeType != 0 && !info.IsDir() {
+		return ErrNotRegular
+	}
+	if !info.IsDir() {
+		if info.Size() > r.maxWriteBytes-*total {
+			return ErrTooLarge
+		}
+		*total += info.Size()
+		return nil
+	}
+	listing, err := r.list(source, true, true)
+	if err != nil {
+		return err
+	}
+	for _, item := range listing.Entries {
+		child := path.Join(source, item.Name)
+		if item.Symlink || !item.Regular && !item.Directory || r.pseudoTarget(child) {
+			continue
+		}
+		if err := r.copySize(ctx, child, count, total); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Root) copy(ctx context.Context, source, destination string, overwrite bool, progress func(int64)) (Entry, error) {
 	src, err := r.clean(source)
 	if err != nil || src == "." {
 		return Entry{}, ErrInvalidPath
@@ -965,13 +1030,13 @@ func (r *Root) commitDirectoryLocked(parent *os.Root, temporary, destination str
 	return parent.Rename(temporary, destination)
 }
 
-func copyOneBetween(ctx context.Context, source *Root, src string, destination *Root, dst string, count *int, copiedBytes *int64, progress func(), strict bool) error {
+func copyOneBetween(ctx context.Context, source *Root, src string, destination *Root, dst string, count *int, copiedBytes *int64, progress func(int64), strict bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	*count++
 	if progress != nil {
-		progress()
+		progress(0)
 	}
 	if *count > source.maxWalkEntries {
 		return ErrWalkLimit
@@ -1080,7 +1145,7 @@ func chmodCreatedDirectory(parent *os.Root, name string, mode os.FileMode) error
 	return directory.Chmod(mode)
 }
 
-func copyStreamWithProgress(ctx context.Context, destination io.Writer, source io.Reader, progress func()) (int64, error) {
+func copyStreamWithProgress(ctx context.Context, destination io.Writer, source io.Reader, progress func(int64)) (int64, error) {
 	buffer := make([]byte, 128*1024)
 	var total int64
 	for {
@@ -1092,7 +1157,7 @@ func copyStreamWithProgress(ctx context.Context, destination io.Writer, source i
 			written, writeErr := destination.Write(buffer[:read])
 			total += int64(written)
 			if written > 0 && progress != nil {
-				progress()
+				progress(int64(written))
 			}
 			if writeErr != nil {
 				return total, writeErr

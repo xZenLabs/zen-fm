@@ -166,14 +166,17 @@ it('refuses to load oversized files into the text editor', () => {
 
 it('offers an explicit replacement after a copy destination conflict', async () => {
   const overwriteRequests: boolean[] = []
-  server.use(http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
-    const body = await request.json() as { overwrite: boolean }
-    overwriteRequests.push(body.overwrite)
-    if (!body.overwrite) {
-      return HttpResponse.json({ title: 'Conflict', status: 409, detail: 'destination already exists' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
-    }
-    return new HttpResponse(null, { status: 204 })
-  }))
+  server.use(
+    http.post('http://localhost/api/v1/files/copy-size', () => HttpResponse.json({ items: [{ source: '/Downloads/zenfm.koplugin', bytes: 10 }], totalBytes: 10 })),
+    http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+      const body = await request.json() as { overwrite: boolean }
+      overwriteRequests.push(body.overwrite)
+      if (!body.overwrite) {
+        return HttpResponse.json({ title: 'Conflict', status: 409, detail: 'destination already exists' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+      }
+      return new HttpResponse(null, { status: 204 })
+    }),
+  )
   const entry: FileEntry = { name: 'zenfm.koplugin', path: '/Downloads/zenfm.koplugin', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onClose = vi.fn()
@@ -192,4 +195,53 @@ it('offers an explicit replacement after a copy destination conflict', async () 
   await waitFor(() => expect(overwriteRequests).toEqual([false, true]))
   expect(onDone).toHaveBeenCalledOnce()
   expect(onClose).toHaveBeenCalledOnce()
+})
+
+it('shows aggregate copy progress and an ETA across multiple files', async () => {
+  const encoder = new TextEncoder()
+  let finishSecond: (() => void) | undefined
+  let now = 1_000
+  const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+  server.use(
+    http.post('http://localhost/api/v1/files/copy-size', () => HttpResponse.json({
+      items: [{ source: '/alpha.bin', bytes: 100 }, { source: '/bravo.bin', bytes: 100 }],
+      totalBytes: 200,
+    })),
+    http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+      const body = await request.json() as { source: string }
+      if (body.source === '/alpha.bin') {
+        return new HttpResponse('{"copiedBytes":100,"done":true}\n', { headers: { 'Content-Type': 'application/x-ndjson' } })
+      }
+      now = 2_000
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('{"copiedBytes":50}\n'))
+          finishSecond = () => {
+            controller.enqueue(encoder.encode('{"copiedBytes":100,"done":true}\n'))
+            controller.close()
+          }
+        },
+      })
+      return new HttpResponse(stream, { headers: { 'Content-Type': 'application/x-ndjson' } })
+    }),
+  )
+  const entries: FileEntry[] = [
+    { name: 'alpha.bin', path: '/alpha.bin', type: 'file', size: 100, modifiedAt: '2026-01-01T00:00:00Z' },
+    { name: 'bravo.bin', path: '/bravo.bin', type: 'file', size: 100, modifiedAt: '2026-01-01T00:00:00Z' },
+  ]
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const onClose = vi.fn()
+  const onDone = vi.fn()
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entries={entries} onClose={onClose} onDone={onDone} /></QueryClientProvider>)
+
+  await user.click(screen.getByRole('button', { name: 'Confirm' }))
+
+  expect(await screen.findByText('Copying 150 B of 200 B — 75%')).toBeInTheDocument()
+  expect(screen.getByText('About 1 second remaining')).toBeInTheDocument()
+  expect(screen.getByRole('progressbar', { name: 'Total copy progress' })).toHaveAttribute('aria-valuenow', '75')
+  finishSecond?.()
+  await waitFor(() => expect(onDone).toHaveBeenCalledOnce())
+  expect(onClose).toHaveBeenCalledOnce()
+  clock.mockRestore()
 })
