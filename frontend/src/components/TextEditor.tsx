@@ -6,6 +6,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { StreamLanguage } from '@codemirror/language'
+import { Prec } from '@codemirror/state'
 import { go } from '@codemirror/legacy-modes/mode/go'
 import { lua } from '@codemirror/legacy-modes/mode/lua'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
@@ -52,7 +53,12 @@ function languageForName(name: string) {
 export default function TextEditor({ name, value, onChange, readOnly = false }: { name: string; value: string; onChange?: (value: string) => void; readOnly?: boolean }) {
   const theme = useTheme()
   const language = useMemo(() => languageForName(name), [name])
-  const extensions = useMemo(() => language ? [...editorSecurity, language] : editorSecurity, [language])
+  const surface = theme.palette.background.paper
+  const surfaceTheme = useMemo(() => Prec.highest(EditorView.theme({
+    '&.cm-editor': { backgroundColor: surface },
+    '&.cm-editor .cm-gutters': { backgroundColor: surface },
+  })), [surface])
+  const extensions = useMemo(() => language ? [...editorSecurity, language, surfaceTheme] : [...editorSecurity, surfaceTheme], [language, surfaceTheme])
   return (
     <CodeMirror
       value={value}

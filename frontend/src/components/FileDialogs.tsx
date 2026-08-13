@@ -2,10 +2,10 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } 
 import DOMPurify from 'dompurify'
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress,
-  MenuItem, Stack, TextField, Typography,
+  MenuItem, Stack, TextField, Typography, useTheme,
 } from '@mui/material'
 import CloseRounded from '@mui/icons-material/CloseRounded'
-import EditRounded from '@mui/icons-material/EditRounded'
+import EditDocumentIcon from '@mui/icons-material/EditDocument'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -37,6 +37,9 @@ export function canEdit(entry: FileEntry) {
 
 export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry | null; onClose: () => void; onEdit?: () => void }) {
   const { t } = useTranslation()
+  const theme = useTheme()
+  const surface = theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.background.paper
+  const contentSurface = theme.palette.background.paper
   const ext = extension(entry?.name ?? '')
   const mime = entry?.mimeType ?? ''
   const needsText = Boolean(entry && (isTextEntry(entry) || ['html', 'htm', 'xhtml'].includes(ext)))
@@ -94,16 +97,19 @@ export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry
   }
 
   return (
-    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></DialogTitle>
-      <DialogContent dividers sx={{ minHeight: 240 }}>{preview}</DialogContent>
-      <DialogActions>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}{entry && onEdit && canEdit(entry) && <Button variant="contained" startIcon={<EditRounded />} onClick={onEdit}>{t('files.edit')}</Button>}</DialogActions>
+    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth slotProps={{ paper: { style: { backgroundColor: surface } } }}>
+      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></DialogTitle>
+      <DialogContent dividers style={{ backgroundColor: contentSurface }} sx={{ minHeight: 240 }}>{preview}</DialogContent>
+      <DialogActions style={{ backgroundColor: surface }}>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}{entry && onEdit && canEdit(entry) && <Button variant="contained" startIcon={<EditDocumentIcon />} onClick={onEdit}>{t('files.edit')}</Button>}</DialogActions>
     </Dialog>
   )
 }
 
 export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry | null; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
+  const theme = useTheme()
+  const surface = theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.background.paper
+  const contentSurface = theme.palette.background.paper
   const queryClient = useQueryClient()
   const [value, setValue] = useState('')
   const editable = Boolean(entry && canEdit(entry))
@@ -119,15 +125,15 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
   })
 
   return (
-    <Dialog open={Boolean(entry)} onClose={save.isPending ? undefined : onClose} fullScreen>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editing', { name: entry?.name })}</Box><IconButton aria-label={t('common.close')} onClick={onClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
-      <DialogContent dividers sx={{ p: 0, minHeight: 0, flex: 1 }}>
+    <Dialog open={Boolean(entry)} onClose={save.isPending ? undefined : onClose} fullScreen slotProps={{ paper: { style: { backgroundColor: surface } } }}>
+      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editing', { name: entry?.name })}</Box><IconButton aria-label={t('common.close')} onClick={onClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
+      <DialogContent dividers style={{ backgroundColor: contentSurface }} sx={{ p: 0, minHeight: 0, flex: 1 }}>
         {entry && !editable ? <Box p={2}><Typography color="text.secondary">{t('files.editorUnavailable')}</Typography></Box> : file.isPending ? <LoadingPane /> : file.error ? <Box p={2}><ErrorPane error={file.error} /></Box> : (
           <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={value} onChange={setValue} /></Suspense>
         )}
       </DialogContent>
       {save.error && <Box px={3} pt={1}><ErrorPane error={save.error} /></Box>}
-      <DialogActions>
+      <DialogActions style={{ backgroundColor: surface }}>
         <Button onClick={() => save.mutate()} variant="contained" disabled={!editable || save.isPending || file.isPending}>{t('files.save')}</Button>
       </DialogActions>
     </Dialog>
@@ -153,15 +159,17 @@ function isMoveDestinationAllowed(destination: string, entry: FileEntry) {
   return entry.type !== 'directory' || (destination !== entry.path && !destination.startsWith(`${entry.path}/`))
 }
 
-export function PathActionDialog({ action, entries, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; onClose: () => void; onDone: () => void }) {
+export function PathActionDialog({ action, entries, copyDestination, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; copyDestination?: string; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
   const completed = useRef(new Set<string>())
   const conflictPath = useRef<string | null>(null)
   const copyPlan = useRef<{ bytes: Map<string, number>; totalBytes: number } | null>(null)
+  const directCopyStarted = useRef(false)
   const [copyProgress, setCopyProgress] = useState<CopyProgressState | null>(null)
   const entry = entries[0] ?? null
   const multiple = entries.length > 1
+  const directCopy = action === 'copy' && copyDestination !== undefined
   const entriesKey = entries.map((item) => item.path).join('\n')
   const destinationFolders = useQuery({
     queryKey: ['move-destination-folders', destination],
@@ -195,7 +203,7 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
         if (completed.current.has(item.path)) continue
         const target = action === 'rename'
           ? `${parentPath(item.path)}/${destination}`.replaceAll('//', '/')
-          : action === 'move' || multiple ? joinPath(destination, item.name) : destination
+          : action === 'move' || multiple || directCopy ? joinPath(copyDestination ?? destination, item.name) : destination
         try {
           const replaceConflict = overwrite && conflictPath.current === item.path
           if (action === 'copy' && plan) {
@@ -231,9 +239,17 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
     completed.current.clear()
     conflictPath.current = null
     copyPlan.current = null
+    directCopyStarted.current = false
     setCopyProgress(null)
     resetMutation()
-  }, [action, entriesKey, resetMutation])
+  }, [action, copyDestination, entriesKey, resetMutation])
+
+  const startMutation = mutate.mutate
+  useEffect(() => {
+    if (!directCopy || !entry || directCopyStarted.current) return
+    directCopyStarted.current = true
+    startMutation(false)
+  }, [directCopy, entry, startMutation])
 
   const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate(false) }
   const conflict = isConflictError(mutate.error)
@@ -248,7 +264,7 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
-        <DialogTitle>{action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
+        <DialogTitle>{directCopy ? t('files.paste') : action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
         <DialogContent sx={{ pt: 2, overflow: 'visible' }}>
           {multiple && <Typography color="text.secondary" mb={2}>{t('files.itemsSelected', { count: entries.length })}</Typography>}
           {action === 'move' ? <Stack gap={1.5}>
@@ -258,14 +274,15 @@ export function PathActionDialog({ action, entries, onClose, onDone }: { action:
               <Button type="button" fullWidth color="inherit" startIcon={<ArrowBackRounded />} disabled={destination === '/'} onClick={() => { setDestination(parentPath(destination)); mutate.reset() }} sx={{ justifyContent: 'flex-start', borderRadius: 0 }}>..</Button>
               {destinationFolders.isPending ? <LoadingPane /> : destinationFolders.error ? <Box p={2}><ErrorPane error={destinationFolders.error} /></Box> : folders.length === 0 ? <Typography color="text.secondary" p={2}>{t('files.empty')}</Typography> : folders.map((folder) => <Button type="button" key={folder.path} fullWidth color="inherit" startIcon={<FolderRounded />} onClick={() => { setDestination(folder.path); mutate.reset() }} sx={{ justifyContent: 'flex-start', borderRadius: 0 }}>{folder.name}</Button>)}
             </Box>
-          </Stack> : <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />}
+          </Stack> : !directCopy && <TextField fullWidth autoFocus label={action === 'rename' ? t('files.name') : multiple ? t('files.destinationFolder') : t('files.destination')} value={destination} onChange={(event) => { setDestination(event.target.value); mutate.reset() }} error={Boolean(mutate.error)} helperText={mutate.error instanceof Error ? mutate.error.message : ''} />}
+          {directCopy && mutate.error && <Box mb={2}><ErrorPane error={mutate.error} /></Box>}
           {action === 'copy' && mutate.isPending && copyProgress && <Stack gap={0.5} mt={2}>
             <Typography variant="body2">{copyProgress.measuring ? t('files.calculatingCopy') : t('files.copyingProgress', { copied: formatBytes(copyProgress.copiedBytes), total: formatBytes(copyProgress.totalBytes), progress: percentage })}</Typography>
             <LinearProgress aria-label={t('files.copyProgress')} variant={copyProgress.measuring ? 'indeterminate' : 'determinate'} value={percentage} />
             {etaSeconds > 0 && <Typography variant="caption" color="text.secondary">{t('files.copyEta', { eta: formatDuration(etaSeconds) })}</Typography>}
           </Stack>}
         </DialogContent>
-        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : <Button type="submit" variant="contained" disabled={!destination || movingToCurrentFolder || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
+        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : !directCopy && <Button type="submit" variant="contained" disabled={!destination || movingToCurrentFolder || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>
     </Dialog>
   )

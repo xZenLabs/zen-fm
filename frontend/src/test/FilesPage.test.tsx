@@ -99,8 +99,13 @@ describe('file browser', () => {
     const menu = screen.getByRole('menu')
     expect(menu).toBeInTheDocument()
     expect(menu.parentElement).toHaveStyle({ top: '135px', left: '246px' })
-    expect(screen.getByRole('menuitem', { name: 'Open' })).toBeInTheDocument()
+    const openItem = screen.getByRole('menuitem', { name: 'Open' })
+    expect(openItem).toBeInTheDocument()
+    expect(getComputedStyle(openItem.querySelector('.MuiListItemIcon-root')!)).toHaveProperty('color', 'rgb(13, 148, 136)')
     expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument()
+    const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
+    expect(getComputedStyle(deleteItem)).toHaveProperty('color', 'rgb(211, 47, 47)')
+    expect(getComputedStyle(deleteItem.querySelector('svg')!)).toHaveProperty('color', 'rgb(211, 47, 47)')
     await user.keyboard('{Escape}')
 
     await user.dblClick(item)
@@ -204,12 +209,80 @@ describe('file browser', () => {
     })))
     renderApp('/files')
 
-    await screen.findByRole('row', { name: /notes\.txt/ })
+    const row = await screen.findByRole('row', { name: /notes\.txt/ })
     expect(fireEvent.contextMenu(document.body, { clientX: 246, clientY: 135 })).toBe(false)
 
     expect(screen.getByRole('menuitem', { name: 'New file' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'New folder' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Rename' })).not.toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    fireEvent.contextMenu(row, { clientX: 200, clientY: 100 })
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Open',
+      'Edit',
+      'Rename',
+      'Move',
+      'Copy',
+      'Download',
+      'Share',
+      'Checksum',
+      'Delete',
+    ])
+    expect(within(screen.getByRole('menuitem', { name: 'Edit' })).getByTestId('EditDocumentIcon')).toBeInTheDocument()
+    expect(within(screen.getByRole('menuitem', { name: 'Rename' })).getByTestId('EditRoundedIcon')).toBeInTheDocument()
+    expect(within(screen.getByRole('menuitem', { name: 'Share' })).getByTestId('ShareIcon')).toBeInTheDocument()
+  })
+
+  it('copies an item to the app clipboard and pastes it into a right-clicked directory', async () => {
+    const copies: Array<{ source: string; destination: string; overwrite: boolean }> = []
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const requestedPath = new URL(request.url).searchParams.get('path')
+        return HttpResponse.json(requestedPath === '/Archive'
+          ? { path: '/Archive', advancedMode: false, entries: [] }
+          : {
+              path: '/', advancedMode: false,
+              entries: [
+                { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' },
+                { name: 'Archive', path: '/Archive', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+              ],
+            })
+      }),
+      http.post('http://localhost/api/v1/files/copy-size', () => HttpResponse.json({ items: [{ source: '/notes.txt', bytes: 8 }], totalBytes: 8 })),
+      http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+        copies.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+        return new HttpResponse('{"copiedBytes":8,"done":true}\n', { headers: { 'Content-Type': 'application/x-ndjson' } })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const source = await screen.findByRole('row', { name: /notes\.txt/ })
+    const destination = screen.getByRole('row', { name: /Archive/ })
+    fireEvent.contextMenu(destination, { clientX: 200, clientY: 100 })
+    expect(screen.queryByRole('menuitem', { name: 'Paste' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    fireEvent.contextMenu(source, { clientX: 200, clientY: 100 })
+    await user.click(screen.getByRole('menuitem', { name: 'Copy' }))
+    expect(copies).toEqual([])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.contextMenu(destination, { clientX: 200, clientY: 100 })
+    expect(screen.getByRole('menuitem', { name: 'Paste' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.dblClick(destination)
+    const emptyFolder = await screen.findByText('Nothing here yet')
+    fireEvent.contextMenu(emptyFolder, { clientX: 200, clientY: 100 })
+    expect(screen.getByRole('menuitem', { name: 'New file' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'New folder' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Paste' }))
+
+    await waitFor(() => expect(copies).toEqual([{ source: '/notes.txt', destination: '/Archive/notes.txt', overwrite: false }]))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Paste' })).not.toBeInTheDocument())
   })
 
   it('opens folders on double click', async () => {

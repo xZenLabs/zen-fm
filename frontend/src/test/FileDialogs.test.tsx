@@ -119,7 +119,7 @@ it('shows opened text in a light read-only editor with line numbers and an Edit 
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onEdit = vi.fn()
-  render(<ThemeProvider theme={createTheme({ palette: { mode: 'light' } })}><QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} onEdit={onEdit} /></QueryClientProvider></ThemeProvider>)
+  render(<ThemeProvider theme={createTheme({ palette: { mode: 'light', background: { default: '#f5f5f1', paper: '#ffffff' } } })}><QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} onEdit={onEdit} /></QueryClientProvider></ThemeProvider>)
 
   const text = await screen.findByText('Readable text')
   const editor = text.closest('.cm-editor')
@@ -127,8 +127,14 @@ it('shows opened text in a light read-only editor with line numbers and an Edit 
   expect(editor?.closest('.cm-theme-light')).toBeInTheDocument()
   expect(scroller?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
   expect(scroller?.querySelector('.cm-content')).toHaveAttribute('contenteditable', 'false')
-  expect(screen.getByRole('dialog', { name: 'notes.txt' })).toHaveStyle({ backgroundColor: '#fff' })
-  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  const dialog = screen.getByRole('dialog', { name: 'notes.txt' })
+  expect(getComputedStyle(dialog).backgroundColor).toBe('rgb(255, 255, 255)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogTitle-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogContent-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogActions-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
+  const edit = screen.getByRole('button', { name: 'Edit' })
+  expect(within(edit).getByTestId('EditDocumentIcon')).toBeInTheDocument()
+  fireEvent.click(edit)
   expect(onEdit).toHaveBeenCalledOnce()
 })
 
@@ -144,12 +150,14 @@ it('shows JSON source in the viewer when the server labels it application/json',
 })
 
 it('uses a full-height dark CodeMirror theme in dark mode', () => {
-  const view = render(<ThemeProvider theme={createTheme({ palette: { mode: 'dark' } })}><TextEditor name="notes.txt" value="Readable text" onChange={() => undefined} /></ThemeProvider>)
+  const view = render(<ThemeProvider theme={createTheme({ palette: { mode: 'dark', background: { default: '#0d1117', paper: '#161b22' } } })}><TextEditor name="notes.txt" value="Readable text" onChange={() => undefined} /></ThemeProvider>)
 
   const editor = view.container.querySelector('.cm-theme-dark')
   expect(editor).toBeInTheDocument()
   expect(editor).toHaveStyle({ height: '100%' })
   expect(editor?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
+  expect(getComputedStyle(editor!.querySelector('.cm-editor')!).backgroundColor).toBe('rgb(22, 27, 34)')
+  expect(getComputedStyle(editor!.querySelector('.cm-gutters')!).backgroundColor).toBe('rgb(22, 27, 34)')
 })
 
 it('syntax-highlights Lua source by filename', () => {
@@ -171,11 +179,15 @@ it('loads editable text through the bounded exact-source endpoint', async () => 
   )
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider>)
+  render(<ThemeProvider theme={createTheme({ palette: { mode: 'dark', background: { default: '#0d1117', paper: '#161b22' } } })}><QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider></ThemeProvider>)
 
   await waitFor(() => expect(requestedContent).toBe(true))
   const dialog = screen.getByRole('dialog', { name: 'Editing notes.txt' })
   expect(dialog).toHaveClass('MuiDialog-paperFullScreen')
+  expect(getComputedStyle(dialog).backgroundColor).toBe('rgb(13, 17, 23)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogTitle-root')!).backgroundColor).toBe('rgb(13, 17, 23)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogContent-root')!).backgroundColor).toBe('rgb(22, 27, 34)')
+  expect(getComputedStyle(dialog.querySelector('.MuiDialogActions-root')!).backgroundColor).toBe('rgb(13, 17, 23)')
   expect(within(dialog).getByRole('button', { name: 'Close' }).closest('.MuiDialogTitle-root')).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
 })

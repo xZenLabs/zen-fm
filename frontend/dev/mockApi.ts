@@ -174,6 +174,14 @@ function copyTree(files: Map<string, MockFile>, source: string, destination: str
   }
 }
 
+function copyTreeSize(files: Map<string, MockFile>, source: string) {
+  if (!files.has(source)) throw new Error('Source does not exist.')
+  const sourcePrefix = `${source}/`
+  return [...files]
+    .filter(([path]) => path === source || path.startsWith(sourcePrefix))
+    .reduce((total, [, value]) => total + (value.type === 'file' ? value.content.byteLength : 0), 0)
+}
+
 function deleteTree(files: Map<string, MockFile>, path: string) {
   for (const candidate of [...files.keys()]) {
     if (candidate === path || candidate.startsWith(`${path}/`)) files.delete(candidate)
@@ -327,6 +335,16 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
           files.set(target, file(content, request.headers['content-type'] || mimeFor(target)))
           return sendEmpty(response, existed ? 204 : 201)
         }
+      }
+
+      if (path === '/api/v1/files/copy-size' && method === 'POST') {
+        const input = await readJSON<{ sources?: string[] }>(request)
+        const sources = input.sources ?? []
+        const items = sources.map((source) => {
+          const normalized = normalizePath(source)
+          return { source: normalized, bytes: copyTreeSize(files, normalized) }
+        })
+        return sendJSON(response, 200, { items, totalBytes: items.reduce((total, item) => total + item.bytes, 0) })
       }
 
       if ((path === '/api/v1/files/copy' || path === '/api/v1/files/move') && method === 'POST') {

@@ -14,6 +14,8 @@ local ZenFM = WidgetContainer:extend{
     is_doc_only = false,
 }
 
+local server_poll_seconds = 60
+
 local function notice(text, warning, persistent)
     local timeout = warning and 6 or 3
     if persistent then timeout = false end
@@ -27,10 +29,13 @@ end
 function ZenFM:init()
     self.daemon = Daemon:new()
     self.android_pending = nil
+    self.server_monitor = nil
+    self.suspended = false
     self.ui.menu:registerToMainMenu(self)
     self:onDispatcherRegisterActions()
     local healthy, health_err = Updater.finalize_pending(self.daemon)
     if not healthy then notice(tostring(health_err), true) end
+    if healthy then self:start_server_monitor() end
 end
 
 function ZenFM:android_cached_running()
@@ -40,40 +45,96 @@ function ZenFM:android_cached_running()
 end
 
 function ZenFM:schedule_android_poll(pending)
-    if self.android_pending ~= pending or pending.scheduled then return end
+    if self.suspended or self.android_pending ~= pending or pending.scheduled then return end
+    pending.callback = pending.callback or function() self:check_android_poll(pending) end
     pending.scheduled = true
-    UIManager:scheduleIn(0.1, function()
-        if self.android_pending ~= pending then return end
+    UIManager:scheduleIn(0.1, pending.callback)
+end
+
+function ZenFM:check_android_poll(pending)
+    if self.android_pending ~= pending then return end
+    pending.scheduled = false
+    local checked, done, success, detail = pcall(
+        self.daemon.check_android_result, self.daemon, pending.action, pending.request_id)
+    if not checked then
+        done, success, detail = true, false, "Could not read the Android companion result"
+    end
+    if done then
+        self.android_pending = nil
+        pending.complete(success, detail)
+        return
+    end
+    pending.attempts = pending.attempts - 1
+    if pending.attempts <= 0 then
+        self.android_pending = nil
+        pending.complete(false,
+            "Android companion did not report a fresh " .. pending.action .. " result within 30 seconds")
+        return
+    end
+    self:schedule_android_poll(pending)
+end
+
+function ZenFM:onSuspend()
+    self.suspended = true
+    local pending = self.android_pending
+    if pending and pending.scheduled then
+        UIManager:unschedule(pending.callback)
         pending.scheduled = false
-        local checked, done, success, detail = pcall(
-            self.daemon.check_android_result, self.daemon, pending.action, pending.request_id)
-        if not checked then
-            done, success, detail = true, false, "Could not read the Android companion result"
-        end
-        if done then
-            self.android_pending = nil
-            pending.complete(success, detail)
-            return
-        end
-        pending.attempts = pending.attempts - 1
-        if pending.attempts <= 0 then
-            self.android_pending = nil
-            pending.complete(false,
-                "Android companion did not report a fresh " .. pending.action .. " result within 30 seconds")
-            return
-        end
-        self:schedule_android_poll(pending)
-    end)
+    end
+    local monitor = self.server_monitor
+    if monitor and monitor.scheduled then
+        UIManager:unschedule(monitor.callback)
+        monitor.scheduled = false
+    end
 end
 
 function ZenFM:onResume()
+    self.suspended = false
     if self.android_pending then self:schedule_android_poll(self.android_pending) end
+    local monitor = self.server_monitor
+    if monitor then
+        if monitor.scheduled then
+            UIManager:unschedule(monitor.callback)
+            monitor.scheduled = false
+        end
+        self:check_server_monitor(monitor)
+    end
 end
 
 function ZenFM:onExit()
     self.android_pending = nil
     self.android_running = false
+    self.server_monitor = nil
     self.daemon:stop()
+end
+
+function ZenFM:schedule_server_monitor(monitor)
+    if self.suspended or self.server_monitor ~= monitor or monitor.scheduled then return end
+    monitor.scheduled = true
+    UIManager:scheduleIn(server_poll_seconds, monitor.callback)
+end
+
+function ZenFM:check_server_monitor(monitor)
+    if self.server_monitor ~= monitor then return end
+    monitor.scheduled = false
+    local running = self.daemon:status()
+    if running then
+        self:schedule_server_monitor(monitor)
+        return
+    end
+    self.server_monitor = nil
+    self.android_running = false
+    notice(_("ZenFM stopped."))
+end
+
+function ZenFM:start_server_monitor(running)
+    self.server_monitor = nil
+    if running == nil then running = self.daemon:status() end
+    if not running then return end
+    local monitor = {}
+    monitor.callback = function() self:check_server_monitor(monitor) end
+    self.server_monitor = monitor
+    self:schedule_server_monitor(monitor)
 end
 
 function ZenFM:begin_android_action(action, complete)
@@ -114,27 +175,35 @@ function ZenFM:onToggleZenFM()
     if self.daemon:is_android() then
         local running = self:android_cached_running()
         local action = running and "stop" or "start"
-        return self:begin_android_action(action, function(ok, detail)
+        if running then self.server_monitor = nil end
+        local started = self:begin_android_action(action, function(ok, detail)
             if not ok then
+                if action == "stop" then self:start_server_monitor(true) end
                 notice(tostring(detail), true)
                 return
             end
             if action == "stop" then
                 self.android_running = false
+                self.server_monitor = nil
                 notice(_("ZenFM stopped."))
                 return
             end
             self.android_running = true
+            self:start_server_monitor(true)
             self:show_status(self.daemon:status_details_from_raw(detail))
         end)
+        if not started and running then self:start_server_monitor(true) end
+        return started
     end
     local running = self.daemon:status()
     local ok, detail
     if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
     if ok and not running then
+        self:start_server_monitor(true)
         self:onShowZenFMStatus()
     else
+        if ok and running then self.server_monitor = nil end
         notice(ok and success or tostring(detail), not ok)
     end
     return ok

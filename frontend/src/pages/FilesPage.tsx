@@ -17,11 +17,13 @@ import ViewListRounded from '@mui/icons-material/ViewListRounded'
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded'
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded'
 import EditRounded from '@mui/icons-material/EditRounded'
+import EditDocumentIcon from '@mui/icons-material/EditDocument'
 import DriveFileMoveRounded from '@mui/icons-material/DriveFileMoveRounded'
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded'
+import ContentPasteRounded from '@mui/icons-material/ContentPasteRounded'
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import DownloadRounded from '@mui/icons-material/DownloadRounded'
-import LinkRounded from '@mui/icons-material/LinkRounded'
+import ShareIcon from '@mui/icons-material/Share'
 import FingerprintRounded from '@mui/icons-material/FingerprintRounded'
 import RefreshRounded from '@mui/icons-material/RefreshRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
@@ -37,7 +39,7 @@ import { PageHeader } from '../components/PageHeader'
 
 type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
-type PathActionRequest = { action: PathAction; entries: FileEntry[] }
+type PathActionRequest = { action: PathAction; entries: FileEntry[]; copyDestination?: string }
 type ConflictChoice = 'replace-all' | 'skip-all' | 'cancel'
 type ConflictPolicy = 'ask' | 'replace' | 'skip'
 type DroppedMove = { entry: FileEntry; destination: string }
@@ -144,6 +146,11 @@ function iconFor(entry: FileEntry) {
   return <DeviceUnknownRounded color="disabled" />
 }
 
+function canPasteInto(destination: string, entry: FileEntry) {
+  const target = joinPath(destination, entry.name)
+  return target !== entry.path && (entry.type !== 'directory' || !target.startsWith(`${entry.path}/`))
+}
+
 export function FilesPage() {
   const { t } = useTranslation()
   const params = useParams()
@@ -163,6 +170,7 @@ export function FilesPage() {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const [selected, setSelected] = useState<FileEntry | null>(null)
+  const [clipboard, setClipboard] = useState<FileEntry[]>([])
   const [preview, setPreview] = useState<FileEntry | null>(null)
   const [editor, setEditor] = useState<FileEntry | null>(null)
   const [pathAction, setPathAction] = useState<PathActionRequest | null>(null)
@@ -325,6 +333,17 @@ export function FilesPage() {
   const beginAction = (action: PathAction, targets = menuEntries) => {
     if (targets.length === 0) return
     setPathAction({ action, entries: [...targets] })
+    closeMenu()
+  }
+  const copyToClipboard = (targets = menuEntries) => {
+    if (targets.length === 0) return
+    setClipboard([...targets])
+    setNotice(t('common.copied'))
+    closeMenu()
+  }
+  const pasteClipboard = (destination: string) => {
+    if (clipboard.length === 0) return
+    setPathAction({ action: 'copy', entries: [...clipboard], copyDestination: destination })
     closeMenu()
   }
   const beginDelete = (targets = menuEntries) => {
@@ -756,15 +775,17 @@ export function FilesPage() {
       <Menu anchorEl={menuAnchor} anchorReference={menuPosition ? 'anchorPosition' : 'anchorEl'} anchorPosition={menuPosition ?? undefined} open={Boolean(menuAnchor || menuPosition)} onClose={closeMenu}>
         {!selected && <MenuItem onClick={() => { setNewFileOpen(true); closeMenu() }}><ListItemIcon><NoteAddRounded /></ListItemIcon><ListItemText>{t('files.newFile')}</ListItemText></MenuItem>}
         {!selected && <MenuItem onClick={() => { setNewFolderOpen(true); closeMenu() }}><ListItemIcon><CreateNewFolderRounded /></ListItemIcon><ListItemText>{t('files.newFolder')}</ListItemText></MenuItem>}
+        {!selected && clipboard.length > 0 && <MenuItem disabled={!clipboard.every((entry) => canPasteInto(path, entry))} onClick={() => pasteClipboard(path)}><ListItemIcon><ContentPasteRounded /></ListItemIcon><ListItemText>{t('files.paste')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && selected?.type === 'file' && <MenuItem onClick={() => { setPreview(selected); closeMenu() }}><ListItemIcon><OpenInNewRounded /></ListItemIcon><ListItemText>{t('files.preview')}</ListItemText></MenuItem>}
-        {menuEntries.length === 1 && selected && canEdit(selected) && <MenuItem onClick={() => { setEditor(selected); closeMenu() }}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.edit')}</ListItemText></MenuItem>}
-        {menuEntries.length > 0 && <MenuItem onClick={() => { const targets = [...menuEntries]; closeMenu(); downloadEntries(targets) }}><ListItemIcon><DownloadRounded /></ListItemIcon><ListItemText>{menuActionLabel('download')}</ListItemText></MenuItem>}
+        {menuEntries.length === 1 && selected && canEdit(selected) && <MenuItem onClick={() => { setEditor(selected); closeMenu() }}><ListItemIcon><EditDocumentIcon /></ListItemIcon><ListItemText>{t('files.edit')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && <MenuItem onClick={() => beginAction('rename')}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.rename')}</ListItemText></MenuItem>}
         {menuEntries.length > 0 && <MenuItem onClick={() => beginAction('move')}><ListItemIcon><DriveFileMoveRounded /></ListItemIcon><ListItemText>{menuActionLabel('move')}</ListItemText></MenuItem>}
-        {menuEntries.length > 0 && <MenuItem onClick={() => beginAction('copy')}><ListItemIcon><ContentCopyRounded /></ListItemIcon><ListItemText>{menuActionLabel('copy')}</ListItemText></MenuItem>}
-        {menuEntries.length === 1 && selected && <MenuItem onClick={() => { setSharing(selected); closeMenu() }}><ListItemIcon><LinkRounded /></ListItemIcon><ListItemText>{t('files.share')}</ListItemText></MenuItem>}
+        {menuEntries.length > 0 && <MenuItem onClick={() => copyToClipboard()}><ListItemIcon><ContentCopyRounded /></ListItemIcon><ListItemText>{menuActionLabel('copy')}</ListItemText></MenuItem>}
+        {menuEntries.length > 0 && <MenuItem onClick={() => { const targets = [...menuEntries]; closeMenu(); downloadEntries(targets) }}><ListItemIcon><DownloadRounded /></ListItemIcon><ListItemText>{menuActionLabel('download')}</ListItemText></MenuItem>}
+        {menuEntries.length === 1 && selected && <MenuItem onClick={() => { setSharing(selected); closeMenu() }}><ListItemIcon><ShareIcon /></ListItemIcon><ListItemText>{t('files.share')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && selected?.type === 'file' && <MenuItem onClick={() => { void api.files.checksum(selected.path).then((result) => setNotice(`${result.algorithm}: ${result.value}`)).catch((error: unknown) => setNotice(error instanceof Error ? error.message : t('common.error'))); closeMenu() }}><ListItemIcon><FingerprintRounded /></ListItemIcon><ListItemText>{t('files.checksum')}</ListItemText></MenuItem>}
-        {menuEntries.length > 0 && <MenuItem onClick={() => beginDelete()} sx={{ color: 'error.main' }}><ListItemIcon><DeleteOutlineRounded color="error" /></ListItemIcon><ListItemText>{menuActionLabel('delete')}</ListItemText></MenuItem>}
+        {clipboard.length > 0 && selected?.type === 'directory' && <MenuItem disabled={!clipboard.every((entry) => canPasteInto(selected.path, entry))} onClick={() => pasteClipboard(selected.path)}><ListItemIcon><ContentPasteRounded /></ListItemIcon><ListItemText>{t('files.paste')}</ListItemText></MenuItem>}
+        {menuEntries.length > 0 && <MenuItem sx={{ color: 'error.main' }} onClick={() => beginDelete()}><ListItemIcon><DeleteOutlineRounded color="error" /></ListItemIcon><ListItemText>{menuActionLabel('delete')}</ListItemText></MenuItem>}
       </Menu>
 
       <Dialog open={newFileOpen} onClose={() => setNewFileOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFile')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.fileName')} value={fileName} onChange={(event) => setFileName(event.target.value)} error={Boolean(createFile.error)} helperText={createFile.error instanceof Error ? createFile.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFileOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!fileName || fileName.includes('/') || createFile.isPending} onClick={() => createFile.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
@@ -774,7 +795,7 @@ export function FilesPage() {
       <Dialog open={Boolean(conflict)} onClose={() => resolveConflict('cancel')} maxWidth="xs"><DialogTitle>{t('files.conflictTitle')}</DialogTitle><DialogContent><Typography>{t('files.conflictBody', { name: conflict?.name })}</Typography></DialogContent><DialogActions><Button onClick={() => resolveConflict('cancel')}>{t('common.cancel')}</Button><Button onClick={() => resolveConflict('skip-all')}>{t('files.skipAll')}</Button><Button color="warning" variant="contained" onClick={() => resolveConflict('replace-all')}>{t('files.replaceAll')}</Button></DialogActions></Dialog>
       <FilePreviewDialog entry={preview} onClose={() => setPreview(null)} onEdit={() => { setEditor(preview); setPreview(null) }} />
       <FileEditorDialog entry={editor} onClose={() => setEditor(null)} onSaved={refresh} />
-      <PathActionDialog action={pathAction?.action ?? null} entries={pathAction?.entries ?? []} onClose={() => setPathAction(null)} onDone={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null; refresh() }} />
+      <PathActionDialog action={pathAction?.action ?? null} entries={pathAction?.entries ?? []} copyDestination={pathAction?.copyDestination} onClose={() => setPathAction(null)} onDone={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null; refresh() }} />
       <CreateShareDialog entry={sharing} onClose={() => setSharing(null)} onCreated={(url) => { if (url) void navigator.clipboard.writeText(publicShareUrl(url)); setNotice(url ? t('common.copied') : t('shares.create')) }} />
       <Snackbar open={Boolean(notice)} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} />
     </Box>

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Alert, AppBar, Box, Button, Container, IconButton, Stack, Toolbar, Tooltip, useMediaQuery, useTheme } from '@mui/material'
 import FolderRounded from '@mui/icons-material/FolderRounded'
-import LinkRounded from '@mui/icons-material/LinkRounded'
+import ShareIcon from '@mui/icons-material/Share'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
 import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
@@ -16,7 +16,7 @@ import { ZenMark } from './ZenMark'
 
 const nav = [
   { to: '/files', label: 'nav.files', icon: <FolderRounded fontSize="small" /> },
-  { to: '/shares', label: 'nav.shares', icon: <LinkRounded fontSize="small" /> },
+  { to: '/shares', label: 'nav.shares', icon: <ShareIcon fontSize="small" /> },
   { to: '/settings', label: 'nav.settings', icon: <SettingsRounded fontSize="small" /> },
 ] as const
 
@@ -64,7 +64,7 @@ export function AppShell() {
               <Tooltip title={t(dark ? 'nav.useLightMode' : 'nav.useDarkMode')}>
                 <span>
                   <IconButton color="inherit" aria-label={t(dark ? 'nav.useLightMode' : 'nav.useDarkMode')} disabled={!settings.data || themePreference.isPending} onClick={toggleTheme}>
-                    {dark ? <LightModeRounded /> : <DarkModeRounded />}
+                    {dark ? <LightModeRounded /> : <DarkModeRounded sx={{ color: 'text.secondary' }} />}
                   </IconButton>
                 </span>
               </Tooltip>

@@ -39,7 +39,7 @@ const english = {
     search: 'Search this folder', upload: 'Upload', newFile: 'New file', newFolder: 'New folder', empty: 'Nothing here yet',
     emptyHint: 'Upload a file or create one.', name: 'Name', fileName: 'File name', size: 'Size', modified: 'Date modified',
     grid: 'Grid view', list: 'List view', hidden: 'Show hidden files', refresh: 'Refresh',
-    preview: 'Open', edit: 'Edit', rename: 'Rename', move: 'Move', copy: 'Copy', delete: 'Delete', download: 'Download',
+    preview: 'Open', edit: 'Edit', rename: 'Rename', move: 'Move', copy: 'Copy', paste: 'Paste', delete: 'Delete', download: 'Download',
     share: 'Share', checksum: 'Checksum', folderName: 'Folder name', destination: 'Destination path', destinationFolder: 'Destination folder',
     save: 'Save changes', editor: 'Text editor', editing: 'Editing {{name}}', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
     uploading: 'Uploading {{name}} — {{progress}}%', uploadingBatch: 'Uploading · {{completed}} of {{count}} files complete · {{name}}', uploadingProgress: '{{uploaded}} of {{total}} — {{progress}}%', uploadProgress: 'Total upload progress', uploadEta: 'About {{eta}} remaining', searchResults: 'Search results', clearSearch: 'Clear search',

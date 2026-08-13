@@ -3,7 +3,7 @@ import {
   Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, MenuItem, Snackbar, Stack, TextField, Tooltip, Typography,
 } from '@mui/material'
-import AddLinkRounded from '@mui/icons-material/AddLinkRounded'
+import ShareIcon from '@mui/icons-material/Share'
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded'
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import LockRounded from '@mui/icons-material/LockRounded'
@@ -48,11 +48,11 @@ export function SharesPage() {
 
   return (
     <Stack gap={2.5}>
-      <PageHeader title={t('shares.title')} actions={<Button variant="contained" startIcon={<AddLinkRounded />} onClick={() => setOpen(true)}>{t('shares.create')}</Button>}>
+      <PageHeader title={t('shares.title')} actions={<Button variant="contained" startIcon={<ShareIcon />} onClick={() => setOpen(true)}>{t('shares.create')}</Button>}>
         <Typography color="text.secondary">{t('shares.intro')}</Typography>
       </PageHeader>
         {shares.isPending ? <LoadingPane /> : shares.error ? <ErrorPane error={shares.error} retry={() => void shares.refetch()} /> : shares.data.length === 0 ? (
-          <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: 8 }}><AddLinkRounded sx={{ fontSize: 44, color: 'text.disabled' }} /><Typography variant="h2" mt={1}>{t('shares.empty')}</Typography></CardContent></Card>
+          <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: 8 }}><ShareIcon sx={{ fontSize: 44, color: 'text.disabled' }} /><Typography variant="h2" mt={1}>{t('shares.empty')}</Typography></CardContent></Card>
         ) : (
           <Stack gap={1.25}>{shares.data.map((share) => (
             <Card key={share.id} variant="outlined"><CardContent><Stack direction={{ xs: 'column', sm: 'row' }} gap={2} alignItems={{ sm: 'center' }}>

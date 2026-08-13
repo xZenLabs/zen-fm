@@ -1124,6 +1124,11 @@ test("Android toggle polls incrementally only after KOReader resumes", function(
     package.loaded["ui/uimanager"] = {
         show = function(_, message) shown = message end,
         scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+        unschedule = function(_, callback)
+            for index = #scheduled, 1, -1 do
+                if scheduled[index] == callback then table.remove(scheduled, index) end
+            end
+        end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
@@ -1168,10 +1173,125 @@ test("Android toggle polls incrementally only after KOReader resumes", function(
     equal(checks, 1)
     equal(#scheduled, 1)
     assert(shown == nil)
+
+    owner:onSuspend()
+    equal(#scheduled, 0)
+    owner:onResume()
+    equal(#scheduled, 1)
     table.remove(scheduled, 1)()
     equal(checks, 2)
-    equal(#scheduled, 0)
+    equal(#scheduled, 1)
     equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("KOReader notices when a running server stops", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, scheduled, shown = {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) shown = message end,
+        scheduleIn = function(_, delay, callback)
+            table.insert(scheduled, { delay = delay, callback = callback })
+        end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local statuses = { true, true, false }
+    local status_index = 0
+    local owner = setmetatable({
+        daemon = {
+            status = function()
+                status_index = status_index + 1
+                return statuses[status_index]
+            end,
+        },
+    }, { __index = ZenFM })
+
+    owner:start_server_monitor()
+    equal(scheduled[1].delay, 60)
+    table.remove(scheduled, 1).callback()
+    equal(scheduled[1].delay, 60)
+    assert(shown == nil)
+    table.remove(scheduled, 1).callback()
+    equal(shown.text, "ZenFM stopped.")
+    assert(owner.server_monitor == nil)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("server monitoring pauses in standby and checks immediately on resume", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, scheduled, shown = {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) shown = message end,
+        scheduleIn = function(_, delay, callback)
+            table.insert(scheduled, { delay = delay, callback = callback })
+        end,
+        unschedule = function(_, callback)
+            for index = #scheduled, 1, -1 do
+                if scheduled[index].callback == callback then table.remove(scheduled, index) end
+            end
+        end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local statuses = { true, true, false }
+    local status_index = 0
+    local owner = setmetatable({
+        suspended = false,
+        daemon = {
+            status = function()
+                status_index = status_index + 1
+                return statuses[status_index]
+            end,
+        },
+    }, { __index = ZenFM })
+
+    owner:start_server_monitor()
+    equal(status_index, 1)
+    equal(#scheduled, 1)
+
+    owner:onSuspend()
+    equal(status_index, 1)
+    equal(#scheduled, 0)
+
+    owner:onResume()
+    equal(status_index, 2)
+    equal(#scheduled, 1)
+    assert(shown == nil)
+
+    owner:onSuspend()
+    equal(#scheduled, 0)
+    owner:onResume()
+    equal(status_index, 3)
+    equal(#scheduled, 0)
+    equal(shown.text, "ZenFM stopped.")
+    assert(owner.server_monitor == nil)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
