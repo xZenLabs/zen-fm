@@ -27,9 +27,10 @@ local function default_state_dir()
     return plugin_dir() .. "/data"
 end
 
-local function copy_defaults()
+local function copy_defaults(default_auto_stop_minutes)
     local result = {}
     for key, value in pairs(defaults) do result[key] = value end
+    if default_auto_stop_minutes == 30 then result.auto_stop_minutes = 30 end
     return result
 end
 
@@ -41,8 +42,8 @@ local function safe_custom_root(value)
     return true
 end
 
-local function sanitize(value)
-    local result = copy_defaults()
+local function sanitize(value, default_auto_stop_minutes)
+    local result = copy_defaults(default_auto_stop_minutes)
     if type(value) ~= "table" then return result end
     local port = tonumber(value.port)
     if port and port >= 1 and port <= 65535 and port % 1 == 0 then result.port = port end
@@ -51,7 +52,9 @@ local function sanitize(value)
     if safe_custom_root(value.custom_root) then
         result.custom_root = value.custom_root
     end
-    result.auto_stop_minutes = tonumber(value.auto_stop_minutes) == 30 and 30 or 0
+    if value.auto_stop_minutes ~= nil then
+        result.auto_stop_minutes = tonumber(value.auto_stop_minutes) == 30 and 30 or 0
+    end
     if type(value.tls_cert) == "string" and (value.tls_cert == "" or value.tls_cert:sub(1, 1) == "/") then
         result.tls_cert = value.tls_cert
     end
@@ -73,8 +76,11 @@ local function serialize(value)
     return table.concat(lines, "\n") .. "\n"
 end
 
-function Settings:new(state_dir)
-    local object = setmetatable({ state_dir = state_dir or default_state_dir() }, self)
+function Settings:new(state_dir, default_auto_stop_minutes)
+    local object = setmetatable({
+        state_dir = state_dir or default_state_dir(),
+        default_auto_stop_minutes = default_auto_stop_minutes,
+    }, self)
     object.path = object.state_dir .. "/settings.lua"
     object.values = object:load()
     return object
@@ -82,14 +88,14 @@ end
 
 function Settings:load()
     local chunk = loadfile(self.path)
-    if not chunk then return copy_defaults() end
+    if not chunk then return copy_defaults(self.default_auto_stop_minutes) end
     local ok, value = pcall(chunk)
-    return sanitize(ok and value or nil)
+    return sanitize(ok and value or nil, self.default_auto_stop_minutes)
 end
 
 function Settings:save()
     if not Util.ensure_dir(self.state_dir) then return false end
-    self.values = sanitize(self.values)
+    self.values = sanitize(self.values, self.default_auto_stop_minutes)
     return Util.write_atomic(self.path, serialize(self.values), "600")
 end
 

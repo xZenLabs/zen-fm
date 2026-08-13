@@ -43,7 +43,7 @@ exposes credentials and files to the local network.
 | Ordinary browser request | 30 seconds; the owner may set `0` to disable the client timer |
 | Search request | 2 minutes |
 | Upload and download | No total limit; 30 seconds without progress |
-| Server auto-stop | Off; KOReader offers a 30-minute preset |
+| Server auto-stop | 30 minutes on Android; off elsewhere with a 30-minute preset |
 | HTTPS / explicit HTTP ports | 8443 / 8080 |
 
 The `serve` command exposes `--session-idle` and `--session-absolute` for

@@ -58,7 +58,8 @@ function Daemon:new(options)
         return AndroidIntent.open(object.android, uri)
     end
     object.state_dir = options.state_dir or object:default_state_dir()
-    object.settings = options.settings or Settings:new(object.state_dir)
+    object.settings = options.settings
+        or Settings:new(object.state_dir, object:platform() == "android" and 30 or 0)
     return object
 end
 

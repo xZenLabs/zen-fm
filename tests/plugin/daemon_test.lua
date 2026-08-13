@@ -136,6 +136,32 @@ end
 
 local defaults = Settings.defaults()
 
+test("Android defaults auto-stop to 30 minutes and preserves an explicit off setting", function()
+    local state = os.tmpname() .. ".android-defaults"
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
+        path_exists = function() return false end,
+    }
+    equal(daemon.settings.values.auto_stop_minutes, 30)
+    assert(daemon.settings:set("auto_stop_minutes", 0))
+
+    local reloaded = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
+        path_exists = function() return false end,
+    }
+    equal(reloaded.settings.values.auto_stop_minutes, 0)
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("non-Android platforms keep auto-stop disabled by default", function()
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = os.tmpname() .. ".host-defaults", platform = "host",
+        path_exists = function() return false end,
+    }
+    equal(daemon.settings.values.auto_stop_minutes, 0)
+end)
+
 test("hard-float Kindle backend", function()
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
