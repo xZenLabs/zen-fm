@@ -16,6 +16,7 @@ import { ErrorPane, LoadingPane } from './Feedback'
 import { renderMarkdown } from '../markdown'
 import { parseCsv } from '../csv'
 import { formatBytes, formatDuration, joinPath } from '../utils'
+import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 const TextEditor = lazy(() => import('./TextEditor'))
 
@@ -67,6 +68,7 @@ export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry
   const raw = entry ? api.files.rawUrl(entry.path) : ''
   const previewUrl = entry ? api.files.previewUrl(entry.path) : ''
   const csv = useMemo(() => ext === 'csv' && text.data ? parseCsv(text.data) : null, [ext, text.data])
+  useCloseOnHistoryNavigation(Boolean(entry), onClose)
 
   let preview = <Typography color="text.secondary">{t('files.noPreview')}</Typography>
   if (['tif', 'tiff'].includes(ext)) {
@@ -112,21 +114,38 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
   const contentSurface = theme.palette.background.paper
   const queryClient = useQueryClient()
   const [value, setValue] = useState('')
+  const [confirmClose, setConfirmClose] = useState(false)
   const editable = Boolean(entry && canEdit(entry))
   const file = useQuery({ queryKey: ['file-edit', entry?.path], queryFn: () => api.files.readText(entry!.path), enabled: editable })
-  useEffect(() => { if (file.data !== undefined) setValue(file.data) }, [file.data])
+  useEffect(() => { if (entry && file.data !== undefined) setValue(file.data) }, [entry, file.data])
   const save = useMutation({
     mutationFn: () => api.files.saveText(entry!.path, value),
     onSuccess: () => {
       queryClient.setQueryData(['file-text', entry?.path], value)
+      queryClient.setQueryData(['file-edit', entry?.path], value)
       void queryClient.invalidateQueries({ queryKey: ['file-preview-blob', entry?.path] })
+      setConfirmClose(false)
       onSaved(); onClose()
     },
   })
+  const dirty = editable && file.data !== undefined && value !== file.data
+  const requestClose = () => {
+    if (save.isPending) return
+    if (dirty) setConfirmClose(true)
+    else onClose()
+  }
+  const discardAndClose = () => {
+    setValue(file.data ?? '')
+    setConfirmClose(false)
+    onClose()
+  }
+  useCloseOnHistoryNavigation(Boolean(entry), requestClose)
+  useCloseOnHistoryNavigation(confirmClose, () => setConfirmClose(false))
 
   return (
-    <Dialog open={Boolean(entry)} onClose={save.isPending ? undefined : onClose} fullScreen slotProps={{ paper: { style: { backgroundColor: surface } } }}>
-      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editing', { name: entry?.name })}</Box><IconButton aria-label={t('common.close')} onClick={onClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
+    <>
+    <Dialog open={Boolean(entry)} onClose={save.isPending ? undefined : requestClose} fullScreen slotProps={{ paper: { style: { backgroundColor: surface } } }}>
+      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{t('files.editing', { name: entry?.name })}</Box><IconButton aria-label={t('common.close')} onClick={requestClose} disabled={save.isPending}><CloseRounded /></IconButton></DialogTitle>
       <DialogContent dividers style={{ backgroundColor: contentSurface }} sx={{ p: 0, minHeight: 0, flex: 1 }}>
         {entry && !editable ? <Box p={2}><Typography color="text.secondary">{t('files.editorUnavailable')}</Typography></Box> : file.isPending ? <LoadingPane /> : file.error ? <Box p={2}><ErrorPane error={file.error} /></Box> : (
           <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={value} onChange={setValue} /></Suspense>
@@ -137,6 +156,12 @@ export function FileEditorDialog({ entry, onClose, onSaved }: { entry: FileEntry
         <Button onClick={() => save.mutate()} variant="contained" disabled={!editable || save.isPending || file.isPending}>{t('files.save')}</Button>
       </DialogActions>
     </Dialog>
+    <Dialog open={confirmClose} onClose={() => setConfirmClose(false)} maxWidth="xs" fullWidth>
+      <DialogTitle>{t('files.unsavedTitle')}</DialogTitle>
+      <DialogContent><Typography color="text.secondary">{t('files.unsavedBody')}</Typography>{save.error && <Box mt={2}><ErrorPane error={save.error} /></Box>}</DialogContent>
+      <DialogActions><Button onClick={() => setConfirmClose(false)}>{t('files.keepEditing')}</Button><Button color="warning" onClick={discardAndClose}>{t('files.discardChanges')}</Button><Button variant="contained" disabled={save.isPending} onClick={() => save.mutate()}>{t('files.saveAndClose')}</Button></DialogActions>
+    </Dialog>
+    </>
   )
 }
 
@@ -261,6 +286,7 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
     : 0
   const folders = destinationFolders.data?.entries.filter((item) => item.type === 'directory' && entries.every((source) => isMoveDestinationAllowed(item.path, source))) ?? []
   const movingToCurrentFolder = action === 'move' && entries.every((item) => parentPath(item.path) === destination)
+  useCloseOnHistoryNavigation(Boolean(action && entry), onClose)
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
@@ -297,6 +323,7 @@ export function CreateShareDialog({ entry, onClose, onCreated }: { entry: FileEn
     mutationFn: () => api.shares.create({ path: entry!.path, name: name || undefined, password: password || undefined, expiresInSeconds } satisfies CreateShareInput),
     onSuccess: (share) => { onCreated(share.url); onClose() },
   })
+  useCloseOnHistoryNavigation(Boolean(entry), onClose)
   return (
     <Dialog open={Boolean(entry)} onClose={create.isPending ? undefined : onClose} maxWidth="xs">
       <DialogTitle>{t('shares.create')}</DialogTitle>

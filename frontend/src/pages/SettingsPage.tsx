@@ -16,6 +16,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { formatDate } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
+import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation()
@@ -31,6 +32,7 @@ export function SettingsPage() {
   const [tokenName, setTokenName] = useState('')
   const [tokenExpiry, setTokenExpiry] = useState(2_592_000)
   const [createdToken, setCreatedToken] = useState('')
+  useCloseOnHistoryNavigation(Boolean(createdToken), () => setCreatedToken(''))
 
   useEffect(() => { if (settings.data) setForm(settings.data) }, [settings.data])
 

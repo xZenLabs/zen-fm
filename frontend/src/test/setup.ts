@@ -39,6 +39,11 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = ResizeObserverStub
 
+Object.defineProperty(Range.prototype, 'getClientRects', {
+  configurable: true,
+  value: () => [],
+})
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' })
   interceptedFetch = globalThis.fetch

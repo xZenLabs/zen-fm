@@ -9,6 +9,9 @@ import { ZenThemeProvider } from './theme'
 import App from './App'
 import './styles.css'
 import { emotionCache } from './emotion'
+import { installModalNavigationGuard } from './modalNavigation'
+
+installModalNavigationGuard()
 
 const queryClient = new QueryClient({
   defaultOptions: {

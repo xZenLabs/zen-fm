@@ -36,6 +36,7 @@ import { filesRoute, formatBytes, formatDate, formatDuration, formatShortDate, j
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { canEdit, CreateShareDialog, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
 import { PageHeader } from '../components/PageHeader'
+import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
@@ -369,6 +370,11 @@ export function FilesPage() {
     conflictResolver.current = null
     setConflict(null)
   }
+  useCloseOnHistoryNavigation(newFileOpen, () => setNewFileOpen(false))
+  useCloseOnHistoryNavigation(newFolderOpen, () => setNewFolderOpen(false))
+  useCloseOnHistoryNavigation(deleting.length > 0, () => setDeleting([]))
+  useCloseOnHistoryNavigation(Boolean(droppedMove), () => { setDroppedMove(null); moveDroppedEntry.reset() })
+  useCloseOnHistoryNavigation(Boolean(conflict), () => resolveConflict('cancel'))
   const uploadFile = async (file: File, destination: string, overwrite: boolean, onProgress: (sent: number) => void, signal: AbortSignal) => {
     if (file.size < 8 * 1024 * 1024) {
       await api.files.uploadWithProgress(destination, file, overwrite, (sent) => onProgress(sent), signal)

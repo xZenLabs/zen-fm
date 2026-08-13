@@ -42,6 +42,7 @@ const english = {
     preview: 'Open', edit: 'Edit', rename: 'Rename', move: 'Move', copy: 'Copy', paste: 'Paste', delete: 'Delete', download: 'Download',
     share: 'Share', checksum: 'Checksum', folderName: 'Folder name', destination: 'Destination path', destinationFolder: 'Destination folder',
     save: 'Save changes', editor: 'Text editor', editing: 'Editing {{name}}', editorUnavailable: 'This file is too large or unsupported for safe editing.', noPreview: 'Preview is unavailable for this file.',
+    unsavedTitle: 'Save changes before closing?', unsavedBody: 'This file has unsaved changes.', keepEditing: 'Keep editing', discardChanges: 'Discard', saveAndClose: 'Save and close',
     uploading: 'Uploading {{name}} — {{progress}}%', uploadingBatch: 'Uploading · {{completed}} of {{count}} files complete · {{name}}', uploadingProgress: '{{uploaded}} of {{total}} — {{progress}}%', uploadProgress: 'Total upload progress', uploadEta: 'About {{eta}} remaining', searchResults: 'Search results', clearSearch: 'Clear search',
     calculatingCopy: 'Calculating total size…', copyProgress: 'Total copy progress', copyingProgress: 'Copying {{copied}} of {{total}} — {{progress}}%', copyEta: 'About {{eta}} remaining',
     conflictTitle: 'File already exists', conflictBody: '{{name}} already exists. Apply this choice to all conflicts in this upload.',

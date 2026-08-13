@@ -13,6 +13,7 @@ import { api } from '../api/client'
 import { formatDate, publicShareUrl } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
+import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 export function SharesPage() {
   const { t } = useTranslation()
@@ -45,6 +46,8 @@ export function SharesPage() {
     await navigator.clipboard.writeText(publicShareUrl(url))
     setNotice(t('common.copied'))
   }
+  useCloseOnHistoryNavigation(open, () => setOpen(false))
+  useCloseOnHistoryNavigation(Boolean(createdUrl), () => setCreatedUrl(''))
 
   return (
     <Stack gap={2.5}>

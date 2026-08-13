@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, createTheme } from '@mui/material'
@@ -7,6 +7,9 @@ import { canEdit, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '
 import TextEditor from '../components/TextEditor'
 import { server } from './server'
 import type { FileEntry } from '../api/types'
+import { installModalNavigationGuard } from '../modalNavigation'
+
+installModalNavigationGuard()
 
 it('sanitizes an HTML preview before inserting it into the document', async () => {
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('<p>Safe text</p><script>window.pwned=true</script><img src=x onerror="window.pwned=true">', { headers: { 'Content-Type': 'text/html' } })))
@@ -190,6 +193,41 @@ it('loads editable text through the bounded exact-source endpoint', async () => 
   expect(getComputedStyle(dialog.querySelector('.MuiDialogActions-root')!).backgroundColor).toBe('rgb(13, 17, 23)')
   expect(within(dialog).getByRole('button', { name: 'Close' }).closest('.MuiDialogTitle-root')).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+})
+
+it('prompts to save unsaved edits when browser navigation requests the editor to close', async () => {
+  let saved = ''
+  server.use(
+    http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('Original text')),
+    http.put('http://localhost/api/v1/files/content', async ({ request }) => {
+      saved = await request.text()
+      return new HttpResponse(null, { status: 204 })
+    }),
+  )
+  window.history.replaceState({ idx: 20 }, '', window.location.href)
+  vi.spyOn(window.history, 'go').mockImplementation(() => undefined)
+  const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const onClose = vi.fn()
+  const onSaved = vi.fn()
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={onClose} onSaved={onSaved} /></QueryClientProvider>)
+
+  await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent('Original text'))
+  const content = document.querySelector<HTMLElement>('.cm-content')!
+  await user.click(content)
+  await user.keyboard('{End} changed')
+  await waitFor(() => expect(content).toHaveTextContent('Original text changed'))
+  act(() => { window.dispatchEvent(new PopStateEvent('popstate', { state: { idx: 19 } })) })
+
+  expect(await screen.findByRole('dialog', { name: 'Save changes before closing?' })).toBeInTheDocument()
+  expect(onClose).not.toHaveBeenCalled()
+  act(() => { window.dispatchEvent(new PopStateEvent('popstate', { state: { idx: 20 } })) })
+  await user.click(screen.getByRole('button', { name: 'Save and close' }))
+
+  await waitFor(() => expect(saved).toBe('Original text changed'))
+  expect(onSaved).toHaveBeenCalledOnce()
+  expect(onClose).toHaveBeenCalledOnce()
 })
 
 it('refuses to load oversized files into the text editor', () => {

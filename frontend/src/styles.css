@@ -3,6 +3,7 @@
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
 body { min-width: 320px; }
+.MuiDialog-paper { outline: none; }
 a { color: inherit; }
 .zen-mark { display: block; width: 34px; height: 34px; flex: 0 0 34px; object-fit: contain; color-scheme: only light; }
 [data-zenfm-theme='dark'] .zen-mark { filter: invert(1); }
