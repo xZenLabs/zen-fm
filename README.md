@@ -113,15 +113,18 @@ go test ./...
 go test -race ./...
 ```
 
-Frontend checks:
+Frontend checks (using Node 24 and Go 1.26.6 to match CI):
 
 ```sh
 cd frontend
 npm ci
-npm run typecheck
+npm run test:e2e:install
 npm test
-npm run build
 ```
+
+`npm test` runs the same frontend gate as CI: typechecking, linting, Vitest,
+the production build, and the real-binary Playwright suite. Use
+`npm run test:unit` for a faster unit-only check while iterating.
 
 Build an unsigned e-reader development bundle with:
 

@@ -36,8 +36,8 @@ a { color: inherit; }
 .file-find-control:not(.open) .MuiOutlinedInput-input { width: 0; min-width: 0; padding: 0; opacity: 0; pointer-events: none; }
 .file-find-control.open .MuiOutlinedInput-input { min-width: 40px; padding-left: 4px; opacity: 1; transition: opacity .15s ease .05s; }
 .fullscreen-viewer .cm-theme-light, .fullscreen-viewer .cm-theme-dark { height: 100%; }
-.cm-zen-find-match { color: inherit; background-color: color-mix(in srgb, var(--zenfm-accent) 24%, transparent); border-radius: 4px; padding-inline: 2px; }
-.cm-zen-find-current { outline: 1px solid var(--zenfm-accent); }
+.cm-zen-find-match { color: inherit; background-color: color-mix(in srgb, var(--zenfm-accent) 38%, transparent); border-radius: 3px; }
+.cm-zen-find-current { background-color: color-mix(in srgb, var(--zenfm-accent) 62%, transparent); outline: 1px solid var(--zenfm-accent); }
 .markdown-preview { max-width: 76ch; line-height: 1.65; }
 .markdown-preview pre { overflow: auto; padding: 12px; border-radius: 8px; background: color-mix(in srgb, currentColor 7%, transparent); }
 .markdown-preview code { overflow-wrap: anywhere; }

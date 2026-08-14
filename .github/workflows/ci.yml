@@ -73,14 +73,10 @@ jobs:
           go-version: '1.26.6'
           cache: true
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run real-binary Playwright tests
-        run: npm run test:e2e
+      - name: Run frontend checks
+        run: npm test
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: frontend-dist

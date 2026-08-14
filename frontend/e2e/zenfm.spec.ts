@@ -32,7 +32,7 @@ test.describe('ZenFM real binary', () => {
   test('forces setup-only sessions to replace the temporary password', async ({ page }) => {
     await page.goto(`${setupURL}/login`)
     await page.getByLabel('Username').fill('koreader')
-    await page.getByLabel('Password').fill('koreader123456789')
+    await page.locator('input[name="password"]').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(`${setupURL}/setup`)
     await expect(page.getByRole('heading', { name: 'Choose a private password' })).toBeVisible()
@@ -267,7 +267,7 @@ test.describe('ZenFM real binary', () => {
     await page.goto(`${httpsURL}/login`)
     expect(new URL(page.url()).protocol).toBe('https:')
     await page.getByLabel('Username').fill('koreader')
-    await page.getByLabel('Password').fill('koreader123456789')
+    await page.locator('input[name="password"]').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.getByLabel('New password').fill('zenfm-e2e-https-password')
     await page.getByLabel('Confirm password').fill('zenfm-e2e-https-password')
