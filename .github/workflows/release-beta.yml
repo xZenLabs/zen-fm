@@ -1,5 +1,4 @@
 name: Beta release
-run-name: Beta release ${{ github.sha }}
 
 on:
   push:

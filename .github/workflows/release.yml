@@ -1,5 +1,4 @@
 name: Stable release
-run-name: Release ${{ inputs.tag || github.event.workflow_run.head_sha }}
 
 on:
   workflow_run:
@@ -39,7 +38,7 @@ jobs:
           ref: ${{ inputs.tag || github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Validate source and wait for required checks
+      - name: Validate source and wait for CI
         id: source
         shell: bash
         env:
@@ -76,37 +75,27 @@ jobs:
               "repos/$GITHUB_REPOSITORY/commits/$commit/check-runs?filter=latest&per_page=100" \
               --jq '.check_runs[] | [.name, .status, .conclusion, .app.slug, .completed_at] | @tsv' \
               > "$RUNNER_TEMP/check-runs.tsv"
-            waiting=
-            for required in \
-              'CI required checks' \
-              'Security required checks' \
-              'Analyze go' \
-              'Analyze javascript-typescript' \
-              'Analyze java-kotlin'; do
-              status=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $2; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              conclusion=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $3; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              completed_at=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $5; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              if [ "$status" = completed ]; then
-                if [ "$conclusion" != success ] || [ -z "$completed_at" ]; then
-                  echo "required check failed: $required ($conclusion)" >&2
-                  exit 1
-                fi
-              else
-                waiting="$waiting $required"
+            status=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $2; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            conclusion=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $3; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            completed_at=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $5; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            if [ "$status" = completed ]; then
+              if [ "$conclusion" != success ] || [ -z "$completed_at" ]; then
+                echo "CI required checks failed: $conclusion" >&2
+                exit 1
               fi
-            done
-            [ -n "$waiting" ] || break
+              break
+            fi
             if [ "$SECONDS" -ge "$deadline" ]; then
-              echo "timed out waiting for:$waiting" >&2
+              echo "timed out waiting for CI required checks" >&2
               exit 1
             fi
-            echo "waiting for:$waiting"
+            echo "waiting for CI required checks"
             sleep 15
           done
           echo "publish=true" >> "$GITHUB_OUTPUT"

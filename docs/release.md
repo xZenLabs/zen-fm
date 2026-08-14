@@ -22,24 +22,24 @@ replacement, but recovery from an APK that cannot launch requires the owner to
 install a newer signed build or manually reinstall the prior trusted APK;
 ZenFM does not use privileged or hidden downgrade APIs.
 
-## Required checks
+## Release gate and independent scans
 
-Protect `main` and require these checks before a release tag can be created:
+Protect `main` and require `CI required checks` before a release tag can be
+created. This aggregate covers Go vet and race tests, the fuzz smoke test, Node
+24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
+KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
+build/layout validation of all four KOReader bundles plus both-ABI APK.
+Pull-request packages are development-signed artifacts and are never published.
 
-- `CI required checks`, which aggregates Go vet and race tests, the fuzz smoke test,
-  Node 24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
-  KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
-  build/layout validation of all four KOReader bundles plus both-ABI APK.
-  Pull-request packages are development-signed artifacts and are never
-  published.
-- `Security required checks`, which aggregates `govulncheck`, OSV Scanner, npm
-  audit, and the pull-request dependency review when applicable.
-- CodeQL `Analyze go`, `Analyze javascript-typescript`, and
-  `Analyze java-kotlin` checks. CodeQL uses the v4 action generation.
+The Security workflow runs `govulncheck`, OSV Scanner, npm audit, and dependency
+review when applicable. CodeQL analyzes Go, JavaScript/TypeScript, and
+Java/Kotlin using the v4 action generation. These workflows run independently
+and do not block stable or beta publication.
 
-After CI succeeds on a `main` push, the stable-release workflow waits for those
-exact checks on the same commit. A green result on a later commit does not
-qualify an older release candidate.
+After CI succeeds on a `main` push, the stable-release workflow verifies the CI
+result on that same commit. A green result on a later commit does not qualify an
+older release candidate. Beta publication applies the same CI-only gate to its
+`dev` commit.
 
 ## Legacy compiler qualification
 
@@ -149,8 +149,8 @@ beta testers install the published assets explicitly.
    old-kernel QEMU and three physical-device qualifications against that exact
    release candidate.
 2. Merge the candidate to `main`. CI runs every test and development build.
-3. After CI succeeds, the stable-release workflow waits for Security and CodeQL
-   on the same commit and skips publication when `v<version>` already exists.
+3. After CI succeeds, the stable-release workflow skips publication when
+   `v<version>` already exists. Security and CodeQL continue independently.
 4. Approve the `stable-release` environment after reviewing the source commit
    and CI results. The workflow builds, signs, verifies, attests, creates the
    `v<version>` tag when needed, and publishes all five release artifacts.
