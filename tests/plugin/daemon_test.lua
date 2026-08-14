@@ -2,13 +2,14 @@ local root = assert(arg[1], "repository root required")
 package.path = root .. "/plugin/zenfm.koplugin/?.lua;" .. package.path
 
 local generic_modules = {}
-for _, name in ipairs({ "android_intent", "control", "daemon", "settings", "updater", "util" }) do
+for _, name in ipairs({ "android_intent", "control", "daemon", "i18n", "settings", "updater", "util" }) do
     generic_modules[name] = { occupied_by_another_plugin = true }
     package.loaded[name] = generic_modules[name]
 end
 
 local Daemon = require("zenfm_daemon")
 local AndroidIntent = require("zenfm_android_intent")
+local I18n = require("zenfm_i18n")
 local Settings = require("zenfm_settings")
 local Updater = require("zenfm_updater")
 local Util = require("zenfm_util")
@@ -135,6 +136,24 @@ local function exercise_android_intent(uri, reject_start)
 end
 
 local defaults = Settings.defaults()
+
+test("translations stay scoped to ZenFM and follow KOReader's language", function()
+    local previous_settings = _G.G_reader_settings
+    local previous_gettext = package.loaded["gettext"]
+    local language = "de_DE"
+    _G.G_reader_settings = { readSetting = function() return language end }
+
+    equal(I18n.translate("Settings"), "Einstellungen")
+    equal(I18n.translate("A message absent from the ZenFM catalog"),
+        "A message absent from the ZenFM catalog")
+    assert(package.loaded["gettext"] == previous_gettext)
+    assert(package.loaded["i18n"] == generic_modules.i18n)
+
+    language = "ja_JP"
+    equal(I18n.translate("Lifetime"), "有効期間")
+    _G.G_reader_settings = previous_settings
+    I18n.refresh()
+end)
 
 test("Android defaults auto-stop to 30 minutes and preserves an explicit off setting", function()
     local state = os.tmpname() .. ".android-defaults"

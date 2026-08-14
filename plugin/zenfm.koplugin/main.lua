@@ -4,7 +4,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local ConfirmBox = require("ui/widget/confirmbox")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
-local _ = require("gettext")
+local _ = require("zenfm_i18n").translate
 
 local Daemon = require("zenfm_daemon")
 local Updater = require("zenfm_updater")
@@ -57,7 +57,7 @@ function ZenFM:check_android_poll(pending)
     local checked, done, success, detail = pcall(
         self.daemon.check_android_result, self.daemon, pending.action, pending.request_id)
     if not checked then
-        done, success, detail = true, false, "Could not read the Android companion result"
+        done, success, detail = true, false, _("Could not read the Android companion result")
     end
     if done then
         self.android_pending = nil
@@ -67,8 +67,9 @@ function ZenFM:check_android_poll(pending)
     pending.attempts = pending.attempts - 1
     if pending.attempts <= 0 then
         self.android_pending = nil
-        pending.complete(false,
-            "Android companion did not report a fresh " .. pending.action .. " result within 30 seconds")
+        pending.complete(false, string.format(
+            _("Android companion did not report a fresh %s result within 30 seconds."),
+            pending.action))
         return
     end
     self:schedule_android_poll(pending)
@@ -348,8 +349,8 @@ function ZenFM:update()
     if self.daemon:is_android() then
         local ok, result = Updater.install_latest(self.daemon, beta_updates)
         local plugin_failed = not ok and result ~= "ZenFM is up to date"
-        notice("KOReader plugin bundle: " .. tostring(result)
-            .. "\nAndroid companion APK: opening updater…", plugin_failed)
+        notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
+            .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
         local companion_ok, companion_result = self.daemon:open_android("update")
         if not companion_ok then notice(tostring(companion_result), true) end
         return companion_ok, companion_result

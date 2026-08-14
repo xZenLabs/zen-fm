@@ -55,8 +55,13 @@ for executable in zenfm.koplugin/backend/zenfm-sf zenfm.koplugin/supervisor.sh; 
         exit 1
     fi
 done
-for module in android_intent control daemon settings updater util; do
+for module in android_intent control daemon i18n settings updater util; do
     unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" | grep -q "zenfm.koplugin/zenfm_$module.lua$"
+done
+unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" | grep -q '^zenfm\.koplugin/changelog\.lua$'
+for locale in bg cs de el en es fr it ja nl pt_BR pt_PT ro ru uk vi zh_CN zh_HK zh_MO zh_TW; do
+    unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" \
+        | grep -q "zenfm.koplugin/locales/$locale.po$"
 done
 if unzip -Z1 "$ROOT/dist/ZenFM-koreader-ereader-$VERSION.zip" \
     | grep -Eq 'zenfm\.koplugin/(android_intent|control|daemon|settings|updater|util)\.lua$'; then

@@ -41,12 +41,12 @@ export function SettingsPage() {
     mutationFn: () => api.settings.update({ theme: form.theme, locale: form.locale, showHidden: form.showHidden, clientTimeoutSeconds: form.clientTimeoutSeconds }),
     onSuccess: (next) => {
       queryClient.setQueryData(['settings'], next)
-      setPreference(next.theme); setClientTimeout(next.clientTimeoutSeconds); void i18n.changeLanguage(next.locale); setNotice('Settings saved')
+      setPreference(next.theme); setClientTimeout(next.clientTimeoutSeconds); void i18n.changeLanguage(next.locale); setNotice(t('settings.saved', { lng: next.locale }))
     },
   })
   const changePassword = useMutation({
     mutationFn: () => api.owner.changePassword(currentPassword, newPassword),
-    onSuccess: async () => { setCurrentPassword(''); setNewPassword(''); await refresh(); setNotice('Password changed; sessions and API tokens were revoked.'); void queryClient.invalidateQueries({ queryKey: ['tokens'] }) },
+    onSuccess: async () => { setCurrentPassword(''); setNewPassword(''); await refresh(); setNotice(t('settings.passwordChanged')); void queryClient.invalidateQueries({ queryKey: ['tokens'] }) },
   })
   const createToken = useMutation({
     mutationFn: () => api.tokens.create({ name: tokenName, expiresInSeconds: tokenExpiry }),
@@ -75,17 +75,17 @@ export function SettingsPage() {
 
         <Card variant="outlined"><CardContent><Stack component="form" gap={2} onSubmit={passwordSubmit}>
           <Typography variant="h2">{t('settings.password')}</Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><PasswordField fullWidth autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><PasswordField fullWidth autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('auth.passwordHint')} /></Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><PasswordField fullWidth autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><PasswordField fullWidth autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('settings.passwordHint')} /></Stack>
           {changePassword.error && <ErrorPane error={changePassword.error} />}<Button type="submit" variant="outlined" disabled={!currentPassword || Array.from(newPassword).length < 12 || changePassword.isPending} sx={{ alignSelf: 'flex-start' }}>{t('settings.changePassword')}</Button>
         </Stack></CardContent></Card>
 
         <Card variant="outlined"><CardContent><Stack gap={2}>
           <Box><Typography variant="h2">{t('settings.tokens')}</Typography><Typography color="text.secondary">{t('settings.tokenHint')}</Typography></Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><TextField label={t('settings.tokenName')} value={tokenName} onChange={(event) => setTokenName(event.target.value)} sx={{ flex: 1 }} /><TextField select label="Lifetime" value={tokenExpiry} onChange={(event) => setTokenExpiry(Number(event.target.value))} sx={{ minWidth: 150 }}><MenuItem value={86400}>1 day</MenuItem><MenuItem value={2592000}>30 days</MenuItem><MenuItem value={31536000}>1 year</MenuItem></TextField><Button variant="contained" startIcon={<KeyRounded />} disabled={!tokenName || createToken.isPending} onClick={() => createToken.mutate()}>{t('settings.createToken')}</Button></Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><TextField label={t('settings.tokenName')} value={tokenName} onChange={(event) => setTokenName(event.target.value)} sx={{ flex: 1 }} /><TextField select label={t('settings.lifetime')} value={tokenExpiry} onChange={(event) => setTokenExpiry(Number(event.target.value))} sx={{ minWidth: 150 }}><MenuItem value={86400}>{t('settings.oneDay')}</MenuItem><MenuItem value={2592000}>{t('settings.thirtyDays')}</MenuItem><MenuItem value={31536000}>{t('settings.oneYear')}</MenuItem></TextField><Button variant="contained" startIcon={<KeyRounded />} disabled={!tokenName || createToken.isPending} onClick={() => createToken.mutate()}>{t('settings.createToken')}</Button></Stack>
           {createToken.error && <ErrorPane error={createToken.error} />}
-          {tokens.isPending ? <LoadingPane /> : tokens.error ? <ErrorPane error={tokens.error} /> : tokens.data.map((token) => <Stack key={token.id} direction="row" alignItems="center" gap={2} py={1} borderTop={1} borderColor="divider"><Box flex={1}><Typography fontWeight={600}>{token.name}</Typography><Typography variant="caption" color="text.secondary">Expires {formatDate(token.expiresAt)}</Typography></Box><Button color="error" startIcon={<DeleteOutlineRounded color="error" />} onClick={() => revokeToken.mutate(token.id)}>{t('settings.revokeToken')}</Button></Stack>)}
+          {tokens.isPending ? <LoadingPane /> : tokens.error ? <ErrorPane error={tokens.error} /> : tokens.data.map((token) => <Stack key={token.id} direction="row" alignItems="center" gap={2} py={1} borderTop={1} borderColor="divider"><Box flex={1}><Typography fontWeight={600}>{token.name}</Typography><Typography variant="caption" color="text.secondary">{t('settings.expires')} {formatDate(token.expiresAt)}</Typography></Box><Button color="error" startIcon={<DeleteOutlineRounded color="error" />} onClick={() => revokeToken.mutate(token.id)}>{t('settings.revokeToken')}</Button></Stack>)}
         </Stack></CardContent></Card>
-      <Dialog open={Boolean(createdToken)} onClose={() => setCreatedToken('')} maxWidth="sm"><DialogTitle>Personal API token</DialogTitle><DialogContent><Alert severity="warning" sx={{ mb: 2 }}>Copy this token now. It will not be shown again.</Alert><TextField fullWidth value={createdToken} InputProps={{ readOnly: true }} /></DialogContent><DialogActions><Button startIcon={<ContentCopyRounded />} onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setNotice(t('common.copied')))}>Copy token</Button><Button onClick={() => setCreatedToken('')}>{t('common.close')}</Button></DialogActions></Dialog>
+      <Dialog open={Boolean(createdToken)} onClose={() => setCreatedToken('')} maxWidth="sm"><DialogTitle>{t('settings.tokenDialogTitle')}</DialogTitle><DialogContent><Alert severity="warning" sx={{ mb: 2 }}>{t('settings.tokenDialogWarning')}</Alert><TextField fullWidth value={createdToken} InputProps={{ readOnly: true }} /></DialogContent><DialogActions><Button startIcon={<ContentCopyRounded />} onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setNotice(t('common.copied')))}>{t('settings.copyToken')}</Button><Button onClick={() => setCreatedToken('')}>{t('common.close')}</Button></DialogActions></Dialog>
       <Snackbar open={Boolean(notice)} autoHideDuration={4500} onClose={() => setNotice('')} message={notice} />
     </Stack>
   )

@@ -1,0 +1,550 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh_CN\n"
+
+msgid "1 day"
+msgstr "1天"
+
+msgid "1 hour"
+msgstr "1小时"
+
+msgid "1 week"
+msgstr "1周"
+
+msgid "1 year"
+msgstr "1年"
+
+msgid "30 days"
+msgstr "30天"
+
+msgid "About {{eta}} remaining"
+msgstr "大约剩余 {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "高级 root 模式已激活。系统文件、设备路径和 ZenFM 机密都是可见的，并且可以更改或删除。"
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "高级 root 模式服务 /。它公开 /proc、/sys、/dev、ZenFM 的数据库、证书、日志以及进程可以访问的每个文件。编辑或删除它们可能会损坏设备或将您锁定。"
+
+msgid "Advanced root: expose /"
+msgstr "高级root：暴露/"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Android 配套 APK：打开更新程序..."
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Android 伴侣在 30 秒内未报告新的 %s 结果。"
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "另一个 ZenFM Android 请求仍待处理。"
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "您确定要将 <filename>{{name}}</filename> 移动到 <path>{{destination}}</path> 吗？"
+
+msgid "Backend version: "
+msgstr "后端版本："
+
+msgid "Beta updates"
+msgstr "测试版更新"
+
+msgid "Calculating total size…"
+msgstr "正在计算总大小..."
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Change password"
+msgstr "更改密码"
+
+msgid "Checking for a ZenFM update…"
+msgstr "正在检查 ZenFM 更新..."
+
+msgid "Checksum"
+msgstr "校验和"
+
+msgid "Choose a private password"
+msgstr "选择私人密码"
+
+msgid "Clear search"
+msgstr "清空"
+
+msgid "Client timeout"
+msgstr "客户端超时"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Confirm"
+msgstr "确定"
+
+msgid "Confirm password"
+msgstr "再次输入新密码"
+
+msgid "Copied"
+msgstr "链接已复制！"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Copy link"
+msgstr "复制下载链接到剪贴板"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "立即复制此令牌。它将不会再次显示。"
+
+msgid "Copy token"
+msgstr "复制令牌"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "正在复制 {{total}} 的 {{copied}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "无法读取 Android 配套结果"
+
+msgid "Create"
+msgstr "创建"
+
+msgid "Create share"
+msgstr "创建共享"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "创建临时链接而不暴露您的所有者会话。"
+
+msgid "Create token"
+msgstr "创建代币"
+
+msgid "Current password"
+msgstr "当前密码"
+
+msgid "Custom root (blank uses device default)"
+msgstr "自定义根（空白使用设备默认值）"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Date modified"
+msgstr "修改时间"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Delete {{count}} items?"
+msgstr "删除 {{count}} 项目吗？"
+
+msgid "Destination folder"
+msgstr "目标文件夹"
+
+msgid "Destination path"
+msgstr "目的地路径"
+
+msgid "Discard"
+msgstr "丢弃"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Edit"
+msgstr "以文本模式编辑"
+
+msgid "Editing {{name}}"
+msgstr "编辑{{name}}"
+
+msgid "Enable HTTP"
+msgstr "启用 HTTP"
+
+msgid "Expires"
+msgstr "过期"
+
+msgid "Expires after"
+msgstr "过期时间为"
+
+msgid "Expose entire filesystem"
+msgstr "暴露整个文件系统"
+
+msgid "File already exists"
+msgstr "文件已存在"
+
+msgid "File name"
+msgstr "文件名"
+
+msgid "File or folder path"
+msgstr "路径"
+
+msgid "Files"
+msgstr "文件"
+
+msgid "Finish setup"
+msgstr "完成设置"
+
+msgid "Folder name"
+msgstr "文件夹名称"
+
+msgid "General"
+msgstr "一般的"
+
+msgid "generated"
+msgstr "生成的"
+
+msgid "Grid view"
+msgstr "网格视图"
+
+msgid "Hide password"
+msgstr "隐藏密码"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP 发送密码、会话 cookie 和文件内容而不加密。仍然启用它吗？"
+
+msgid "Invalid value."
+msgstr "无效值。"
+
+msgid "Keep editing"
+msgstr "继续编辑"
+
+msgid "KOReader plugin bundle:"
+msgstr "KOReader 插件包："
+
+msgid "Label"
+msgstr "标签"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Lifetime"
+msgstr "寿命"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "List view"
+msgstr "列表视图"
+
+msgid "Listening port:"
+msgstr "监听端口："
+
+msgid "Loading…"
+msgstr "加载中..."
+
+msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
+msgstr "登录重置。使用 koreader / koreader123456789 并选择一个新密码。"
+
+msgid "Move"
+msgstr "移动"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Never"
+msgstr "绝不"
+
+msgid "New file"
+msgstr "新文件"
+
+msgid "New folder"
+msgstr "新建文件夹"
+
+msgid "New password"
+msgstr "新密码"
+
+msgid "No shared links"
+msgstr "没有共享链接"
+
+msgid "not configured"
+msgstr "未配置"
+
+msgid "Nothing here yet"
+msgstr "暂无任何文件..."
+
+msgid "Open"
+msgstr "预览"
+
+msgid "Optional password"
+msgstr "密码（选填，留空则无需密码）"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "密码已更改；会话和 API 令牌已被撤销。"
+
+msgid "Password protected"
+msgstr "密码保护"
+
+msgid "Paste"
+msgstr "粘贴"
+
+msgid "Personal API token"
+msgstr "个人API令牌"
+
+msgid "Personal API tokens"
+msgstr "个人API令牌"
+
+msgid "Port must be between 1 and 65535."
+msgstr "端口必须介于 1 和 65535 之间。"
+
+msgid "Port: "
+msgstr "港口："
+
+msgid "Preview is unavailable for this file."
+msgstr "该文件暂不支持预览"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Replace"
+msgstr "代替"
+
+msgid "Replace all"
+msgstr "全部替换"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "在访问文件之前替换临时密码。"
+
+msgid "Reset login"
+msgstr "重置登录"
+
+msgid "Reset owner login"
+msgstr "重置所有者登录"
+
+msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
+msgstr "将所有者登录重置为仅用于设置的凭据并撤销每个会话和 API 令牌？"
+
+msgid "Revoke"
+msgstr "撤销"
+
+msgid "Root"
+msgstr "根"
+
+msgid "Root: "
+msgstr "根："
+
+msgid "Save"
+msgstr "节省"
+
+msgid "Save and close"
+msgstr "保存并关闭"
+
+msgid "Save changes"
+msgstr "保存更改"
+
+msgid "Save changes before closing?"
+msgstr "关闭前保存更改吗？"
+
+msgid "Save settings"
+msgstr "保存"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "已保存。重新启动 ZenFM 以应用更改。"
+
+msgid "Search results"
+msgstr "搜索结果"
+
+msgid "Search this folder"
+msgstr "搜索..."
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Settings saved"
+msgstr "设置已保存"
+
+msgid "Share"
+msgstr "分享"
+
+msgid "Shared files"
+msgstr "共享文件"
+
+msgid "Shared links"
+msgstr "分享管理"
+
+msgid "Shared with ZenFM"
+msgstr "与 ZenFM 共享"
+
+msgid "Shares"
+msgstr "股份"
+
+msgid "Show hidden files"
+msgstr "显示隐藏文件"
+
+msgid "Show password"
+msgstr "显示密码"
+
+msgid "Sign in"
+msgstr "登录"
+
+msgid "Sign out"
+msgstr "退出"
+
+msgid "Signing in…"
+msgstr "正在登录..."
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Skip all"
+msgstr "全部跳过"
+
+msgid "Something went wrong"
+msgstr "出现未知错误..."
+
+msgid "Start ZenFM"
+msgstr "启动ZenFM"
+
+msgid "Status and address"
+msgstr "状态和地址"
+
+msgid "Stop after 30 minutes without activity"
+msgstr "30 分钟无活动后停止"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "经过这么多秒后停止等待普通服务器请求。"
+
+msgid "Stop ZenFM"
+msgstr "停止 ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "切换到深色模式"
+
+msgid "Switch to light mode"
+msgstr "切换到灯光模式"
+
+msgid "System"
+msgstr "系统默认"
+
+msgid "Temporary password"
+msgstr "临时密码"
+
+msgid "Text editor"
+msgstr "以文本模式编辑"
+
+msgid "The username or password is incorrect."
+msgstr "用户名或密码错误"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "此连接使用 HTTP。凭证和文件内容可能在网络上可见。"
+
+msgid "This file has unsaved changes."
+msgstr "该文件有未保存的更改。"
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "此文件太大或不支持安全编辑。"
+
+msgid "This link is unavailable or has expired."
+msgstr "该链接不可用或已过期。"
+
+msgid "TLS certificate path (blank uses generated certificate)"
+msgstr "TLS 证书路径（空白使用生成的证书）"
+
+msgid "TLS certificate: "
+msgstr "TLS 证书："
+
+msgid "TLS private key: "
+msgstr "TLS 私钥："
+
+msgid "TLS private-key path (blank uses generated key)"
+msgstr "TLS 私钥路径（空白使用生成的密钥）"
+
+msgid "Token name"
+msgstr "代币名称"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "令牌仅显示一次，并且不会被该浏览器存储。"
+
+msgid "Total copy progress"
+msgstr "总复制进度"
+
+msgid "Total upload progress"
+msgstr "总上传进度"
+
+msgid "Unlock"
+msgstr "开锁"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Upload a file or create one."
+msgstr "上传文件或创建文件。"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "正在上传 {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "正在上传 {{completed}} 个文件，共 {{count}} 个文件已完成 · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "使用高级 root 来公开 /。自定义根不能包含 .或..组件。"
+
+msgid "Use an absolute path beginning with /."
+msgstr "使用以/开头的绝对路径。"
+
+msgid "Use at least 12 characters."
+msgstr "至少使用 12 个字符。"
+
+msgid "Use unencrypted HTTP"
+msgstr "使用未加密的 HTTP"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "警告：高级根模式会公开整个文件系统，包括 ZenFM 状态和证书。"
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "警告：未加密的 HTTP 已启用。"
+
+msgid "Your files, easily accessible."
+msgstr "您的文件，轻松访问。"
+
+msgid "ZenFM"
+msgstr "禅调FM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM 正在运行。"
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM 已停止。"
+
+msgid "ZenFM port"
+msgstr "ZenFM 端口"
+
+msgid "ZenFM request pending…"
+msgstr "ZenFM 请求待处理..."
+
+msgid "ZenFM started."
+msgstr "ZenFM 启动。"
+
+msgid "ZenFM stopped."
+msgstr "ZenFM 停止了。"
+
+msgid "ZenFM: Status"
+msgstr "ZenFM：状态"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM：切换服务器"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} 项目"
+
+msgid "{{count}} items selected"
+msgstr "已选择 {{count}} 项目"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} 已存在。将此选择应用于此上传中的所有冲突。"
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{total}} 的 {{uploaded}} — {{progress}}%"

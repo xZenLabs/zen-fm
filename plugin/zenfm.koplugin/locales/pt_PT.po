@@ -1,0 +1,550 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt_PT\n"
+
+msgid "1 day"
+msgstr "1 dia"
+
+msgid "1 hour"
+msgstr "1 hora"
+
+msgid "1 week"
+msgstr "1 semana"
+
+msgid "1 year"
+msgstr "1 ano"
+
+msgid "30 days"
+msgstr "30 dias"
+
+msgid "About {{eta}} remaining"
+msgstr "Restantes cerca de {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "O modo root avançado está ativo. Os ficheiros de sistema, os caminhos de dispositivos e os segredos ZenFM são visíveis e podem ser alterados ou eliminados."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "O modo root avançado serve /. Expõe /proc, /sys, /dev, base de dados do ZenFM, certificados, logs e todos os ficheiros a que o processo pode aceder. Editá-los ou eliminá-los pode danificar o dispositivo ou bloqueá-lo."
+
+msgid "Advanced root: expose /"
+msgstr "Raiz avançada: expor /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "APK complementar do Android: abrindo o atualizador…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "O add-on Android não reportou um novo resultado %s em 30 segundos."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Outra solicitação ZenFM Android ainda está pendente."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Tem a certeza que pretende mover <filename>{{name}}</filename> para <path>{{destination}}</path>?"
+
+msgid "Backend version: "
+msgstr "Versão de back-end:"
+
+msgid "Beta updates"
+msgstr "Atualizações beta"
+
+msgid "Calculating total size…"
+msgstr "Calculando o tamanho total…"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Change password"
+msgstr "Alterar Palavra-passe"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Verificando se existe uma atualização do ZenFM…"
+
+msgid "Checksum"
+msgstr "Soma de verificação"
+
+msgid "Choose a private password"
+msgstr "Escolha uma palavra-passe privada"
+
+msgid "Clear search"
+msgstr "Limpar"
+
+msgid "Client timeout"
+msgstr "Tempo limite do cliente"
+
+msgid "Close"
+msgstr "Fechar"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Confirm password"
+msgstr "Confirmar a sua palavra-passe"
+
+msgid "Copied"
+msgstr "Link copiado!"
+
+msgid "Copy"
+msgstr "Copiar"
+
+msgid "Copy link"
+msgstr "Copiar link do download para a área de transferência"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Copie este token agora. Não será mostrado novamente."
+
+msgid "Copy token"
+msgstr "Copiar token"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "A copiar {{copied}} de {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Não foi possível ler o resultado complementar do Android"
+
+msgid "Create"
+msgstr "Criar"
+
+msgid "Create share"
+msgstr "Criar partilha"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Crie links temporários sem expor a sua sessão de proprietário."
+
+msgid "Create token"
+msgstr "Criar token"
+
+msgid "Current password"
+msgstr "A Sua Palavra-passe Actual"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Raiz personalizada (em branco utiliza o padrão do dispositivo)"
+
+msgid "Dark"
+msgstr "Escuro"
+
+msgid "Date modified"
+msgstr "Última modificação"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete {{count}} items?"
+msgstr "Apagar {{count}} itens?"
+
+msgid "Destination folder"
+msgstr "Pasta de destino"
+
+msgid "Destination path"
+msgstr "Caminho de destino"
+
+msgid "Discard"
+msgstr "Descartar"
+
+msgid "Download"
+msgstr "Descarregar"
+
+msgid "Edit"
+msgstr "Editar como Texto"
+
+msgid "Editing {{name}}"
+msgstr "Editando {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Ativar HTTP"
+
+msgid "Expires"
+msgstr "Expira"
+
+msgid "Expires after"
+msgstr "Expira depois"
+
+msgid "Expose entire filesystem"
+msgstr "Expor todo o sistema de ficheiros"
+
+msgid "File already exists"
+msgstr "O ficheiro já existe"
+
+msgid "File name"
+msgstr "Nome do ficheiro"
+
+msgid "File or folder path"
+msgstr "Caminho"
+
+msgid "Files"
+msgstr "Ficheiros"
+
+msgid "Finish setup"
+msgstr "Concluir configuração"
+
+msgid "Folder name"
+msgstr "Nome da pasta"
+
+msgid "General"
+msgstr "General"
+
+msgid "generated"
+msgstr "gerado"
+
+msgid "Grid view"
+msgstr "Visualização em grelha"
+
+msgid "Hide password"
+msgstr "Ocultar palavra-passe"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "O HTTP envia palavras-passe, cookies de sessão e conteúdo de ficheiros sem encriptação. Habilitá-lo mesmo assim?"
+
+msgid "Invalid value."
+msgstr "Valor inválido."
+
+msgid "Keep editing"
+msgstr "Continue a editar"
+
+msgid "KOReader plugin bundle:"
+msgstr "Pacote de plug-ins KOReader:"
+
+msgid "Label"
+msgstr "Etiqueta"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "Lifetime"
+msgstr "Vida"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "List view"
+msgstr "Visualização de lista"
+
+msgid "Listening port:"
+msgstr "Porta de escuta:"
+
+msgid "Loading…"
+msgstr "A carregar..."
+
+msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
+msgstr "Redefinição de início de sessão. Utilize koreader/koreader123456789 e escolha uma nova palavra-passe."
+
+msgid "Move"
+msgstr "Mover"
+
+msgid "Name"
+msgstr "Nome"
+
+msgid "Never"
+msgstr "Nunca"
+
+msgid "New file"
+msgstr "Novo ficheiro"
+
+msgid "New folder"
+msgstr "Nova pasta"
+
+msgid "New password"
+msgstr "A sua nova palavra-passe"
+
+msgid "No shared links"
+msgstr "Nenhum link partilhado"
+
+msgid "not configured"
+msgstr "não configurado"
+
+msgid "Nothing here yet"
+msgstr "Sinto-me sózinho..."
+
+msgid "Open"
+msgstr "Pré-visualizar"
+
+msgid "Optional password"
+msgstr "Palavra-passe opcional"
+
+msgid "Password"
+msgstr "Palavra-passe"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Palavra-passe alterada; sessões e os tokens API foram revogados."
+
+msgid "Password protected"
+msgstr "Protegido por palavra-passe"
+
+msgid "Paste"
+msgstr "Colar"
+
+msgid "Personal API token"
+msgstr "Token API pessoal"
+
+msgid "Personal API tokens"
+msgstr "Tokens API pessoais"
+
+msgid "Port must be between 1 and 65535."
+msgstr "A porta deve estar entre 1 e 65535."
+
+msgid "Port: "
+msgstr "Porto:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Pré-visualização não disponível para este ficheiro."
+
+msgid "Refresh"
+msgstr "Atualizar"
+
+msgid "Rename"
+msgstr "Mudar o nome"
+
+msgid "Replace"
+msgstr "Substituir"
+
+msgid "Replace all"
+msgstr "Substitua tudo"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Substitua a palavra-passe temporária antes de aceder aos seus ficheiros."
+
+msgid "Reset login"
+msgstr "Redefinir login"
+
+msgid "Reset owner login"
+msgstr "Repor login do proprietário"
+
+msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
+msgstr "Repor o login do proprietário para as credenciais apenas de configuração e revogar todas as sessões e tokens de API?"
+
+msgid "Revoke"
+msgstr "Revogar"
+
+msgid "Root"
+msgstr "Raiz"
+
+msgid "Root: "
+msgstr "Raiz:"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Save and close"
+msgstr "Guardar e fechar"
+
+msgid "Save changes"
+msgstr "Guardar alterações"
+
+msgid "Save changes before closing?"
+msgstr "Guardar as alterações antes de fechar?"
+
+msgid "Save settings"
+msgstr "Guardar"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Salvo. Reinicie o ZenFM para aplicar a alteração."
+
+msgid "Search results"
+msgstr "Resultados da pesquisa"
+
+msgid "Search this folder"
+msgstr "Procurar..."
+
+msgid "Settings"
+msgstr "Definições"
+
+msgid "Settings saved"
+msgstr "Configurações guardadas"
+
+msgid "Share"
+msgstr "Partilhar"
+
+msgid "Shared files"
+msgstr "Arquivos partilhados"
+
+msgid "Shared links"
+msgstr "Gestão de Partilhas"
+
+msgid "Shared with ZenFM"
+msgstr "Partilhado com Zen FM"
+
+msgid "Shares"
+msgstr "Ações"
+
+msgid "Show hidden files"
+msgstr "Mostrar ficheiros ocultos"
+
+msgid "Show password"
+msgstr "Mostrar palavra-passe"
+
+msgid "Sign in"
+msgstr "Entrar"
+
+msgid "Sign out"
+msgstr "Sair"
+
+msgid "Signing in…"
+msgstr "Fazendo login…"
+
+msgid "Size"
+msgstr "Tamanho"
+
+msgid "Skip all"
+msgstr "Saltar tudo"
+
+msgid "Something went wrong"
+msgstr "Algo correu mal."
+
+msgid "Start ZenFM"
+msgstr "Inicie o Zen FM"
+
+msgid "Status and address"
+msgstr "Estado e endereço"
+
+msgid "Stop after 30 minutes without activity"
+msgstr "Pare após 30 minutos sem atividade"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Pare de esperar por pedidos comuns do servidor após tantos segundos."
+
+msgid "Stop ZenFM"
+msgstr "Pare o Zen FM"
+
+msgid "Switch to dark mode"
+msgstr "Mudar para o modo escuro"
+
+msgid "Switch to light mode"
+msgstr "Mudar para o modo claro"
+
+msgid "System"
+msgstr "Predefinição do sistema"
+
+msgid "Temporary password"
+msgstr "Senha temporária"
+
+msgid "Text editor"
+msgstr "Editar como Texto"
+
+msgid "The username or password is incorrect."
+msgstr "Credenciais erradas"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Esta ligação está a usar HTTP. As credenciais e o conteúdo dos ficheiros podem estar visíveis na rede."
+
+msgid "This file has unsaved changes."
+msgstr "Este ficheiro contém alterações não guardadas."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Este ficheiro é demasiado grande ou não é compatível para edição segura."
+
+msgid "This link is unavailable or has expired."
+msgstr "Este link não está disponível ou expirou."
+
+msgid "TLS certificate path (blank uses generated certificate)"
+msgstr "Caminho do certificado TLS (em branco utiliza certificado gerado)"
+
+msgid "TLS certificate: "
+msgstr "Certificado TLS:"
+
+msgid "TLS private key: "
+msgstr "Chave privada TLS:"
+
+msgid "TLS private-key path (blank uses generated key)"
+msgstr "Caminho da chave privada TLS (em branco utiliza chave gerada)"
+
+msgid "Token name"
+msgstr "Nome do token"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Os tokens são mostrados uma vez e nunca armazenados por este browser."
+
+msgid "Total copy progress"
+msgstr "Progresso total da cópia"
+
+msgid "Total upload progress"
+msgstr "Progresso total do upload"
+
+msgid "Unlock"
+msgstr "Desbloquear"
+
+msgid "Update"
+msgstr "Atualização"
+
+msgid "Upload"
+msgstr "Enviar"
+
+msgid "Upload a file or create one."
+msgstr "Carregue um ficheiro ou crie um."
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Envio {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Carregamento · {{completed}} de {{count}} ficheiros concluídos · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Utilize root avançado para expor /. As raízes personalizadas não podem conter . ou .. componentes."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Utilize um caminho absoluto começando por /."
+
+msgid "Use at least 12 characters."
+msgstr "Utilize pelo menos 12 caracteres."
+
+msgid "Use unencrypted HTTP"
+msgstr "Utilize HTTP não encriptado"
+
+msgid "Username"
+msgstr "Nome de utilizador"
+
+msgid "Version"
+msgstr "Versão"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Aviso: o modo root avançado expõe todo o sistema de ficheiros, incluindo os certificados de estado e ZenFM."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Aviso: O HTTP não encriptado está ativado."
+
+msgid "Your files, easily accessible."
+msgstr "Os seus ficheiros, facilmente acessíveis."
+
+msgid "ZenFM"
+msgstr "Zen FM"
+
+msgid "ZenFM is running."
+msgstr "O ZenFM está em execução."
+
+msgid "ZenFM is stopped."
+msgstr "O ZenFM está parado."
+
+msgid "ZenFM port"
+msgstr "Porta ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Pedido ZenFM pendente…"
+
+msgid "ZenFM started."
+msgstr "A ZenFM começou."
+
+msgid "ZenFM stopped."
+msgstr "O ZenFM parou."
+
+msgid "ZenFM: Status"
+msgstr "Zen FM: Estado"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Alternar servidor"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} artigos"
+
+msgid "{{count}} items selected"
+msgstr "{{count}} artigos selecionados"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} já existe. Aplique esta opção a todos os conflitos neste upload."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} de {{total}} — {{progress}}%"

@@ -1,0 +1,550 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cs\n"
+
+msgid "1 day"
+msgstr "1 den"
+
+msgid "1 hour"
+msgstr "1 hodina"
+
+msgid "1 week"
+msgstr "1 týden"
+
+msgid "1 year"
+msgstr "1 rok"
+
+msgid "30 days"
+msgstr "30 dní"
+
+msgid "About {{eta}} remaining"
+msgstr "Zbývá přibližně {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Rozšířený režim root je aktivní. Systémové soubory, cesty zařízení a tajné klíče ZenFM jsou viditelné a lze je změnit nebo odstranit."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Rozšířený režim root slouží /. Odhaluje /proc, /sys, /dev, databázi ZenFM, certifikáty, protokoly a každý soubor, ke kterému má proces přístup. Jejich úprava nebo odstranění může poškodit zařízení nebo vás uzamknout."
+
+msgid "Advanced root: expose /"
+msgstr "Pokročilý kořen: vystavit /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Doprovodný soubor APK pro Android: otevírání aktualizace…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Doprovodná služba Android nenahlásila nový výsledek %s do 30 sekund."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Další požadavek ZenFM pro Android stále čeká na vyřízení."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Opravdu chcete přesunout <filename>{{name}}</filename> do <path>{{destination}}</path>?"
+
+msgid "Backend version: "
+msgstr "Backend verze:"
+
+msgid "Beta updates"
+msgstr "Beta aktualizace"
+
+msgid "Calculating total size…"
+msgstr "Výpočet celkové velikosti…"
+
+msgid "Cancel"
+msgstr "Zrušit"
+
+msgid "Change password"
+msgstr "Změnit heslo"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Kontrola aktualizace ZenFM…"
+
+msgid "Checksum"
+msgstr "Kontrolní součet"
+
+msgid "Choose a private password"
+msgstr "Zvolte soukromé heslo"
+
+msgid "Clear search"
+msgstr "Vymazat"
+
+msgid "Client timeout"
+msgstr "Časový limit klienta"
+
+msgid "Close"
+msgstr "Zavřít"
+
+msgid "Confirm"
+msgstr "Potvrdit"
+
+msgid "Confirm password"
+msgstr "Potvrďte své nové heslo"
+
+msgid "Copied"
+msgstr "Odkaz zkopírován!"
+
+msgid "Copy"
+msgstr "Kopírovat"
+
+msgid "Copy link"
+msgstr "Kopírovat odkaz na stažení do schránky"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Zkopírujte tento token nyní. Již se nebude zobrazovat."
+
+msgid "Copy token"
+msgstr "Kopírovat token"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Kopírování {{copied}} z {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Výsledek doprovodné reklamy pro Android nelze přečíst"
+
+msgid "Create"
+msgstr "Vytvořit"
+
+msgid "Create share"
+msgstr "Vytvořit sdílení"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Vytvářejte dočasné odkazy bez odhalení relace vlastníka."
+
+msgid "Create token"
+msgstr "Vytvořit token"
+
+msgid "Current password"
+msgstr "Aktuální heslo"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Vlastní kořenový adresář (prázdný používá výchozí nastavení zařízení)"
+
+msgid "Dark"
+msgstr "Tmavý"
+
+msgid "Date modified"
+msgstr "Naposledy změněno"
+
+msgid "Delete"
+msgstr "Smazat"
+
+msgid "Delete {{count}} items?"
+msgstr "Smazat {{count}} položek?"
+
+msgid "Destination folder"
+msgstr "Cílová složka"
+
+msgid "Destination path"
+msgstr "Cílová cesta"
+
+msgid "Discard"
+msgstr "Vyřadit"
+
+msgid "Download"
+msgstr "Stáhnout"
+
+msgid "Edit"
+msgstr "Upravit"
+
+msgid "Editing {{name}}"
+msgstr "Úprava {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Povolit HTTP"
+
+msgid "Expires"
+msgstr "Platnost vyprší"
+
+msgid "Expires after"
+msgstr "Vyprší po"
+
+msgid "Expose entire filesystem"
+msgstr "Odhalte celý souborový systém"
+
+msgid "File already exists"
+msgstr "Soubor již existuje"
+
+msgid "File name"
+msgstr "Název souboru"
+
+msgid "File or folder path"
+msgstr "Cesta"
+
+msgid "Files"
+msgstr "Soubory"
+
+msgid "Finish setup"
+msgstr "Dokončete nastavení"
+
+msgid "Folder name"
+msgstr "Název složky"
+
+msgid "General"
+msgstr "Generál"
+
+msgid "generated"
+msgstr "vytvořené"
+
+msgid "Grid view"
+msgstr "Zobrazení mřížky"
+
+msgid "Hide password"
+msgstr "Skrýt heslo"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP odesílá hesla, soubory cookie relace a obsah souborů bez šifrování. Chcete to přesto povolit?"
+
+msgid "Invalid value."
+msgstr "Neplatná hodnota."
+
+msgid "Keep editing"
+msgstr "Pokračujte v úpravách"
+
+msgid "KOReader plugin bundle:"
+msgstr "Balíček pluginů KOReader:"
+
+msgid "Label"
+msgstr "Označení"
+
+msgid "Language"
+msgstr "Jazyk"
+
+msgid "Lifetime"
+msgstr "Celý život"
+
+msgid "Light"
+msgstr "Světlý"
+
+msgid "List view"
+msgstr "Zobrazení seznamu"
+
+msgid "Listening port:"
+msgstr "Port pro poslech:"
+
+msgid "Loading…"
+msgstr "Načítání..."
+
+msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
+msgstr "Obnovení přihlášení. Použijte koreader / koreader123456789 a zvolte si nové heslo."
+
+msgid "Move"
+msgstr "Přesunout"
+
+msgid "Name"
+msgstr "Název"
+
+msgid "Never"
+msgstr "Nikdy"
+
+msgid "New file"
+msgstr "Nový soubor"
+
+msgid "New folder"
+msgstr "Nová složka"
+
+msgid "New password"
+msgstr "Vaše nové heslo"
+
+msgid "No shared links"
+msgstr "Žádné sdílené odkazy"
+
+msgid "not configured"
+msgstr "není nakonfigurováno"
+
+msgid "Nothing here yet"
+msgstr "Je tu osaměle..."
+
+msgid "Open"
+msgstr "OTEVŘENO"
+
+msgid "Optional password"
+msgstr "Volitelné heslo"
+
+msgid "Password"
+msgstr "Heslo"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Heslo změněno; relace a tokeny API byly odvolány."
+
+msgid "Password protected"
+msgstr "Chráněno heslem"
+
+msgid "Paste"
+msgstr "Pasta"
+
+msgid "Personal API token"
+msgstr "Osobní token API"
+
+msgid "Personal API tokens"
+msgstr "Osobní tokeny API"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Port musí být mezi 1 a 65535."
+
+msgid "Port: "
+msgstr "Přístav:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Náhled pro tento soubor není k dispozici."
+
+msgid "Refresh"
+msgstr "Obnovit"
+
+msgid "Rename"
+msgstr "Přejmenovat"
+
+msgid "Replace"
+msgstr "Nahradit"
+
+msgid "Replace all"
+msgstr "Vyměňte všechny"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Před přístupem k souborům nahraďte dočasné heslo."
+
+msgid "Reset login"
+msgstr "Resetovat přihlášení"
+
+msgid "Reset owner login"
+msgstr "Obnovit přihlašovací údaje vlastníka"
+
+msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
+msgstr "Obnovit přihlašovací údaje vlastníka na přihlašovací údaje pouze pro nastavení a zrušit každou relaci a token rozhraní API?"
+
+msgid "Revoke"
+msgstr "Zrušit"
+
+msgid "Root"
+msgstr "Vykořenit"
+
+msgid "Root: "
+msgstr "Vykořenit:"
+
+msgid "Save"
+msgstr "Uložit"
+
+msgid "Save and close"
+msgstr "Uložit a zavřít"
+
+msgid "Save changes"
+msgstr "Uložte změny"
+
+msgid "Save changes before closing?"
+msgstr "Uložit změny před uzavřením?"
+
+msgid "Save settings"
+msgstr "Uložit"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Uloženo. Chcete-li použít změnu, restartujte ZenFM."
+
+msgid "Search results"
+msgstr "Výsledky vyhledávání"
+
+msgid "Search this folder"
+msgstr "Hledat..."
+
+msgid "Settings"
+msgstr "Nastavení"
+
+msgid "Settings saved"
+msgstr "Nastavení uloženo"
+
+msgid "Share"
+msgstr "Sdílet"
+
+msgid "Shared files"
+msgstr "Sdílené soubory"
+
+msgid "Shared links"
+msgstr "Správa sdílení"
+
+msgid "Shared with ZenFM"
+msgstr "Sdíleno se ZenFM"
+
+msgid "Shares"
+msgstr "akcie"
+
+msgid "Show hidden files"
+msgstr "Zobrazit skryté soubory"
+
+msgid "Show password"
+msgstr "Zobrazit heslo"
+
+msgid "Sign in"
+msgstr "Přihlásit se"
+
+msgid "Sign out"
+msgstr "Odhlásit se"
+
+msgid "Signing in…"
+msgstr "Přihlašování…"
+
+msgid "Size"
+msgstr "Velikost"
+
+msgid "Skip all"
+msgstr "Přeskočit vše"
+
+msgid "Something went wrong"
+msgstr "Něco se pokazilo"
+
+msgid "Start ZenFM"
+msgstr "Spusťte ZenFM"
+
+msgid "Status and address"
+msgstr "Stav a adresa"
+
+msgid "Stop after 30 minutes without activity"
+msgstr "Zastavte se po 30 minutách bez aktivity"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Po tomto mnoha sekundách přestaňte čekat na běžné požadavky serveru."
+
+msgid "Stop ZenFM"
+msgstr "Zastavte ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Přepněte do tmavého režimu"
+
+msgid "Switch to light mode"
+msgstr "Přepněte do světelného režimu"
+
+msgid "System"
+msgstr "Systémové výchozí"
+
+msgid "Temporary password"
+msgstr "Dočasné heslo"
+
+msgid "Text editor"
+msgstr "Textový editor"
+
+msgid "The username or password is incorrect."
+msgstr "Nesprávné přihlašovací údaje"
+
+msgid "Theme"
+msgstr "Motiv"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Toto připojení používá HTTP. Pověření a obsah souborů mohou být viditelné v síti."
+
+msgid "This file has unsaved changes."
+msgstr "Tento soubor obsahuje neuložené změny."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Tento soubor je příliš velký nebo není podporován pro bezpečné úpravy."
+
+msgid "This link is unavailable or has expired."
+msgstr "Tento odkaz je nedostupný nebo jeho platnost vypršela."
+
+msgid "TLS certificate path (blank uses generated certificate)"
+msgstr "Cesta certifikátu TLS (prázdné používá vygenerovaný certifikát)"
+
+msgid "TLS certificate: "
+msgstr "TLS certifikát:"
+
+msgid "TLS private key: "
+msgstr "TLS soukromý klíč:"
+
+msgid "TLS private-key path (blank uses generated key)"
+msgstr "Cesta soukromého klíče TLS (prázdné používá vygenerovaný klíč)"
+
+msgid "Token name"
+msgstr "Název tokenu"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Tokeny se zobrazují jednou a tento prohlížeč je nikdy neukládá."
+
+msgid "Total copy progress"
+msgstr "Celkový průběh kopírování"
+
+msgid "Total upload progress"
+msgstr "Celkový průběh nahrávání"
+
+msgid "Unlock"
+msgstr "Odemknout"
+
+msgid "Update"
+msgstr "Aktualizovat"
+
+msgid "Upload"
+msgstr "Nahrát"
+
+msgid "Upload a file or create one."
+msgstr "Nahrajte soubor nebo jej vytvořte."
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Nahrávání {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Nahrávání · {{completed}} z {{count}} souborů dokončeno · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Použijte Advanced root k odhalení /. Vlastní kořeny nemohou obsahovat . nebo .. komponenty."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Použijte absolutní cestu začínající na /."
+
+msgid "Use at least 12 characters."
+msgstr "Použijte alespoň 12 znaků."
+
+msgid "Use unencrypted HTTP"
+msgstr "Použijte nešifrovaný HTTP"
+
+msgid "Username"
+msgstr "Uživatelské jméno"
+
+msgid "Version"
+msgstr "Verze"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Upozornění: pokročilý kořenový režim odhaluje celý souborový systém, včetně stavu ZenFM a certifikátů."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Upozornění: Nešifrovaný HTTP je povolen."
+
+msgid "Your files, easily accessible."
+msgstr "Vaše soubory, snadno dostupné."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM běží."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM je zastaven."
+
+msgid "ZenFM port"
+msgstr "port ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Žádost ZenFM čeká…"
+
+msgid "ZenFM started."
+msgstr "ZenFM začal."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM se zastavil."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Stav"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Přepnout server"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} položek"
+
+msgid "{{count}} items selected"
+msgstr "Vybráno {{count}} položek"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} již existuje. Použít tuto volbu na všechny konflikty v tomto nahrávání."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} z {{total}} — {{progress}}%"

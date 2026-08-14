@@ -130,13 +130,16 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 
 ## Beta promotion
 
-1. Set `VERSION` on `dev` to the intended stable base version. It may also end
+1. Add the noteworthy changes under the intended stable base version in
+   `plugin/zenfm.koplugin/changelog.lua`, then set `VERSION` on `dev` to
+   that version. `VERSION` may also end
    in `-betaN`; the workflow strips that suffix when selecting the next number.
 2. Push to `dev`. CI runs all tests and development builds, then triggers the
    beta workflow after it succeeds. The beta workflow uses that exact commit.
 3. The workflow selects the next unused `v<version>-betaN`, stamps it into the
    checkout, builds, signs, verifies, and attests all five artifacts, then
-   publishes them as a GitHub prerelease. It does not change `VERSION` in Git.
+   publishes them as a GitHub prerelease with notes rendered from the Lua
+   changelog. It does not change `VERSION` in Git.
 
 Run the beta workflow manually from `dev` to produce another beta for its
 current commit. Include `ci-skip` in a push commit message when that push should

@@ -1,0 +1,550 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+
+msgid "1 day"
+msgstr "1日"
+
+msgid "1 hour"
+msgstr "1時間"
+
+msgid "1 week"
+msgstr "1週間"
+
+msgid "1 year"
+msgstr "1年"
+
+msgid "30 days"
+msgstr "30日"
+
+msgid "About {{eta}} remaining"
+msgstr "残り約 {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "アドバンストルートモードがアクティブです。システム ファイル、デバイス パス、ZenFM シークレットが表示され、変更または削除される可能性があります。"
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "高度なルート モードは / を提供します。 /proc、/sys、/dev、ZenFM のデータベース、証明書、ログ、およびプロセスがアクセスできるすべてのファイルを公開します。編集または削除すると、デバイスが損傷したり、ロックアウトされたりする可能性があります。"
+
+msgid "Advanced root: expose /"
+msgstr "高度なルート: エクスポーズ /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Android コンパニオン APK: アップデーターを開いています…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Android コンパニオンは 30 秒以内に新しい %s 結果を報告しませんでした。"
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "別の ZenFM Android リクエストがまだ保留中です。"
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "<filename>{{name}}</filename> を <path>{{destination}}</path> に移動してもよろしいですか?"
+
+msgid "Backend version: "
+msgstr "バックエンドのバージョン:"
+
+msgid "Beta updates"
+msgstr "ベータ版のアップデート"
+
+msgid "Calculating total size…"
+msgstr "合計サイズを計算しています…"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Change password"
+msgstr "パスワードの変更"
+
+msgid "Checking for a ZenFM update…"
+msgstr "ZenFM アップデートを確認しています…"
+
+msgid "Checksum"
+msgstr "チェックサム"
+
+msgid "Choose a private password"
+msgstr "プライベートパスワードを選択してください"
+
+msgid "Clear search"
+msgstr "クリアー"
+
+msgid "Client timeout"
+msgstr "クライアントのタイムアウト"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Confirm"
+msgstr "確認する"
+
+msgid "Confirm password"
+msgstr "新しいパスワード（再入力）"
+
+msgid "Copied"
+msgstr "リンクをコピーしました！"
+
+msgid "Copy"
+msgstr "コピー"
+
+msgid "Copy link"
+msgstr "ダウンロードリンクをコピー"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "このトークンを今すぐコピーします。再度表示されることはありません。"
+
+msgid "Copy token"
+msgstr "トークンをコピーする"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "{{total}} の {{copied}} をコピーしています — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Android コンパニオンの結果を読み取れませんでした"
+
+msgid "Create"
+msgstr "作成"
+
+msgid "Create share"
+msgstr "共有の作成"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "所有者セッションを公開せずに一時リンクを作成します。"
+
+msgid "Create token"
+msgstr "トークンの作成"
+
+msgid "Current password"
+msgstr "現在のパスワード"
+
+msgid "Custom root (blank uses device default)"
+msgstr "カスタム ルート (空白はデバイスのデフォルトを使用)"
+
+msgid "Dark"
+msgstr "ダーク"
+
+msgid "Date modified"
+msgstr "更新日時"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "Delete {{count}} items?"
+msgstr "{{count}} アイテムを削除しますか?"
+
+msgid "Destination folder"
+msgstr "保存先フォルダー"
+
+msgid "Destination path"
+msgstr "宛先パス"
+
+msgid "Discard"
+msgstr "破棄"
+
+msgid "Download"
+msgstr "ダウンロード"
+
+msgid "Edit"
+msgstr "編集"
+
+msgid "Editing {{name}}"
+msgstr "{{name}} を編集中"
+
+msgid "Enable HTTP"
+msgstr "HTTPを有効にする"
+
+msgid "Expires"
+msgstr "有効期限が切れます"
+
+msgid "Expires after"
+msgstr "有効期限は次のとおりです"
+
+msgid "Expose entire filesystem"
+msgstr "ファイルシステム全体を公開する"
+
+msgid "File already exists"
+msgstr "ファイルはすでに存在します"
+
+msgid "File name"
+msgstr "ファイル名"
+
+msgid "File or folder path"
+msgstr "パス"
+
+msgid "Files"
+msgstr "ファイル"
+
+msgid "Finish setup"
+msgstr "セットアップを完了する"
+
+msgid "Folder name"
+msgstr "フォルダ名"
+
+msgid "General"
+msgstr "一般的な"
+
+msgid "generated"
+msgstr "生成された"
+
+msgid "Grid view"
+msgstr "グリッドビュー"
+
+msgid "Hide password"
+msgstr "パスワードを隠す"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP は、パスワード、セッション Cookie、ファイルの内容を暗号化せずに送信します。とにかく有効にしますか?"
+
+msgid "Invalid value."
+msgstr "無効な値です。"
+
+msgid "Keep editing"
+msgstr "編集を続ける"
+
+msgid "KOReader plugin bundle:"
+msgstr "KOReader プラグイン バンドル:"
+
+msgid "Label"
+msgstr "ラベル"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Lifetime"
+msgstr "有効期間"
+
+msgid "Light"
+msgstr "ライト"
+
+msgid "List view"
+msgstr "リストビュー"
+
+msgid "Listening port:"
+msgstr "リスニングポート:"
+
+msgid "Loading…"
+msgstr "読み込み中…"
+
+msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
+msgstr "ログインリセット。 koreader / koreader123456789 を使用して、新しいパスワードを選択します。"
+
+msgid "Move"
+msgstr "移動"
+
+msgid "Name"
+msgstr "名前"
+
+msgid "Never"
+msgstr "一度もない"
+
+msgid "New file"
+msgstr "新しいファイル"
+
+msgid "New folder"
+msgstr "新規フォルダー"
+
+msgid "New password"
+msgstr "新しいパスワード"
+
+msgid "No shared links"
+msgstr "共有リンクはありません"
+
+msgid "not configured"
+msgstr "設定されていません"
+
+msgid "Nothing here yet"
+msgstr "ここには何もないようです…"
+
+msgid "Open"
+msgstr "開ける"
+
+msgid "Optional password"
+msgstr "パスワード（オプション）"
+
+msgid "Password"
+msgstr "パスワード"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "パスワードが変更されました。セッションと API トークンが取り消されました。"
+
+msgid "Password protected"
+msgstr "パスワードで保護されています"
+
+msgid "Paste"
+msgstr "ペースト"
+
+msgid "Personal API token"
+msgstr "パーソナルAPIトークン"
+
+msgid "Personal API tokens"
+msgstr "パーソナル API トークン"
+
+msgid "Port must be between 1 and 65535."
+msgstr "ポートは 1 ～ 65535 でなければなりません。"
+
+msgid "Port: "
+msgstr "ポート："
+
+msgid "Preview is unavailable for this file."
+msgstr "プレビューはこのファイルでは利用できません"
+
+msgid "Refresh"
+msgstr "リフレッシュ"
+
+msgid "Rename"
+msgstr "名前の変更"
+
+msgid "Replace"
+msgstr "交換する"
+
+msgid "Replace all"
+msgstr "すべて置き換える"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "ファイルにアクセスする前に、一時パスワードを置き換えてください。"
+
+msgid "Reset login"
+msgstr "ログインをリセットする"
+
+msgid "Reset owner login"
+msgstr "所有者のログインをリセット"
+
+msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
+msgstr "所有者のログインをセットアップ専用の資格情報にリセットし、すべてのセッションと API トークンを取り消しますか?"
+
+msgid "Revoke"
+msgstr "取り消す"
+
+msgid "Root"
+msgstr "根"
+
+msgid "Root: "
+msgstr "根："
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Save and close"
+msgstr "保存して閉じる"
+
+msgid "Save changes"
+msgstr "変更を保存する"
+
+msgid "Save changes before closing?"
+msgstr "閉じる前に変更を保存しますか?"
+
+msgid "Save settings"
+msgstr "保存"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "保存されました。 ZenFM を再起動して変更を適用します。"
+
+msgid "Search results"
+msgstr "検索結果"
+
+msgid "Search this folder"
+msgstr "検索"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Settings saved"
+msgstr "設定が保存されました"
+
+msgid "Share"
+msgstr "共有"
+
+msgid "Shared files"
+msgstr "共有ファイル"
+
+msgid "Shared links"
+msgstr "共有の管理"
+
+msgid "Shared with ZenFM"
+msgstr "ZenFMと共有"
+
+msgid "Shares"
+msgstr "株式"
+
+msgid "Show hidden files"
+msgstr "隠しファイルを表示する"
+
+msgid "Show password"
+msgstr "パスワードを表示"
+
+msgid "Sign in"
+msgstr "ログイン"
+
+msgid "Sign out"
+msgstr "ログアウト"
+
+msgid "Signing in…"
+msgstr "サインイン中…"
+
+msgid "Size"
+msgstr "サイズ"
+
+msgid "Skip all"
+msgstr "すべてスキップ"
+
+msgid "Something went wrong"
+msgstr "エラーが発生しました"
+
+msgid "Start ZenFM"
+msgstr "ZenFMを起動する"
+
+msgid "Status and address"
+msgstr "ステータスと住所"
+
+msgid "Stop after 30 minutes without activity"
+msgstr "30 分間活動がなければ停止する"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "この秒数が経過したら、通常のサーバー要求の待機を停止します。"
+
+msgid "Stop ZenFM"
+msgstr "ZenFM を停止する"
+
+msgid "Switch to dark mode"
+msgstr "ダークモードに切り替える"
+
+msgid "Switch to light mode"
+msgstr "ライトモードに切り替える"
+
+msgid "System"
+msgstr "システム"
+
+msgid "Temporary password"
+msgstr "仮パスワード"
+
+msgid "Text editor"
+msgstr "テキストエディタ"
+
+msgid "The username or password is incorrect."
+msgstr "ユーザー名またはパスワードが間違っています"
+
+msgid "Theme"
+msgstr "テーマ"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "この接続は HTTP を使用しています。資格情報とファイルの内容がネットワーク上で表示される可能性があります。"
+
+msgid "This file has unsaved changes."
+msgstr "このファイルには保存されていない変更が含まれています。"
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "このファイルは大きすぎるか、安全に編集するにはサポートされていません。"
+
+msgid "This link is unavailable or has expired."
+msgstr "このリンクは利用できないか、有効期限が切れています。"
+
+msgid "TLS certificate path (blank uses generated certificate)"
+msgstr "TLS 証明書パス (空白は生成された証明書を使用)"
+
+msgid "TLS certificate: "
+msgstr "TLS 証明書:"
+
+msgid "TLS private key: "
+msgstr "TLS 秘密キー:"
+
+msgid "TLS private-key path (blank uses generated key)"
+msgstr "TLS 秘密キーのパス (空白は生成されたキーを使用)"
+
+msgid "Token name"
+msgstr "トークン名"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "トークンは一度表示されるだけで、このブラウザーによって保存されることはありません。"
+
+msgid "Total copy progress"
+msgstr "コピーの合計進行状況"
+
+msgid "Total upload progress"
+msgstr "アップロードの合計進行状況"
+
+msgid "Unlock"
+msgstr "ロックを解除する"
+
+msgid "Update"
+msgstr "アップデート"
+
+msgid "Upload"
+msgstr "アップロード"
+
+msgid "Upload a file or create one."
+msgstr "ファイルをアップロードするか、ファイルを作成します。"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "{{name}} をアップロード中 — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "アップロード · {{count}} ファイルの {{completed}} が完了 · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "/ を公開するには、Advanced root を使用します。カスタム ルートに を含めることはできません。または .. コンポーネント。"
+
+msgid "Use an absolute path beginning with /."
+msgstr "/で始まる絶対パスを使用してください。"
+
+msgid "Use at least 12 characters."
+msgstr "少なくとも 12 文字を使用してください。"
+
+msgid "Use unencrypted HTTP"
+msgstr "暗号化されていないHTTPを使用する"
+
+msgid "Username"
+msgstr "ユーザー名"
+
+msgid "Version"
+msgstr "バージョン"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "警告: 高度なルート モードでは、ZenFM の状態や証明書を含むファイル システム全体が公開されます。"
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "警告: 暗号化されていない HTTP が有効になっています。"
+
+msgid "Your files, easily accessible."
+msgstr "ファイルに簡単にアクセスできます。"
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFMが動作しています。"
+
+msgid "ZenFM is stopped."
+msgstr "ZenFMは停止しています。"
+
+msgid "ZenFM port"
+msgstr "ZenFMポート"
+
+msgid "ZenFM request pending…"
+msgstr "ZenFM リクエストは保留中です…"
+
+msgid "ZenFM started."
+msgstr "ZenFM始めました。"
+
+msgid "ZenFM stopped."
+msgstr "ZenFMが停止しました。"
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: ステータス"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: サーバーを切り替える"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} アイテム"
+
+msgid "{{count}} items selected"
+msgstr "{{count}} アイテムが選択されました"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} はすでに存在します。この選択をこのアップロード内のすべての競合に適用します。"
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} / {{total}} — {{progress}}%"
