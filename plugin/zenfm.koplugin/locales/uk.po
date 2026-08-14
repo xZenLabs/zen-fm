@@ -198,6 +198,12 @@ msgstr "Приховати пароль"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP надсилає паролі, файли cookie сеансу та вміст файлів без шифрування. Все одно ввімкнути?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Тайм-аут бездіяльності (хвилини)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Час бездіяльності: %d хв"
+
 msgid "Invalid value."
 msgstr "Недійсне значення."
 
@@ -398,9 +404,6 @@ msgstr "Запустіть ZenFM"
 
 msgid "Status and address"
 msgstr "Статус і адреса"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Зупиніться після 30 хвилин бездіяльності"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Припиніть очікування звичайних запитів до сервера через стільки секунд."

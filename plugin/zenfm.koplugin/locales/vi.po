@@ -198,6 +198,12 @@ msgstr "Ẩn mật khẩu"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP gửi mật khẩu, cookie phiên và nội dung tệp mà không cần mã hóa. Vẫn kích hoạt nó?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Thời gian chờ không hoạt động (phút)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Thời gian chờ không hoạt động: %d phút"
+
 msgid "Invalid value."
 msgstr "Giá trị không hợp lệ."
 
@@ -398,9 +404,6 @@ msgstr "Bắt đầu ZenFM"
 
 msgid "Status and address"
 msgstr "Tình trạng và địa chỉ"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Dừng sau 30 phút không hoạt động"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Dừng chờ đợi các yêu cầu máy chủ thông thường sau nhiều giây này."

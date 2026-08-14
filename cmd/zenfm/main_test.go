@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
+	"net"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,6 +48,103 @@ func TestListenNetworkUsesIPv4ForIPv4Addresses(t *testing.T) {
 		if got := listenNetwork(address); got != want {
 			t.Errorf("listenNetwork(%q) = %q, want %q", address, got, want)
 		}
+	}
+}
+
+type pipeAddress string
+
+func (a pipeAddress) Network() string { return "pipe" }
+func (a pipeAddress) String() string  { return string(a) }
+
+type pipeListener struct {
+	addr        net.Addr
+	connections chan net.Conn
+	closed      chan struct{}
+	closeOnce   sync.Once
+}
+
+func newPipeListener(address string) *pipeListener {
+	return &pipeListener{addr: pipeAddress(address), connections: make(chan net.Conn), closed: make(chan struct{})}
+}
+
+func (l *pipeListener) Accept() (net.Conn, error) {
+	select {
+	case connection := <-l.connections:
+		return connection, nil
+	case <-l.closed:
+		return nil, net.ErrClosed
+	}
+}
+
+func (l *pipeListener) Close() error {
+	l.closeOnce.Do(func() { close(l.closed) })
+	return nil
+}
+
+func (l *pipeListener) Addr() net.Addr { return l.addr }
+
+func (l *pipeListener) Dial() (net.Conn, error) {
+	client, server := net.Pipe()
+	select {
+	case l.connections <- server:
+		return client, nil
+	case <-l.closed:
+		_ = client.Close()
+		_ = server.Close()
+		return nil, net.ErrClosed
+	}
+}
+
+func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
+	listener := newPipeListener("kindle.local:53241")
+	_, plainListener, dispatcher := splitProtocols(listener)
+	defer dispatcher.Close()
+	redirectServer := &http.Server{Handler: httpsRedirectHandler()}
+	defer redirectServer.Close()
+	go func() { _ = redirectServer.Serve(plainListener) }()
+
+	transport := &http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) { return listener.Dial() }}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := client.Get("http://kindle.local:53241/files/a%20b?view=grid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, response.Body)
+	want := "https://kindle.local:53241/files/a%20b?view=grid"
+	if response.StatusCode != http.StatusTemporaryRedirect || response.Header.Get("Location") != want {
+		t.Fatalf("redirect = %d %q, want %d %q", response.StatusCode, response.Header.Get("Location"), http.StatusTemporaryRedirect, want)
+	}
+	if response.Header.Get("Cache-Control") != "no-store" {
+		t.Fatalf("cache control = %q", response.Header.Get("Cache-Control"))
+	}
+}
+
+func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
+	listener := newPipeListener("kindle.local:53241")
+	tlsListener, _, dispatcher := splitProtocols(listener)
+	defer dispatcher.Close()
+	client, err := listener.Dial()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	want := []byte{0x16, 0x03, 0x03, 0, 1, 0}
+	if _, err := client.Write(want); err != nil {
+		t.Fatal(err)
+	}
+	connection, err := tlsListener.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	got := make([]byte, len(want))
+	if _, err := io.ReadFull(connection, got); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("TLS bytes = %x, want %x", got, want)
 	}
 }
 

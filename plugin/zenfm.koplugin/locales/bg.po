@@ -198,6 +198,12 @@ msgstr "Скриване на паролата"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP изпраща пароли, сесийни бисквитки и файлово съдържание без криптиране. Да се ​​активира ли все пак?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Време за изчакване на неактивност (минути)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Време за изчакване на неактивност: %d мин"
+
 msgid "Invalid value."
 msgstr "Невалидна стойност."
 
@@ -398,9 +404,6 @@ msgstr "Стартирайте ZenFM"
 
 msgid "Status and address"
 msgstr "Статус и адрес"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Спрете след 30 минути без активност"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Спрете да чакате обикновени сървърни заявки след толкова много секунди."

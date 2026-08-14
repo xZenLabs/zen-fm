@@ -198,6 +198,12 @@ msgstr "Masquer le mot de passe"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP envoie les mots de passe, les cookies de session et le contenu des fichiers sans cryptage. L'activer quand même ?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Délai d'inactivité (minutes)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Délai d'inactivité : %d min"
+
 msgid "Invalid value."
 msgstr "Valeur invalide."
 
@@ -398,9 +404,6 @@ msgstr "Démarrer ZenFM"
 
 msgid "Status and address"
 msgstr "Statut et adresse"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Arrêtez-vous après 30 minutes sans activité"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Arrêtez d'attendre les requêtes ordinaires du serveur après autant de secondes."

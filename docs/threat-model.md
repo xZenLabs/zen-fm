@@ -41,10 +41,12 @@
   mandatory password change. A hostile peer can race the legitimate owner on
   first start.
 - Explicit HTTP mode provides no confidentiality or peer authentication.
-- Advanced root mode intentionally exposes all regular files permitted by the
-  operating system, including ZenFM state, password hashes, tokens, logs,
-  executable, and TLS keys. Editing or deleting them can disclose secrets,
-  corrupt state, or stop the service.
+- The ZenFM settings directory is intentionally visible when it lies below the
+  configured file root. It contains password hashes, tokens, logs, the backend,
+  and TLS keys. Reading, editing, or deleting them can disclose secrets, corrupt
+  state, or stop the service. Public shares exclude this directory. Advanced
+  root mode exposes all other regular files permitted by the operating system
+  as well.
 - The server is deliberately detached from KOReader and can remain running
   after KOReader exits or Wi-Fi changes until manually stopped or auto-stop is
   enabled.

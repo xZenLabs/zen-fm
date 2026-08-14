@@ -198,6 +198,12 @@ msgstr "パスワードを隠す"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP は、パスワード、セッション Cookie、ファイルの内容を暗号化せずに送信します。とにかく有効にしますか?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "非アクティブタイムアウト (分)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "非アクティブタイムアウト: %d 分"
+
 msgid "Invalid value."
 msgstr "無効な値です。"
 
@@ -398,9 +404,6 @@ msgstr "ZenFMを起動する"
 
 msgid "Status and address"
 msgstr "ステータスと住所"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "30 分間活動がなければ停止する"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "この秒数が経過したら、通常のサーバー要求の待機を停止します。"

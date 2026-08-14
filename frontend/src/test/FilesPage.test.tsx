@@ -1,10 +1,18 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { server } from './server'
-import { renderApp } from './renderApp'
+import { renderApp, TestProviders } from './renderApp'
 import { api } from '../api/client'
 import { formatShortDate } from '../utils'
+import App from '../App'
+
+function RouterProbe() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  return <><output data-testid="route-location">{`${location.pathname}${location.search}`}</output><button onClick={() => void navigate(-1)}>Browser back</button></>
+}
 
 describe('file browser', () => {
   it('shows an icon-only clear action only while the search field has text', async () => {
@@ -85,7 +93,15 @@ describe('file browser', () => {
     renderApp('/files')
 
     const item = await screen.findByRole('row', { name: /manual\.bin/ })
-    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+    const listView = screen.getByRole('button', { name: 'List view' })
+    const gridView = screen.getByRole('button', { name: 'Grid view' })
+    expect(listView).toHaveAttribute('aria-pressed', 'true')
+    await user.hover(listView)
+    expect(await screen.findByRole('tooltip', { name: 'List view' })).toBeInTheDocument()
+    await user.unhover(listView)
+    await user.hover(gridView)
+    expect(await screen.findByRole('tooltip', { name: 'Grid view' })).toBeInTheDocument()
+    await user.unhover(gridView)
     await user.click(item)
     expect(item).toHaveClass('selected')
     const otherItem = screen.getByRole('row', { name: /notes\.bin/ })
@@ -570,7 +586,7 @@ describe('file browser', () => {
     expect(body).toBe('')
   })
 
-  it('opens the editor with Enter from a text preview', async () => {
+  it('opens the fullscreen viewer with Enter from a text preview', async () => {
     server.use(
       http.get('http://localhost/api/v1/files', () => HttpResponse.json({
         path: '/', advancedMode: false,
@@ -580,13 +596,40 @@ describe('file browser', () => {
       http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('Preview text')),
     )
     const user = userEvent.setup()
-    renderApp('/files')
+    render(<TestProviders initialPath="/files"><App /><RouterProbe /></TestProviders>)
 
     await user.dblClick(await screen.findByRole('row', { name: /notes\.txt/ }))
     await screen.findByText('Preview text')
     await user.keyboard('{Enter}')
 
-    expect(await screen.findByText('Editing notes.txt')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'notes.txt' })
+    expect(dialog).toHaveClass('MuiDialog-paperFullScreen')
+    expect(within(dialog).getByRole('button', { name: 'Find in file' })).toBeInTheDocument()
+    expect(screen.queryByText('Editing notes.txt')).not.toBeInTheDocument()
+    expect(screen.getByTestId('route-location')).toHaveTextContent('/files?file=notes.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Browser back', hidden: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'notes.txt' })).not.toBeInTheDocument())
+    expect(screen.getByTestId('route-location')).toHaveTextContent('/files')
+  })
+
+  it('opens a manually entered file URL fullscreen over its parent folder', async () => {
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path')
+        return HttpResponse.json({
+          path: '/Books', advancedMode: false,
+          entries: path === '/Books' ? [{ name: 'chapter.txt', path: '/Books/chapter.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }] : [],
+        })
+      }),
+      http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text('Chapter text')),
+    )
+
+    renderApp('/files/Books?file=chapter.txt')
+
+    expect(await screen.findByText('Chapter text')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'chapter.txt' })).toHaveClass('MuiDialog-paperFullScreen')
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb', hidden: true })).toHaveTextContent('Books')
   })
 
   it('applies replace all to the current conflict and every remaining upload', async () => {
@@ -725,7 +768,7 @@ describe('file browser', () => {
     await user.click(await screen.findByRole('button', { name: 'Grid view' }))
     const folder = screen.getByRole('listitem', { name: 'Books' })
     const file = screen.getByRole('listitem', { name: 'notes.txt' })
-    expect(within(folder).getByText(`— · ${formatShortDate('2026-01-01T12:00:00Z')}`)).toBeInTheDocument()
+    expect(within(folder).getByText(formatShortDate('2026-01-01T12:00:00Z'))).toBeInTheDocument()
     expect(folder).not.toHaveTextContent('4 KB')
     expect(within(file).getByText(`512 B · ${formatShortDate('2026-01-02T12:00:00Z')}`)).toBeInTheDocument()
     expect(getComputedStyle(within(folder).getByTestId('FolderRoundedIcon').parentElement!).alignItems).toBe('center')

@@ -198,6 +198,12 @@ msgstr "Hide password"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Inactivity timeout (minutes)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Inactivity timeout: %d min"
+
 msgid "Invalid value."
 msgstr "Invalid value."
 
@@ -398,9 +404,6 @@ msgstr "Start ZenFM"
 
 msgid "Status and address"
 msgstr "Status and address"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Stop after 30 minutes without activity"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Stop waiting for ordinary server requests after this many seconds."

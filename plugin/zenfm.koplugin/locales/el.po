@@ -198,6 +198,12 @@ msgstr "Απόκρυψη κωδικού πρόσβασης"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "Το HTTP στέλνει κωδικούς πρόσβασης, cookies περιόδου λειτουργίας και περιεχόμενα αρχείων χωρίς κρυπτογράφηση. Ενεργοποίηση πάντως;"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Λήξη χρονικού ορίου αδράνειας (λεπτά)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Χρονικό όριο αδράνειας: %d λεπτά"
+
 msgid "Invalid value."
 msgstr "Μη έγκυρη τιμή."
 
@@ -398,9 +404,6 @@ msgstr "Εκκινήστε το ZenFM"
 
 msgid "Status and address"
 msgstr "Κατάσταση και διεύθυνση"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Σταματήστε μετά από 30 λεπτά χωρίς δραστηριότητα"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Σταματήστε να περιμένετε για συνηθισμένα αιτήματα διακομιστή μετά από τόσα πολλά δευτερόλεπτα."

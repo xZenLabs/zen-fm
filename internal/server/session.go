@@ -73,7 +73,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	clearCookie(w, sessionCookie, s.cfg.SecureTransport)
+	clearCookie(w, sessionCookieName(s.cfg.SecureTransport), s.cfg.SecureTransport)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -121,7 +121,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	clearCookie(w, sessionCookie, s.cfg.SecureTransport)
+	clearCookie(w, sessionCookieName(s.cfg.SecureTransport), s.cfg.SecureTransport)
 	session, err := s.newSession(w)
 	if err != nil {
 		internalError(w, r, err)

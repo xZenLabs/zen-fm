@@ -133,12 +133,44 @@ func (r *Root) Pseudo(name string) bool {
 	return err == nil && r.pseudoTarget(clean)
 }
 
+// Restricted returns a separately owned view of the same root with the named
+// subtrees excluded, including when the root is the advanced literal / view.
+func (r *Root) Restricted(names ...string) (*Root, error) {
+	restricted, err := Open(r.name, Options{
+		MaxWriteBytes: r.maxWriteBytes, MaxContentBytes: r.maxReadBytes,
+		MaxWalkEntries: r.maxWalkEntries,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range names {
+		abs, err := canonicalAbsolute(name)
+		if err != nil {
+			_ = restricted.Close()
+			return nil, err
+		}
+		if abs == restricted.name {
+			restricted.excluded = append(restricted.excluded, "")
+			continue
+		}
+		if err := restricted.excludeAbsolute(name); err != nil {
+			_ = restricted.Close()
+			return nil, err
+		}
+	}
+	return restricted, nil
+}
+
 // ExcludeAbsolute hides a private subtree when it lies below a normal served
 // root. Literal / advanced mode intentionally ignores exclusions.
 func (r *Root) ExcludeAbsolute(name string) error {
 	if r.advanced {
 		return nil
 	}
+	return r.excludeAbsolute(name)
+}
+
+func (r *Root) excludeAbsolute(name string) error {
 	abs, err := canonicalAbsolute(name)
 	if err != nil {
 		return err
@@ -277,7 +309,7 @@ func (r *Root) isExcluded(clean string) bool {
 		return false
 	}
 	for _, excluded := range r.excluded {
-		if clean == excluded || strings.HasPrefix(clean, excluded+"/") {
+		if excluded == "" || clean == excluded || strings.HasPrefix(clean, excluded+"/") {
 			return true
 		}
 	}

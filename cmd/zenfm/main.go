@@ -25,6 +25,8 @@ import (
 	"github.com/xZenLabs/zen-fm/internal/webui"
 )
 
+const defaultPort = 53241
+
 var version = "dev"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -96,11 +98,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("secure data directory: %w", err)
 	}
 	if *listenAddress == "" {
-		if *insecureHTTP {
-			*listenAddress = ":8080"
-		} else {
-			*listenAddress = ":8443"
-		}
+		*listenAddress = fmt.Sprintf(":%d", defaultPort)
 	}
 	if *controlSocket == "" {
 		*controlSocket = filepath.Join(*dataDir, "zenfm.sock")
@@ -121,18 +119,11 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer root.Close()
-	if !root.Advanced() {
-		if err := root.ExcludeAbsolute(*certFile); err != nil {
-			return fmt.Errorf("protect TLS certificate: %w", err)
-		}
-		if err := root.ExcludeAbsolute(*keyFile); err != nil {
-			return fmt.Errorf("protect TLS private key: %w", err)
-		}
-	}
 	api, err := server.New(server.Config{
 		Store: store, Files: root, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
 		SessionIdle: *sessionIdle, SessionAbsolute: *sessionAbsolute,
 		ModeLessFilesystem: *modeLessFilesystem,
+		PublicExclusions:   []string{*certFile, *keyFile},
 	})
 	if err != nil {
 		return err
@@ -173,14 +164,21 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		ModeLessFilesystem: *modeLessFilesystem,
 	}
 	go func() { controlErrors <- controlServer.Run(ctx) }()
-	serveErrors := make(chan error, 1)
-	go func() {
-		if *insecureHTTP {
-			serveErrors <- httpServer.Serve(listener)
-		} else {
-			serveErrors <- httpServer.ServeTLS(listener, "", "")
+	serveErrors := make(chan error, 2)
+	var redirectServer *http.Server
+	var protocols *protocolDispatcher
+	if *insecureHTTP {
+		go func() { serveErrors <- httpServer.Serve(listener) }()
+	} else {
+		tlsListener, plainListener, dispatcher := splitProtocols(listener)
+		protocols = dispatcher
+		redirectServer = &http.Server{
+			Handler: httpsRedirectHandler(), ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout: 60 * time.Second, MaxHeaderBytes: 64 << 10,
 		}
-	}()
+		go func() { serveErrors <- httpServer.ServeTLS(tlsListener, "", "") }()
+		go func() { serveErrors <- redirectServer.Serve(plainListener) }()
+	}
 	if *autoStop > 0 {
 		go watchIdle(ctx, cancel, api, *autoStop)
 	}
@@ -208,6 +206,14 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	defer shutdownCancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
+	}
+	if redirectServer != nil {
+		if err := redirectServer.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown HTTP redirect: %w", err)
+		}
+	}
+	if protocols != nil {
+		_ = protocols.Close()
 	}
 	return nil
 }

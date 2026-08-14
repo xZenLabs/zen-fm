@@ -198,6 +198,12 @@ msgstr "Ocultar palavra-passe"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "O HTTP envia palavras-passe, cookies de sessão e conteúdo de ficheiros sem encriptação. Habilitá-lo mesmo assim?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Tempo limite de inatividade (minutos)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Tempo limite de inatividade: %d min"
+
 msgid "Invalid value."
 msgstr "Valor inválido."
 
@@ -398,9 +404,6 @@ msgstr "Inicie o Zen FM"
 
 msgid "Status and address"
 msgstr "Estado e endereço"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Pare após 30 minutos sem atividade"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Pare de esperar por pedidos comuns do servidor após tantos segundos."

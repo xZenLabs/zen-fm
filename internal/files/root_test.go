@@ -713,6 +713,21 @@ func TestNormalModeHidesPrivateStateSubtree(t *testing.T) {
 	}
 }
 
+func TestRestrictedViewCanExcludeEntireRoot(t *testing.T) {
+	r, dir := testRoot(t, Options{})
+	restricted, err := r.Restricted(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restricted.Close()
+	if _, err := restricted.List("/", true); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("restricted root remained visible: %v", err)
+	}
+	if _, err := r.List("/", true); err != nil {
+		t.Fatalf("owner root was affected by restricted view: %v", err)
+	}
+}
+
 func TestExclusionCanonicalizesSymlinkedAndMissingTargets(t *testing.T) {
 	r, dir := testRoot(t, Options{})
 	stateDir := filepath.Join(dir, "state")

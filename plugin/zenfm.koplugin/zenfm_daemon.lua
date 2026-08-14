@@ -171,6 +171,22 @@ function Daemon:runtime_dir()
     return "/tmp/zenfm-" .. short_path_id(self.plugin_dir .. "\0" .. self.state_dir)
 end
 
+function Daemon:koreader_crash_log()
+    local ok, DataStorage = pcall(require, "datastorage")
+    if not ok or not DataStorage then return nil end
+    local data_dir
+    if DataStorage.getFullDataDir then
+        local resolved, value = pcall(DataStorage.getFullDataDir, DataStorage)
+        if resolved then data_dir = value end
+    end
+    if (type(data_dir) ~= "string" or data_dir == "") and DataStorage.getDataDir then
+        local resolved, value = pcall(DataStorage.getDataDir, DataStorage)
+        if resolved then data_dir = value end
+    end
+    if type(data_dir) ~= "string" or data_dir == "" then return nil end
+    return data_dir:gsub("/+$", "") .. "/crash.log"
+end
+
 function Daemon:ensure_runtime_dir()
     local quoted = Util.sh_quote(self:runtime_dir())
     local chmod = "chmod 700 " .. quoted
@@ -182,7 +198,12 @@ function Daemon:ensure_runtime_dir()
 end
 
 function Daemon:log_path()
-    return self.state_dir .. "/zenfm.log"
+    return self:koreader_crash_log() or self.state_dir .. "/zenfm.log"
+end
+
+function Daemon:logged_command(command)
+    return "sh " .. Util.sh_quote(self.plugin_dir .. "/log-prefix.sh")
+        .. " " .. Util.sh_quote(self:log_path()) .. " " .. command
 end
 
 function Daemon:token_path()
@@ -243,6 +264,10 @@ function Daemon:root()
     return self.settings:default_root(self:platform(), self:android_storage())
 end
 
+local function auto_stop_duration(minutes)
+    return minutes > 0 and tostring(minutes) .. "m" or "0"
+end
+
 function Daemon:serve_arguments()
     local values = self.settings.values
     local arguments = {
@@ -251,7 +276,7 @@ function Daemon:serve_arguments()
         "--data-dir", self.state_dir,
         "--listen", "0.0.0.0:" .. tostring(values.port),
         "--control-socket", self:control_socket(),
-        "--auto-stop", values.auto_stop_minutes == 30 and "30m" or "0",
+        "--auto-stop", auto_stop_duration(values.auto_stop_minutes),
     }
     if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
@@ -311,7 +336,7 @@ function Daemon:android_uri(action, request_id)
             root = self:root(),
             port = tostring(values.port),
             insecure = values.insecure_http and "1" or "0",
-            auto_stop = values.auto_stop_minutes == 30 and "30m" or "0",
+            auto_stop = auto_stop_duration(values.auto_stop_minutes),
             tls_cert = values.tls_cert,
             tls_key = values.tls_key,
         }
@@ -394,8 +419,8 @@ function Daemon:start()
     if running then return true, status end
     local ready, err = self:ensure_backend()
     if not ready then return false, err end
-    local launch = "( trap '' HUP; " .. self:supervisor_command()
-        .. " >>" .. Util.sh_quote(self:log_path()) .. " 2>&1 </dev/null ) &"
+    local launch = "( trap '' HUP; " .. self:logged_command(self:supervisor_command())
+        .. " </dev/null ) &"
     if self.execute(launch) ~= 0 then return false, "could not launch ZenFM" end
     local ok_socket, socket = pcall(require, "socket")
     for _ = 1, 30 do
@@ -418,6 +443,17 @@ function Daemon:stop()
     return false, err or response or "control socket did not accept stop"
 end
 
+function Daemon:restart()
+    local stopped, err = self:stop()
+    if not stopped then return false, err end
+    for _ = 1, 50 do
+        local running = self:status()
+        if not running and not self.path_exists(self:pid_path()) then return self:start() end
+        self.sleep(0.1)
+    end
+    return false, "ZenFM did not stop before restart"
+end
+
 function Daemon:reset_login()
     local stopped, err = self:stop()
     if not stopped then return false, err end
@@ -435,7 +471,7 @@ function Daemon:reset_login()
     local command = Util.sh_quote(self:backend_path()) .. " reset-login --data-dir "
         .. Util.sh_quote(self.state_dir)
     if self:is_pocketbook() then command = command .. " --mode-less-filesystem" end
-    command = command .. " >>" .. Util.sh_quote(self:log_path()) .. " 2>&1"
+    command = self:logged_command(command) .. " </dev/null"
     return self.execute(command) == 0, "reset-login failed; see " .. self:log_path()
 end
 

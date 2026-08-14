@@ -62,6 +62,7 @@ regression tests must remain in place.
 | GHSA-w7qc-6grj-w7r8 | Removed | No command execution. |
 | GHSA-4wx8-5gm2-2j97 | Control | Markdown raw HTML is escaped, unsafe links are stripped, and the sanitized result remains under the application CSP. |
 
-Advanced root mode intentionally permits the owner to read or alter regular
-ZenFM state and certificate files. That behavior is outside these isolation
-controls and is documented as an accepted risk.
+ZenFM intentionally permits the owner to read or alter regular ZenFM state and
+certificate files when its settings directory lies below the configured file
+root. That behavior is outside these isolation controls and is documented as an
+accepted risk.

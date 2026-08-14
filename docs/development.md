@@ -18,7 +18,7 @@ Open the URL printed by Vite, normally <http://localhost:5173>, and sign in
 with:
 
 - Username: `koreader`
-- Password: `zenfm-demo-password`
+- Password: `koreader`
 
 The mock contains folders, text/Markdown/CSV/image fixtures, a hidden file,
 shares, settings, and token examples. Common file mutations and direct uploads
@@ -292,18 +292,30 @@ In KOReader, open **ZenFM > Start ZenFM**, followed by
 **ZenFM > Status and address**. The status dialog shows the device's LAN IP and
 the active ZenFM listening port.
 
-The default server is HTTPS on port 8443. Initial login is
+The default server is HTTPS on port 53241, shared by every installation and by
+both transport modes unless changed in the plugin settings. While HTTPS is
+enabled, plain HTTP requests to that port redirect to the same URL over HTTPS.
+Initial login is
 `koreader` / `koreader123456789`; file APIs remain locked until the password is
-changed. The plugin supervisor keeps the server detached and handles the
-Kindle firewall. Prefer the plugin to a hand-started process for device tests.
+changed. The plugin supervisor keeps the server detached and handles the Kindle
+firewall. Prefer the plugin to a hand-started process for device tests.
 
 On non-Android devices, runtime files live under
 `<KOReader settings directory>/ZenFM`:
 
-- `zenfm.log` contains backend and supervisor output;
 - `zenfm.db` contains owner, session, share, and upload state;
 - `backend/zenfm` is the installed backend copy;
 - generated TLS material is under `tls/`.
+
+This directory remains visible and mutable in the web Files view when it is
+below the configured root. Editing or deleting its live state can expose
+credentials, corrupt state, or stop ZenFM. Public shares exclude it.
+
+Backend and supervisor output is appended to KOReader's `crash.log` so it is
+included with the device's normal diagnostics. Each line uses KOReader's local
+`MM/DD/YY-HH:MM:SS` timestamp format followed by `ZenFM:` for easy filtering.
+Outside KOReader, ZenFM falls back to `<state directory>/zenfm.log` with the
+same timestamped format.
 
 On Android, the companion keeps the database, generated certificate, and
 control socket in app-private storage. The KOReader `ZenFM` settings directory

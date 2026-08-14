@@ -60,7 +60,7 @@ func (s *Server) createShare(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusBadRequest, "Invalid Request", "invalid share request")
 		return
 	}
-	entry, err := s.cfg.Files.Entry(request.Path)
+	entry, err := s.publicFiles.Entry(request.Path)
 	if err != nil {
 		mapError(w, r, err)
 		return
@@ -69,19 +69,19 @@ func (s *Server) createShare(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusUnsupportedMediaType, "Unsupported File", "symlinks and special files cannot be shared")
 		return
 	}
-	if s.cfg.Files.Pseudo(request.Path) {
+	if s.publicFiles.Pseudo(request.Path) {
 		problem(w, r, http.StatusUnsupportedMediaType, "Unsupported File", "pseudo-filesystems cannot be shared")
 		return
 	}
 	if entry.Directory {
-		scope, scopeErr := s.cfg.Files.OpenScope(request.Path)
+		scope, scopeErr := s.publicFiles.OpenScope(request.Path)
 		if scopeErr != nil {
 			mapError(w, r, scopeErr)
 			return
 		}
 		_ = scope.Close()
 	} else {
-		file, _, openErr := s.cfg.Files.OpenRegular(request.Path)
+		file, _, openErr := s.publicFiles.OpenRegular(request.Path)
 		if openErr != nil {
 			mapError(w, r, openErr)
 			return
@@ -248,7 +248,7 @@ func (s *Server) publicRaw(w http.ResponseWriter, r *http.Request) {
 		problem(w, r, http.StatusBadRequest, "Invalid Path", "shared descendant path is invalid")
 		return
 	}
-	baseEntry, err := s.cfg.Files.Entry(zenfiles.PublicPath(base))
+	baseEntry, err := s.publicFiles.Entry(zenfiles.PublicPath(base))
 	if err != nil || !baseEntry.Directory && relative != "." {
 		shareNotFound(w, r)
 		return
@@ -256,7 +256,7 @@ func (s *Server) publicRaw(w http.ResponseWriter, r *http.Request) {
 	var f *os.File
 	var info os.FileInfo
 	if baseEntry.Directory {
-		scope, scopeErr := s.cfg.Files.OpenScope(zenfiles.PublicPath(base))
+		scope, scopeErr := s.publicFiles.OpenScope(zenfiles.PublicPath(base))
 		if scopeErr != nil {
 			mapError(w, r, scopeErr)
 			return
@@ -265,7 +265,7 @@ func (s *Server) publicRaw(w http.ResponseWriter, r *http.Request) {
 		f, info, err = scope.OpenRegular(zenfiles.PublicPath(relative))
 		target = relative
 	} else {
-		f, info, err = s.cfg.Files.OpenRegular(zenfiles.PublicPath(target))
+		f, info, err = s.publicFiles.OpenRegular(zenfiles.PublicPath(target))
 	}
 	if err != nil {
 		mapError(w, r, err)
@@ -304,7 +304,7 @@ func (s *Server) publicPayload(v state.Share, authorized bool, requested string)
 	if err != nil {
 		return nil, err
 	}
-	baseEntry, err := s.cfg.Files.Entry(zenfiles.PublicPath(base))
+	baseEntry, err := s.publicFiles.Entry(zenfiles.PublicPath(base))
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (s *Server) publicPayload(v state.Share, authorized bool, requested string)
 	}
 	response["path"] = zenfiles.PublicPath(relative)
 	if baseEntry.Directory {
-		scope, err := s.cfg.Files.OpenScope(zenfiles.PublicPath(base))
+		scope, err := s.publicFiles.OpenScope(zenfiles.PublicPath(base))
 		if err != nil {
 			return nil, err
 		}
@@ -337,7 +337,7 @@ func (s *Server) publicPayload(v state.Share, authorized bool, requested string)
 		}
 		response["entries"] = entries
 	} else {
-		entry, err := s.cfg.Files.Entry(zenfiles.PublicPath(target))
+		entry, err := s.publicFiles.Entry(zenfiles.PublicPath(target))
 		if err != nil {
 			return nil, err
 		}

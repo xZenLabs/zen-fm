@@ -49,6 +49,8 @@ public final class ManifestPolicyTest {
         assertTrue(service.contains("CommandRequest.liveStatus(control(\"status\"), requestId)"));
         assertTrue(service.contains("CompanionLog.status(this, home, \"stopping\")"));
         assertTrue(service.contains("Config saved = config == null ? Config.load(this) : config"));
+        assertTrue(service.contains("CommandRequest.status(\"idle_stopped\""));
+        assertTrue(service.contains("android.os.Process.killProcess(android.os.Process.myPid())"));
 
         String activity = new String(Files.readAllBytes(source(
             "src/main/java/org/zenlabs/zenfm/ZenFMActivity.java")), StandardCharsets.UTF_8);

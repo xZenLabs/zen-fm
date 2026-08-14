@@ -198,6 +198,12 @@ msgstr "隐藏密码"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP 发送密码、会话 cookie 和文件内容而不加密。仍然启用它吗？"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "不活动超时（分钟）"
+
+msgid "Inactivity timeout: %d min"
+msgstr "不活动超时：%d 分钟"
+
 msgid "Invalid value."
 msgstr "无效值。"
 
@@ -398,9 +404,6 @@ msgstr "启动ZenFM"
 
 msgid "Status and address"
 msgstr "状态和地址"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "30 分钟无活动后停止"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "经过这么多秒后停止等待普通服务器请求。"

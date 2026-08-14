@@ -38,6 +38,7 @@ for platform in ereader linux macos android; do
     archive="$ROOT/dist/ZenFM-koreader-$platform-$VERSION.zip"
     [ -f "$archive" ]
     unzip -Z1 "$archive" | grep -q '^zenfm\.koplugin/main\.lua$'
+    unzip -Z1 "$archive" | grep -q '^zenfm\.koplugin/log-prefix\.sh$'
     unzip -Z1 "$archive" | grep -q '^zenfm\.koplugin/LICENSE$'
     unzip -Z1 "$archive" | grep -q '^zenfm\.koplugin/THIRD_PARTY_NOTICES\.md$'
     if unzip -Z1 "$archive" | grep -Eq '(^|/)(tests?|\.git)(/|$)|\.py$'; then

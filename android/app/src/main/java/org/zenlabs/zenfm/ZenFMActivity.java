@@ -359,8 +359,7 @@ public final class ZenFMActivity extends Activity {
         String root = absolute(uri.getQueryParameter("root"), true, "root");
         int port = integer(uri.getQueryParameter("port"), 1, 65535, "port");
         boolean insecure = "1".equals(uri.getQueryParameter("insecure"));
-        String autoStop = uri.getQueryParameter("auto_stop");
-        if (!"0".equals(autoStop) && !"30m".equals(autoStop)) throw new IllegalArgumentException("auto_stop");
+        String autoStop = CommandRequest.requireAutoStop(uri.getQueryParameter("auto_stop"));
         String certificate = optionalAbsolute(uri.getQueryParameter("tls_cert"), "certificate");
         String key = optionalAbsolute(uri.getQueryParameter("tls_key"), "private key");
         if ((certificate.isEmpty()) != (key.isEmpty())) throw new IllegalArgumentException("both TLS paths are required");

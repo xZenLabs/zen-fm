@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, Plugin } from 'vite'
 
 const USERNAME = 'koreader'
-const DEMO_PASSWORD = 'zenfm-demo-password'
+const DEMO_PASSWORD = 'koreader'
 const SESSION_COOKIE = 'zenfm_mock_session=demo'
 const CSRF_TOKEN = 'zenfm-mock-csrf-token-0000000000'
 const MAX_BODY_BYTES = 16 * 1024 * 1024

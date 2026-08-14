@@ -198,6 +198,12 @@ msgstr "Wachtwoord verbergen"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP verzendt wachtwoorden, sessiecookies en bestandsinhoud zonder codering. Toch inschakelen?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Time-out bij inactiviteit (minuten)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Time-out bij inactiviteit: %d min"
+
 msgid "Invalid value."
 msgstr "Ongeldige waarde."
 
@@ -398,9 +404,6 @@ msgstr "Start ZenFM"
 
 msgid "Status and address"
 msgstr "Status en adres"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Stop na 30 minuten zonder activiteit"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Wacht niet langer op gewone serververzoeken na zoveel seconden."

@@ -108,7 +108,7 @@ func (a *testAPI) login(password string) (*http.Cookie, string, bool) {
 		a.t.Fatalf("login: %d %s", r.Code, r.Body.String())
 	}
 	payload := decodeMap(a.t, r)
-	return responseCookie(a.t, r, sessionCookie), payload["csrfToken"].(string), payload["setupRequired"].(bool)
+	return responseCookie(a.t, r, sessionCookieName(a.server.cfg.SecureTransport)), payload["csrfToken"].(string), payload["setupRequired"].(bool)
 }
 
 func (a *testAPI) finishSetup() (*http.Cookie, string) {
@@ -123,7 +123,7 @@ func (a *testAPI) finishSetup() (*http.Cookie, string) {
 		a.t.Fatalf("password change: %d %s", r.Code, r.Body.String())
 	}
 	payload := decodeMap(a.t, r)
-	return responseCookie(a.t, r, sessionCookie), payload["csrfToken"].(string)
+	return responseCookie(a.t, r, sessionCookieName(a.server.cfg.SecureTransport)), payload["csrfToken"].(string)
 }
 
 func TestHealthIsRedactedAndHardened(t *testing.T) {
@@ -152,6 +152,41 @@ func TestSettingsReportRunningBackendVersion(t *testing.T) {
 			t.Fatalf("settings version = %v, want backend version", version)
 		}
 	}
+}
+
+func TestHTTPLoginUsesCookieDistinctFromHTTPS(t *testing.T) {
+	a := newTestAPI(t)
+	a.server.cfg.SecureTransport = true
+	secureCookie, _, _ := a.login(state.SetupPassword)
+	if secureCookie.Name != sessionCookie || !secureCookie.Secure {
+		t.Fatalf("HTTPS cookie = %#v", secureCookie)
+	}
+
+	a.server.cfg.SecureTransport = false
+	httpCookie, _, _ := a.login(state.SetupPassword)
+	if httpCookie.Name != sessionCookie+"_http" || httpCookie.Secure {
+		t.Fatalf("HTTP cookie = %#v", httpCookie)
+	}
+	if response := a.request(http.MethodGet, "/api/v1/session", nil, httpCookie, "", ""); response.Code != http.StatusOK {
+		t.Fatalf("HTTP session cookie was not accepted: %d %s", response.Code, response.Body.String())
+	}
+	if response := a.request(http.MethodGet, "/api/v1/session", nil, secureCookie, "", ""); response.Code != http.StatusUnauthorized {
+		t.Fatalf("HTTPS cookie was accepted in HTTP mode: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestZenFMStateDirectoryRemainsVisibleUnderFileRoot(t *testing.T) {
+	a := newTestAPI(t)
+	listing, err := a.files.List("", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range listing.Entries {
+		if entry.Name == "state" && entry.Type == "directory" {
+			return
+		}
+	}
+	t.Fatalf("state directory missing from listing: %#v", listing.Entries)
 }
 
 func TestWalkLimitMapsToBoundedResponse(t *testing.T) {
@@ -241,7 +276,7 @@ func TestSetupGatePasswordRotationAndSessionExpiry(t *testing.T) {
 	if r.Code != http.StatusOK {
 		t.Fatalf("established owner could not change password with current credential: %d %s", r.Code, r.Body.String())
 	}
-	cookie = responseCookie(t, r, sessionCookie)
+	cookie = responseCookie(t, r, sessionCookieName(a.server.cfg.SecureTransport))
 	*a.now = a.now.Add(2*time.Hour + time.Second)
 	r = a.request(http.MethodGet, "/api/v1/session", nil, cookie, "", "")
 	if r.Code != http.StatusUnauthorized {
@@ -488,7 +523,7 @@ func TestPublicDirectoryNavigationCannotEscapeThroughSymlink(t *testing.T) {
 	}
 }
 
-func TestNormalModeStateExclusionCannotBeBypassedThroughSymlink(t *testing.T) {
+func TestFileAccessCannotTraverseIntermediateSymlink(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, _ := a.finishSetup()
 	if err := os.Symlink("state", filepath.Join(a.files.Name(), "state-alias")); err != nil {
@@ -496,7 +531,7 @@ func TestNormalModeStateExclusionCannotBeBypassedThroughSymlink(t *testing.T) {
 	}
 	response := a.request(http.MethodGet, "/api/v1/files/raw?path=%2Fstate-alias%2Fzenfm.db", nil, cookie, "", "")
 	if response.Code == http.StatusOK {
-		t.Fatal("private database was exposed through an intermediate symlink")
+		t.Fatal("file access traversed an intermediate symlink")
 	}
 }
 

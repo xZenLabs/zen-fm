@@ -4,7 +4,8 @@ info:
   version: 0.1.0
   description: |
     The local, single-owner ZenFM HTTP API. Browser requests authenticate with
-    an opaque `zenfm_session` cookie and send the session-bound value returned
+    an opaque `zenfm_session` cookie (`zenfm_session_http` in explicit HTTP
+    mode) and send the session-bound value returned
     as `csrfToken` in `X-ZenFM-CSRF` for every mutation. Personal API tokens use
     `Authorization: Bearer`; their restricted scope excludes owner security,
     token management, update, and lifecycle operations.
@@ -995,6 +996,7 @@ components:
       type: apiKey
       in: cookie
       name: zenfm_session
+      description: HTTPS session cookie. Explicit HTTP mode uses `zenfm_session_http` so a retained Secure cookie cannot block HTTP login.
     personalToken:
       type: http
       scheme: bearer

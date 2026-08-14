@@ -198,6 +198,12 @@ msgstr "Скрыть пароль"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP отправляет пароли, файлы cookie сеанса и содержимое файлов без шифрования. Все равно включить?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Тайм-аут бездействия (минуты)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Тайм-аут бездействия: %d мин."
+
 msgid "Invalid value."
 msgstr "Недопустимое значение."
 
@@ -398,9 +404,6 @@ msgstr "Запустить ЗенФМ"
 
 msgid "Status and address"
 msgstr "Статус и адрес"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Остановитесь через 30 минут бездействия"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Перестаньте ждать обычных запросов к серверу после этого количества секунд."

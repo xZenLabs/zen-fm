@@ -39,10 +39,11 @@ The application database contains the owner record, settings, hashed sessions,
 hashed API tokens, shares, and resumable-upload metadata. Served files remain
 on the device filesystem.
 
-Normal mode roots the file API at platform user storage. Advanced mode roots it
-at `/`, exposes ZenFM's own regular files, and lists pseudo-filesystems and
-special nodes. Content operations accept regular files and directories only;
-recursive search/archive work skips pseudo-filesystems and special files.
+Normal mode roots the file API at platform user storage and includes ZenFM's
+settings directory when it is below that root. Advanced mode roots it at `/`
+and lists pseudo-filesystems and special nodes. Content operations accept
+regular files and directories only; recursive search/archive work skips
+pseudo-filesystems and special files.
 
 ## Source boundaries
 

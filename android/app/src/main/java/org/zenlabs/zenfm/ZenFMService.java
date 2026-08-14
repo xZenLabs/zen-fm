@@ -29,6 +29,7 @@ public final class ZenFMService extends Service {
     static final String ACTION_RESET = "org.zenlabs.zenfm.action.RESET";
     private static final String CHANNEL = "zenfm-server";
     private static final int NOTIFICATION = 4197;
+    private static final int DEFAULT_PORT = 53241;
     private Process process;
     private Thread worker;
     private Config config;
@@ -185,6 +186,7 @@ public final class ZenFMService extends Service {
                 boolean updateFailure = false;
                 boolean updateSettled = false;
                 boolean healthFailure = false;
+                int exitStatus = -1;
                 try {
                     if (updateGate == UpdateState.BackendGate.VERIFY_UPDATE) {
                         verifyBundledBackendVersion(expectedUpdateVersion);
@@ -234,8 +236,9 @@ public final class ZenFMService extends Service {
                             CommandRequest.status(healthyStatus, launchedConfig.requestId));
                         if (!healthy) launched.destroy();
                     }
-                    int status = launched.waitFor();
-                    CompanionLog.write(ZenFMService.this, launchedConfig.home, "Backend exited with status " + status + ".");
+                    exitStatus = launched.waitFor();
+                    CompanionLog.write(ZenFMService.this, launchedConfig.home,
+                        "Backend exited with status " + exitStatus + ".");
                 } catch (Exception error) {
                     CompanionLog.write(ZenFMService.this, launchedConfig.home, "Backend failed: " + error.getMessage());
                     boolean restarting;
@@ -249,12 +252,16 @@ public final class ZenFMService extends Service {
                 } finally {
                     Config restart;
                     int restartId;
+                    int serviceStopId;
+                    boolean deliberatelyStopped;
                     synchronized (ZenFMService.this) {
                         process = null;
                         worker = null;
                         restart = pendingConfig;
                         restartId = pendingStartId;
                         pendingConfig = null;
+                        serviceStopId = latestStartId;
+                        deliberatelyStopped = stopRequested || pendingLifecycleAction != null;
                         if (restart != null) config = restart;
                     }
                     if (restart != null) {
@@ -270,19 +277,29 @@ public final class ZenFMService extends Service {
                         showRecoveryAndStop();
                         return;
                     }
+                    boolean idleTimeout = !healthFailure
+                        && BackendExit.isIdleTimeout(exitStatus, launchedConfig.autoStop, deliberatelyStopped);
                     if (healthFailure) {
                         CompanionLog.status(ZenFMService.this, launchedConfig.home,
                             CommandRequest.status("error backend-health-failed", launchedConfig.requestId));
                     } else if ("stop".equals(pendingLifecycleAction)) {
                         CompanionLog.status(ZenFMService.this, pendingLifecycleHome,
                             CommandRequest.status("stopped", pendingLifecycleRequestId));
+                    } else if (idleTimeout) {
+                        CompanionLog.write(ZenFMService.this, launchedConfig.home,
+                            "Backend reached its inactivity timeout; stopping the companion process.");
+                        CompanionLog.status(ZenFMService.this, launchedConfig.home,
+                            CommandRequest.status("idle_stopped", launchedConfig.requestId));
                     } else {
                         CompanionLog.status(ZenFMService.this, launchedConfig.home,
                             CommandRequest.status("stopped", launchedConfig.requestId));
                     }
                     clearPendingLifecycle();
                     stopForeground(true);
-                    stopSelfResult(latestServiceStartId());
+                    boolean serviceStopped = stopSelfResult(serviceStopId);
+                    if (idleTimeout && serviceStopped) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                    }
                 }
             }
         }, "ZenFMBackend");
@@ -478,7 +495,7 @@ public final class ZenFMService extends Service {
         static Config from(Intent intent) {
             String home = intent.getStringExtra("home"), root = intent.getStringExtra("root");
             if (home == null || root == null) return null;
-            return new Config(home, root, intent.getIntExtra("port", 8443), intent.getBooleanExtra("insecure", false),
+            return new Config(home, root, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
                 intent.getStringExtra("auto_stop"), intent.getStringExtra("tls_cert"), intent.getStringExtra("tls_key"),
                 intent.getStringExtra("request_id"));
         }
@@ -493,7 +510,7 @@ public final class ZenFMService extends Service {
             SharedPreferences p = service.getSharedPreferences("server", MODE_PRIVATE);
             String home = p.getString("home", null), root = p.getString("root", null);
             if (home == null || root == null) return null;
-            return new Config(home, root, p.getInt("port", 8443), p.getBoolean("insecure", false),
+            return new Config(home, root, p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
                 p.getString("auto_stop", "0"), p.getString("certificate", ""), p.getString("key", ""), "");
         }
     }

@@ -198,6 +198,12 @@ msgstr "Ascunde parola"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP trimite parole, module cookie de sesiune și conținut de fișiere fără criptare. Activați-l oricum?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Timeout inactivitate (minute)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Timeout inactivitate: %d min"
+
 msgid "Invalid value."
 msgstr "Valoare nevalidă."
 
@@ -398,9 +404,6 @@ msgstr "Porniți ZenFM"
 
 msgid "Status and address"
 msgstr "Stare si adresa"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Opriți-vă după 30 de minute fără activitate"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Nu mai așteptați solicitările obișnuite de server după atâtea secunde."

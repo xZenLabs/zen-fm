@@ -118,14 +118,15 @@ end
 function ZenFM:check_server_monitor(monitor)
     if self.server_monitor ~= monitor then return end
     monitor.scheduled = false
-    local running = self.daemon:status()
+    local running, detail = self.daemon:status()
     if running then
         self:schedule_server_monitor(monitor)
         return
     end
     self.server_monitor = nil
     self.android_running = false
-    notice(_("ZenFM stopped."))
+    notice(type(detail) == "string" and detail:match("^idle_stopped")
+        and _("ZenFM stopped after inactivity.") or _("ZenFM stopped."))
 end
 
 function ZenFM:start_server_monitor(running)
@@ -278,6 +279,35 @@ function ZenFM:show_port_dialog()
     end)
 end
 
+function ZenFM:show_auto_stop_dialog(touchmenu_instance)
+    local SpinWidget = require("ui/widget/spinwidget")
+    local settings = self.daemon.settings
+    local enabled = settings.values.auto_stop_minutes > 0
+    local minutes = enabled and settings.values.auto_stop_minutes
+        or settings.values.auto_stop_last_minutes or 30
+    local function save(value)
+        local saved = settings:set("auto_stop_last_minutes", value)
+        if saved and enabled then saved = settings:set("auto_stop_minutes", value) end
+        if not saved then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(_("Saved. Restart ZenFM to apply the change."))
+    end
+    UIManager:show(SpinWidget:new{
+        title_text = _("Inactivity timeout (minutes)"),
+        value = minutes > 0 and minutes or 30,
+        value_min = 1,
+        value_max = 12 * 60,
+        value_step = 1,
+        value_hold_step = 10,
+        default_value = 30,
+        ok_text = _("Save"),
+        callback = function(spin) save(spin.value) end,
+    })
+end
+
 function ZenFM:show_path_dialog(key, title, allow_empty)
     input_dialog(self, title, self.daemon.settings.values[key], nil, function(raw)
         if raw == "" and allow_empty then return self.daemon.settings:set(key, "") end
@@ -296,31 +326,78 @@ function ZenFM:show_path_dialog(key, title, allow_empty)
     end)
 end
 
-function ZenFM:confirm_http()
+function ZenFM:restart_after_server_setting_change()
+    if self.daemon:is_android() then
+        if not self:android_cached_running() then return true end
+        self.server_monitor = nil
+        local started = self:begin_android_action("start", function(ok, detail)
+            if not ok then
+                self:start_server_monitor(true)
+                notice(tostring(detail), true)
+                return
+            end
+            self.android_running = true
+            self:start_server_monitor(true)
+            self:show_status(self.daemon:status_details_from_raw(detail))
+        end)
+        if not started then self:start_server_monitor(true) end
+        return started
+    end
+    if not self.daemon:status() then return true end
+    self.server_monitor = nil
+    local ok, detail = self.daemon:restart()
+    if not ok then
+        notice(tostring(detail), true)
+        return false
+    end
+    self:start_server_monitor(true)
+    self:show_status(self.daemon:status_details_from_raw(detail))
+    return true
+end
+
+function ZenFM:set_http(enabled)
+    local saved = self.daemon.settings:set("insecure_http", enabled)
+    if not saved then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    return self:restart_after_server_setting_change()
+end
+
+function ZenFM:confirm_http(touchmenu_instance)
     if self.daemon.settings.values.insecure_http then
-        self.daemon.settings:set("insecure_http", false)
-        if self.daemon.settings.values.port == 8080 then self.daemon.settings:set("port", 8443) end
-        return
+        return self:set_http(false)
     end
     UIManager:show(ConfirmBox:new{
         text = _("HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"),
         ok_text = _("Enable HTTP"),
         ok_callback = function()
-            self.daemon.settings:set("insecure_http", true)
-            if self.daemon.settings.values.port == 8443 then self.daemon.settings:set("port", 8080) end
+            self:set_http(true)
+            touchmenu_instance:updateItems()
         end,
     })
 end
 
-function ZenFM:confirm_advanced_root()
+function ZenFM:set_advanced_root(enabled)
+    local saved = self.daemon.settings:set("advanced_root", enabled)
+    if not saved then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    return self:restart_after_server_setting_change()
+end
+
+function ZenFM:confirm_advanced_root(touchmenu_instance)
     if self.daemon.settings.values.advanced_root then
-        self.daemon.settings:set("advanced_root", false)
-        return
+        return self:set_advanced_root(false)
     end
     UIManager:show(ConfirmBox:new{
         text = _("Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."),
         ok_text = _("Expose entire filesystem"),
-        ok_callback = function() self.daemon.settings:set("advanced_root", true) end,
+        ok_callback = function()
+            self:set_advanced_root(true)
+            touchmenu_instance:updateItems()
+        end,
     })
 end
 
@@ -363,13 +440,12 @@ end
 
 function ZenFM:settings_menu()
     local values = self.daemon.settings.values
+    local function auto_stop_minutes()
+        local minutes = self.daemon.settings.values.auto_stop_minutes
+        return minutes > 0 and minutes
+            or self.daemon.settings.values.auto_stop_last_minutes or 30
+    end
     return {
-        {
-            text_func = function()
-                return _("Backend version: ") .. self.daemon:installed_backend_version()
-            end,
-            enabled_func = function() return false end,
-        },
         {
             text = _("Port: ") .. tostring(values.port),
             keep_menu_open = true,
@@ -379,13 +455,13 @@ function ZenFM:settings_menu()
             text = _("Use unencrypted HTTP"),
             checked_func = function() return self.daemon.settings.values.insecure_http end,
             keep_menu_open = true,
-            callback = function() self:confirm_http() end,
+            callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
         },
         {
             text = _("Advanced root: expose /"),
             checked_func = function() return self.daemon.settings.values.advanced_root end,
             keep_menu_open = true,
-            callback = function() self:confirm_advanced_root() end,
+            callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
         },
         {
             text_func = function()
@@ -395,13 +471,31 @@ function ZenFM:settings_menu()
             callback = function() self:show_path_dialog("custom_root", _("Custom root (blank uses device default)"), true) end,
         },
         {
-            text = _("Stop after 30 minutes without activity"),
-            checked_func = function() return self.daemon.settings.values.auto_stop_minutes == 30 end,
-            keep_menu_open = true,
-            callback = function()
-                local enabled = self.daemon.settings.values.auto_stop_minutes == 30
-                self.daemon.settings:set("auto_stop_minutes", enabled and 0 or 30)
+            text_func = function()
+                return string.format(_("Inactivity timeout: %d min"), auto_stop_minutes())
             end,
+            checked_func = function() return self.daemon.settings.values.auto_stop_minutes > 0 end,
+            checkmark_callback = function()
+                local settings = self.daemon.settings
+                local enabled = settings.values.auto_stop_minutes > 0
+                local saved = true
+                if enabled then
+                    saved = settings:set("auto_stop_last_minutes", auto_stop_minutes())
+                end
+                if saved then
+                    saved = settings:set("auto_stop_minutes", enabled and 0 or auto_stop_minutes())
+                end
+                if not saved then
+                    notice(_("Invalid value."), true)
+                    return
+                end
+            end,
+            keep_menu_open = true,
+            callback = function(touchmenu_instance) self:show_auto_stop_dialog(touchmenu_instance) end,
+        },
+        {
+            text = _("Reset owner login"),
+            callback = function() self:confirm_reset_login() end,
         },
         {
             text = _("Beta updates"),
@@ -412,30 +506,14 @@ function ZenFM:settings_menu()
             end,
         },
         {
-            text_func = function()
-                local value = self.daemon.settings.values.tls_cert
-                return _("TLS certificate: ") .. (value ~= "" and value or _("generated"))
-            end,
-            keep_menu_open = true,
-            enabled_func = function() return not self.daemon.settings.values.insecure_http end,
-            callback = function() self:show_path_dialog("tls_cert", _("TLS certificate path (blank uses generated certificate)"), true) end,
-        },
-        {
-            text_func = function()
-                local value = self.daemon.settings.values.tls_key
-                return _("TLS private key: ") .. (value ~= "" and value or _("generated"))
-            end,
-            keep_menu_open = true,
-            enabled_func = function() return not self.daemon.settings.values.insecure_http end,
-            callback = function() self:show_path_dialog("tls_key", _("TLS private-key path (blank uses generated key)"), true) end,
-        },
-        {
-            text = _("Reset owner login"),
-            callback = function() self:confirm_reset_login() end,
-        },
-        {
             text = _("Update"),
             callback = function() self:update() end,
+        },
+        {
+            text_func = function()
+                return _("Version") .. ": " .. self.daemon:installed_backend_version()
+            end,
+            enabled_func = function() return false end,
         },
     }
 end

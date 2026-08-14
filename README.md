@@ -17,9 +17,10 @@ TypeScript/React/MUI frontend and revocable server-side sessions.
 - One owner account, opaque browser sessions, CSRF protection, and separate
   expiring personal API tokens.
 - HTTPS by default with a per-device certificate.
-- Optional 30-minute server auto-stop and an explicit HTTP fallback.
+- Plain HTTP requests on the HTTPS port redirect to the same URL over HTTPS.
+- Optional, customizable server auto-stop and an explicit HTTP fallback.
 - Advanced `/` mode for owners who intentionally need the entire device
-  filesystem, including ZenFM's own state and certificates.
+  filesystem.
 
 ## First start
 
@@ -33,6 +34,12 @@ HTTPS uses a locally generated certificate, so a browser may require the owner
 to confirm it. HTTP can be selected explicitly for incompatible setups, but it
 exposes credentials and files to the local network.
 
+When the ZenFM settings directory is below the configured file root, it remains
+visible in the Files view. It contains the live database, session and token
+state, backend, and TLS private key; changing or deleting those files can expose
+credentials, corrupt state, or stop the service. Public shares continue to
+exclude this directory.
+
 ## Runtime defaults
 
 | Policy | Default |
@@ -43,8 +50,8 @@ exposes credentials and files to the local network.
 | Ordinary browser request | 30 seconds; the owner may set `0` to disable the client timer |
 | Search request | 2 minutes |
 | Upload and download | No total limit; 30 seconds without progress |
-| Server auto-stop | 30 minutes on Android; off elsewhere with a 30-minute preset |
-| HTTPS / explicit HTTP ports | 8443 / 8080 |
+| Server auto-stop | 30 minutes on Android; off elsewhere; configurable up to 12 hours |
+| HTTPS and explicit HTTP port | 53241 by default, shared by both modes |
 
 The `serve` command exposes `--session-idle` and `--session-absolute` for
 controlled deployments and qualification tests; KOReader uses the defaults.
@@ -92,7 +99,7 @@ npm run dev:mock
 ```
 
 Open <http://localhost:5173> and use
-`koreader` / `zenfm-demo-password`. The mock API and its sample filesystem live
+`koreader` / `koreader`. The mock API and its sample filesystem live
 only in memory and reset when Vite restarts.
 
 See [docs/development.md](docs/development.md) for local full-stack work,

@@ -198,6 +198,12 @@ msgstr "Skrýt heslo"
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP odesílá hesla, soubory cookie relace a obsah souborů bez šifrování. Chcete to přesto povolit?"
 
+msgid "Inactivity timeout (minutes)"
+msgstr "Časový limit nečinnosti (minuty)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Časový limit nečinnosti: %d min"
+
 msgid "Invalid value."
 msgstr "Neplatná hodnota."
 
@@ -398,9 +404,6 @@ msgstr "Spusťte ZenFM"
 
 msgid "Status and address"
 msgstr "Stav a adresa"
-
-msgid "Stop after 30 minutes without activity"
-msgstr "Zastavte se po 30 minutách bez aktivity"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
 msgstr "Po tomto mnoha sekundách přestaňte čekat na běžné požadavky serveru."
