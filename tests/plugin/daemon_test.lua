@@ -367,6 +367,14 @@ test("advanced HTTP arguments", function()
     contains(command, "--insecure-http")
 end)
 
+test("Kindle supervisor requests firewall setup", function()
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
+        settings = fake_settings(Settings.defaults()), execute = function() return 0 end,
+    }
+    contains(daemon:supervisor_command(), "--port '53241' --kindle --")
+end)
+
 test("runtime control paths stay off user storage and below Unix socket limits", function()
     local commands = {}
     local daemon = Daemon:new{

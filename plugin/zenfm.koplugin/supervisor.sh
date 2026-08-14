@@ -222,16 +222,20 @@ printf '%s\n' "$owner_start" > "$lock_dir/owner.start"
 printf '%s\n' "$owner_exe" > "$lock_dir/owner.exe"
 echo "$$" > "$pid_file"
 echo "Supervisor acquired the ZenFM runtime lock (pid $$)."
-if [ "$kindle" -eq 1 ] && command -v "$iptables_bin" >/dev/null 2>&1; then
-    # Recover an owned rule left by SIGKILL or power loss before installing one
-    # jump to a dedicated chain. A losing concurrent supervisor never reaches
-    # this point because it does not own the runtime lock.
-    firewall_open=1
-    remove_firewall
-    "$iptables_bin" -N "$firewall_chain"
-    "$iptables_bin" -A "$firewall_chain" -p tcp --dport "$port" -j ACCEPT
-    "$iptables_bin" -I INPUT -j "$firewall_chain"
-    echo "Supervisor opened the Kindle firewall for TCP port $port."
+if [ "$kindle" -eq 1 ]; then
+    if "$iptables_bin" --version >/dev/null 2>&1; then
+        # Recover an owned rule left by SIGKILL or power loss before installing one
+        # jump to a dedicated chain. A losing concurrent supervisor never reaches
+        # this point because it does not own the runtime lock.
+        firewall_open=1
+        remove_firewall
+        "$iptables_bin" -N "$firewall_chain"
+        "$iptables_bin" -A "$firewall_chain" -p tcp --dport "$port" -j ACCEPT
+        "$iptables_bin" -I INPUT -j "$firewall_chain"
+        echo "Supervisor opened the Kindle firewall for TCP port $port."
+    else
+        echo "warning: iptables is unavailable; the Kindle firewall may block TCP port $port." >&2
+    fi
 fi
 
 case "$1" in

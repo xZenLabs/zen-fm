@@ -31,6 +31,15 @@ grep -q -- "-D INPUT -j $chain_8443" "$TMP/firewall.log"
 grep -q -- "-X $chain_8443" "$TMP/firewall.log"
 grep -qx '10000' "$TMP/usleep.log"
 
+missing_firewall_output=$(ZENFM_IPTABLES="$TMP/missing-iptables" \
+    "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
+    --pid-file "$TMP/server.pid" --socket-file "$TMP/server.sock" \
+    --port 8443 --kindle -- "$TMP/backend" 2>&1)
+case "$missing_firewall_output" in
+    *"warning: iptables is unavailable; the Kindle firewall may block TCP port 8443."*) ;;
+    *) echo "missing iptables warning was not reported" >&2; exit 1 ;;
+esac
+
 mkdir "$TMP/install-one" "$TMP/install-two"
 : > "$TMP/firewall-installs.log"
 for install in install-one install-two; do
