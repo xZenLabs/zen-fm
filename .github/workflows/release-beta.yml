@@ -1,7 +1,9 @@
 name: Beta release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [dev]
   workflow_dispatch:
 
@@ -14,7 +16,9 @@ jobs:
     name: Prepare beta release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, 'ci-skip')
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      !contains(github.event.workflow_run.head_commit.message, 'ci-skip'))
     runs-on: ubuntu-latest
     permissions:
       checks: read
@@ -27,6 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: Wait for CI and resolve the next beta version
@@ -167,7 +172,7 @@ jobs:
           sh scripts/verify-legacy-toolchain.sh
           sh build.sh
           sh scripts/verify-release-assets.sh dist "$VERSION"
-          apksigner verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
 
       - name: Attest every published ZenFM beta artifact
         uses: actions/attest-build-provenance@v4.2.2

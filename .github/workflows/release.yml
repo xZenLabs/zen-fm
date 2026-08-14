@@ -161,7 +161,7 @@ jobs:
           sh scripts/verify-legacy-toolchain.sh
           sh build.sh
           sh scripts/verify-release-assets.sh dist "$VERSION"
-          apksigner verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
 
       - name: Attest every published ZenFM artifact
         uses: actions/attest-build-provenance@v4.2.2
