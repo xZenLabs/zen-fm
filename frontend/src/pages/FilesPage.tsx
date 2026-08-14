@@ -83,7 +83,14 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null) {
 }
 
 function fileUploadBatch(files: File[]): UploadBatch {
-  return { directories: [], files: files.map((file) => ({ file, relativePath: file.name })) }
+  const directories = new Set<string>()
+  const uploadFiles = files.map((file) => {
+    const relativePath = file.webkitRelativePath || file.name
+    const parts = relativePath.split('/').filter(Boolean)
+    for (let index = 1; index < parts.length; index++) directories.add(parts.slice(0, index).join('/'))
+    return { file, relativePath }
+  })
+  return { directories: Array.from(directories), files: uploadFiles }
 }
 
 function readFileEntry(entry: FileSystemFileEntry) {
@@ -170,6 +177,7 @@ export function FilesPage() {
   const [showHidden, setShowHidden] = useState(false)
   const [searchDraft, setSearchDraft] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [uploadMenuAnchor, setUploadMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const [selected, setSelected] = useState<FileEntry | null>(null)
@@ -545,9 +553,17 @@ export function FilesPage() {
     if (conflictResolver.current) resolveConflict('cancel')
   }
 
+  const openUploadPicker = (directory: boolean) => {
+    setUploadMenuAnchor(null)
+    if (!uploadInput.current) return
+    uploadInput.current.webkitdirectory = directory
+    uploadInput.current.click()
+  }
+
   const chooseUploadFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
+    event.target.webkitdirectory = false
     await safeUploadFiles(fileUploadBatch(files), path)
   }
 
@@ -726,7 +742,11 @@ export function FilesPage() {
       <Stack gap={2.5}>
         <PageHeader title={searchTerm ? t('files.searchResults') : t('nav.files')} actions={<Stack direction="row" gap={1} flexWrap="wrap">
             <input ref={uploadInput} type="file" multiple hidden onChange={(event) => void chooseUploadFiles(event)} />
-            <Button variant="contained" startIcon={<UploadRounded />} disabled={uploadActive} onClick={() => uploadInput.current?.click()}>{t('files.upload')}</Button>
+            <Button variant="contained" startIcon={<UploadRounded />} disabled={uploadActive} aria-haspopup="menu" aria-controls={uploadMenuAnchor ? 'upload-menu' : undefined} onClick={(event) => setUploadMenuAnchor(event.currentTarget)}>{t('files.upload')}</Button>
+            <Menu id="upload-menu" anchorEl={uploadMenuAnchor} open={Boolean(uploadMenuAnchor)} onClose={() => setUploadMenuAnchor(null)}>
+              <MenuItem onClick={() => openUploadPicker(false)}><ListItemIcon><InsertDriveFileRounded /></ListItemIcon><ListItemText>{t('files.uploadFiles')}</ListItemText></MenuItem>
+              <MenuItem onClick={() => openUploadPicker(true)}><ListItemIcon><FolderRounded /></ListItemIcon><ListItemText>{t('files.uploadFolder')}</ListItemText></MenuItem>
+            </Menu>
             <Button variant="outlined" startIcon={<NoteAddRounded />} onClick={() => setNewFileOpen(true)}>{t('files.newFile')}</Button>
             <Button variant="outlined" startIcon={<CreateNewFolderRounded />} onClick={() => setNewFolderOpen(true)}>{t('files.newFolder')}</Button>
           </Stack>}>

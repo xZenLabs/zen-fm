@@ -24,4 +24,14 @@ cmp "$STABLE" "$BETA"
 python3 "$ROOT/.github/scripts/build_release_notes.py" 99.99.99 > "$TMP/missing.md"
 grep -Fxq '_No changelog entries for this version._' "$TMP/missing.md"
 
-echo "ok - Lua changelog renders stable and beta release notes"
+for workflow in release.yml release-beta.yml; do
+    path="$ROOT/.github/workflows/$workflow"
+    grep -Fq 'python3 .github/scripts/build_release_notes.py' "$path"
+    grep -Fq -- '--notes-file "$RUNNER_TEMP/zenfm-release-notes.md"' "$path"
+    if grep -Fq -- '--generate-notes' "$path"; then
+        echo "$workflow must use notes rendered from the Lua changelog" >&2
+        exit 1
+    fi
+done
+
+echo "ok - Lua changelog renders and supplies stable and beta release notes"

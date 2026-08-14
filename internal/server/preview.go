@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	maxTextPreviewBytes  = int64(4 << 20)
+	maxTextPreviewBytes  = int64(32 << 20)
 	maxImageSourceBytes  = int64(32 << 20)
 	maxDocumentBytes     = int64(32 << 20)
 	maxMediaPreviewBytes = int64(256 << 20)
@@ -229,6 +229,9 @@ func isRasterExtension(extension string) bool {
 }
 
 func isTextPreview(extension, contentType string) bool {
+	if extension == "" {
+		return true
+	}
 	if strings.HasPrefix(contentType, "text/") || contentType == "application/json" || contentType == "application/xml" {
 		return true
 	}

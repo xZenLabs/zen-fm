@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -91,12 +92,6 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if flags.NArg() != 0 || *autoStop < 0 || *sessionIdle <= 0 || *sessionAbsolute <= 0 {
 		return errors.New("invalid serve arguments")
 	}
-	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
-		return fmt.Errorf("create data directory: %w", err)
-	}
-	if err := platform.ModeChangeError(os.Chmod(*dataDir, 0o700), *modeLessFilesystem); err != nil {
-		return fmt.Errorf("secure data directory: %w", err)
-	}
 	if *listenAddress == "" {
 		*listenAddress = fmt.Sprintf(":%d", defaultPort)
 	}
@@ -109,16 +104,32 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *keyFile == "" {
 		*keyFile = filepath.Join(*dataDir, "tls", "key.pem")
 	}
+	diagnostics := log.New(stderr, "debug: ", 0)
+	transport := "https"
+	if *insecureHTTP {
+		transport = "http"
+	}
+	diagnostics.Printf("server setup started: version=%s root=%q data-dir=%q listen=%q transport=%s control-socket=%q auto-stop=%s",
+		version, *rootPath, *dataDir, *listenAddress, transport, *controlSocket, autoStop.String())
+	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
+		return fmt.Errorf("create data directory: %w", err)
+	}
+	if err := platform.ModeChangeError(os.Chmod(*dataDir, 0o700), *modeLessFilesystem); err != nil {
+		return fmt.Errorf("secure data directory: %w", err)
+	}
+	diagnostics.Printf("server setup: private data directory ready")
 	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
 	if err != nil {
-		return err
+		return fmt.Errorf("open state store: %w", err)
 	}
 	defer store.Close()
+	diagnostics.Printf("server setup: state store ready")
 	root, err := zenfiles.Open(*rootPath, zenfiles.Options{})
 	if err != nil {
-		return err
+		return fmt.Errorf("open filesystem root: %w", err)
 	}
 	defer root.Close()
+	diagnostics.Printf("server setup: filesystem root ready")
 	api, err := server.New(server.Config{
 		Store: store, Files: root, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
 		SessionIdle: *sessionIdle, SessionAbsolute: *sessionAbsolute,
@@ -126,14 +137,17 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		PublicExclusions:   []string{*certFile, *keyFile},
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("initialize HTTP API: %w", err)
 	}
 	defer api.Close()
+	diagnostics.Printf("server setup: HTTP API ready")
 	listener, err := net.Listen(listenNetwork(*listenAddress), *listenAddress)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
+	listener = diagnosticListener{Listener: listener, logger: diagnostics}
 	defer listener.Close()
+	diagnostics.Printf("server setup: TCP listener ready address=%s", listener.Addr())
 	fingerprint := "-"
 	var certificateManager *tlsutil.Manager
 	if !*insecureHTTP {
@@ -143,6 +157,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("TLS certificate: %w", err)
 		}
+		diagnostics.Printf("server setup: TLS certificate ready")
 	}
 	scheme := "https"
 	if *insecureHTTP {
@@ -152,8 +167,9 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	httpServer := &http.Server{
-		Handler: api.Handler(), ReadHeaderTimeout: 10 * time.Second,
+		Handler: logRequests(api.Handler(), diagnostics), ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout: 60 * time.Second, MaxHeaderBytes: 64 << 10,
+		ErrorLog: diagnostics,
 	}
 	if certificateManager != nil {
 		httpServer.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12, GetCertificate: certificateManager.GetCertificate}
@@ -161,8 +177,9 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	controlErrors := make(chan error, 1)
 	controlServer := &control.Server{
 		Path: *controlSocket, URL: address, Fingerprint: fingerprint, Stop: cancel,
-		ModeLessFilesystem: *modeLessFilesystem,
+		ModeLessFilesystem: *modeLessFilesystem, Logger: diagnostics,
 	}
+	diagnostics.Printf("server setup: starting local control socket")
 	go func() { controlErrors <- controlServer.Run(ctx) }()
 	serveErrors := make(chan error, 2)
 	var redirectServer *http.Server
@@ -170,18 +187,23 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *insecureHTTP {
 		go func() { serveErrors <- httpServer.Serve(listener) }()
 	} else {
-		tlsListener, plainListener, dispatcher := splitProtocols(listener)
+		tlsListener, plainListener, dispatcher := splitProtocols(listener, diagnostics)
 		protocols = dispatcher
 		redirectServer = &http.Server{
-			Handler: httpsRedirectHandler(), ReadHeaderTimeout: 10 * time.Second,
+			Handler: logRequests(httpsRedirectHandler(), diagnostics), ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout: 60 * time.Second, MaxHeaderBytes: 64 << 10,
+			ErrorLog: diagnostics,
 		}
 		go func() { serveErrors <- httpServer.ServeTLS(tlsListener, "", "") }()
 		go func() { serveErrors <- redirectServer.Serve(plainListener) }()
 	}
 	if *autoStop > 0 {
-		go watchIdle(ctx, cancel, api, *autoStop)
+		go watchIdle(ctx, func() {
+			diagnostics.Printf("server stopping: inactivity timeout reached after %s", autoStop.String())
+			cancel()
+		}, api, *autoStop)
 	}
+	diagnostics.Printf("server setup complete: accepting connections on %s", address)
 	fmt.Fprintf(stdout, "ZenFM %s listening on %s\n", version, address)
 	if !*insecureHTTP {
 		fmt.Fprintf(stdout, "TLS public-key fingerprint: %s\n", fingerprint)
@@ -190,13 +212,16 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	}
 	select {
 	case <-ctx.Done():
+		diagnostics.Printf("server shutdown requested")
 	case err := <-serveErrors:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			diagnostics.Printf("HTTP serving failed: %v", err)
 			cancel()
 			return err
 		}
 	case err := <-controlErrors:
 		if err != nil {
+			diagnostics.Printf("control socket failed: %v", err)
 			cancel()
 			return err
 		}
@@ -215,6 +240,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if protocols != nil {
 		_ = protocols.Close()
 	}
+	diagnostics.Printf("server shutdown complete")
 	return nil
 }
 

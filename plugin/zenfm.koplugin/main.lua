@@ -213,7 +213,7 @@ end
 
 function ZenFM:show_status(status)
     if not status.running then
-        notice(_("ZenFM is stopped.") .. (status.detail and "\n" .. status.detail or ""), false, true)
+        notice(_("ZenFM is stopped."), false, true)
         return
     end
     local lines = { _("ZenFM is running.") }
@@ -406,16 +406,19 @@ function ZenFM:confirm_reset_login()
         text = _("Reset the owner login to the setup-only credentials and revoke every session and API token?"),
         ok_text = _("Reset login"),
         ok_callback = function()
+            self.server_monitor = nil
+            local success = _("Login reset. Use koreader / koreader123456789 and choose a new password.")
             if self.daemon:is_android() then
-                self:begin_android_action("reset", function(ok, detail)
-                    notice(ok and _("Login reset. Use koreader / koreader123456789 and choose a new password.")
-                        or tostring(detail), not ok)
+                local started = self:begin_android_action("reset", function(ok, detail)
+                    if ok then self.android_running = false else self:start_server_monitor() end
+                    notice(ok and success or tostring(detail), not ok, ok)
                 end)
+                if not started then self:start_server_monitor() end
                 return
             end
             local ok, err = self.daemon:reset_login()
-            local success = _("Login reset. Use koreader / koreader123456789 and choose a new password.")
-            notice(ok and success or tostring(err), not ok)
+            if not ok then self:start_server_monitor() end
+            notice(ok and success or tostring(err), not ok, ok)
         end,
     })
 end

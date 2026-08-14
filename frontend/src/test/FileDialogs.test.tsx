@@ -310,6 +310,11 @@ it('refuses to load oversized files into the text editor', () => {
   expect(screen.getByText('This file is too large or unsupported for safe editing.')).toBeInTheDocument()
 })
 
+it('keeps extensionless text files editable after their directory entry is refreshed', () => {
+  const entry: FileEntry = { name: 'README', path: '/README', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }
+  expect(canEdit(entry)).toBe(true)
+})
+
 it('offers an explicit replacement after a copy destination conflict', async () => {
   const overwriteRequests: boolean[] = []
   server.use(

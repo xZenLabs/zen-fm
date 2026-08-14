@@ -35,7 +35,7 @@ function extension(path: string) {
 }
 
 function isTextEntry(entry: FileEntry) {
-  return entry.type === 'file' && (entry.mimeType?.startsWith('text/') || textExtensions.has(extension(entry.name)))
+  return entry.type === 'file' && (entry.mimeType?.startsWith('text/') || !entry.name.includes('.') || textExtensions.has(extension(entry.name)))
 }
 
 export function canEdit(entry: FileEntry) {

@@ -1612,6 +1612,53 @@ test("KOReader notices when inactivity stops a running server", function()
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
+test("reset keeps setup credentials visible and disarms the stopped notice", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, scheduled, shown = {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) shown = message end,
+        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner
+    owner = setmetatable({
+        daemon = {
+            is_android = function() return false end,
+            status = function() return true end,
+            reset_login = function()
+                assert(owner.server_monitor == nil, "server monitor remained armed during reset")
+                return true
+            end,
+        },
+    }, { __index = ZenFM })
+
+    owner:start_server_monitor()
+    equal(#scheduled, 1)
+    local stale_monitor_callback = scheduled[1]
+    owner:confirm_reset_login()
+    shown.ok_callback()
+    equal(shown.text, "Login reset. Use koreader / koreader123456789 and choose a new password.")
+    equal(shown.timeout, false)
+
+    stale_monitor_callback()
+    equal(shown.text, "Login reset. Use koreader / koreader123456789 and choose a new password.")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
 test("server monitoring pauses in standby and checks immediately on resume", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
@@ -1726,7 +1773,7 @@ test("Android update opens the companion only after plugin update work", functio
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("status notice shows the device address and port without the TLS fingerprint or wildcard listener", function()
+test("status notice reports stopped cleanly and shows the running device address", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1749,10 +1796,17 @@ test("status notice shows the device address and port without the TLS fingerprin
             settings = { values = { advanced_root = false } },
             is_android = function() return false end,
             status_details = function()
-                return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
+                return { running = false, detail = "connect failed" }
             end,
         },
     }, { __index = ZenFM })
+    owner:onShowZenFMStatus()
+    equal(shown.text, "ZenFM is stopped.")
+    assert(shown.icon == nil)
+
+    owner.daemon.status_details = function()
+        return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
+    end
     owner:onShowZenFMStatus()
     equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
     assert(not shown.text:find("sha256:secret", 1, true))

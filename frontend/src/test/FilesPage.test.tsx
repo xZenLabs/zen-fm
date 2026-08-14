@@ -470,6 +470,44 @@ describe('file browser', () => {
     ])
   })
 
+  it('offers file and folder pickers and preserves paths from a selected folder', async () => {
+    const createdDirectories: string[] = []
+    const uploadedPaths: string[] = []
+    server.use(
+      http.post('http://localhost/api/v1/files/directory', async ({ request }) => {
+        createdDirectories.push(((await request.json()) as { path: string }).path)
+        return new HttpResponse(null, { status: 201 })
+      }),
+      http.put('*/api/v1/files/content', ({ request }) => {
+        uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
+        return new HttpResponse(null, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.click(screen.getByRole('button', { name: 'Upload' }))
+    expect(screen.getByRole('menuitem', { name: 'Upload files' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Upload files' }))
+    expect(input.webkitdirectory).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Upload' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Upload folder' }))
+
+    expect(input.webkitdirectory).toBe(true)
+    const chapter = new File(['chapter'], 'chapter.txt', { type: 'text/plain' })
+    const cover = new File(['cover'], 'cover.png', { type: 'image/png' })
+    Object.defineProperty(chapter, 'webkitRelativePath', { value: 'Books/chapter.txt' })
+    Object.defineProperty(cover, 'webkitRelativePath', { value: 'Books/images/cover.png' })
+    fireEvent.change(input, { target: { files: [chapter, cover] } })
+
+    await waitFor(() => expect(uploadedPaths).toHaveLength(2))
+    expect(input.webkitdirectory).toBe(false)
+    expect(createdDirectories).toEqual(['/Books', '/Books/images'])
+    expect(uploadedPaths.sort()).toEqual(['/Books/chapter.txt', '/Books/images/cover.png'])
+  })
+
   it('confirms a table drag before moving a file into a folder', async () => {
     const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
     server.use(

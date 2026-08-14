@@ -28,6 +28,8 @@
   "files": {
     "search": "Search this folder",
     "upload": "Upload",
+    "uploadFiles": "Upload files",
+    "uploadFolder": "Upload folder",
     "newFile": "New file",
     "newFolder": "New folder",
     "empty": "Nothing here yet",

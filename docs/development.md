@@ -315,7 +315,11 @@ Backend and supervisor output is appended to KOReader's `crash.log` so it is
 included with the device's normal diagnostics. Each line uses KOReader's local
 `MM/DD/YY-HH:MM:SS` timestamp format followed by `ZenFM:` for easy filtering.
 Outside KOReader, ZenFM falls back to `<state directory>/zenfm.log` with the
-same timestamped format.
+same timestamped format. Diagnostics include supervisor and server setup
+phases, accepted connection and HTTP/HTTPS classification, and HTTP response
+status for API calls, redirects, and failures. Successful static asset requests
+are skipped. Request query strings are omitted, and bearer-like URL segments
+are redacted.
 
 On Android, the companion keeps the database, generated certificate, and
 control socket in app-private storage. The KOReader `ZenFM` settings directory

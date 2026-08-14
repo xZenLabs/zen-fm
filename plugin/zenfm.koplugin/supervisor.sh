@@ -221,6 +221,7 @@ printf '%s\n' "$$" > "$lock_dir/owner" || { echo "could not record supervisor ow
 printf '%s\n' "$owner_start" > "$lock_dir/owner.start"
 printf '%s\n' "$owner_exe" > "$lock_dir/owner.exe"
 echo "$$" > "$pid_file"
+echo "Supervisor acquired the ZenFM runtime lock (pid $$)."
 if [ "$kindle" -eq 1 ] && command -v "$iptables_bin" >/dev/null 2>&1; then
     # Recover an owned rule left by SIGKILL or power loss before installing one
     # jump to a dedicated chain. A losing concurrent supervisor never reaches
@@ -230,12 +231,14 @@ if [ "$kindle" -eq 1 ] && command -v "$iptables_bin" >/dev/null 2>&1; then
     "$iptables_bin" -N "$firewall_chain"
     "$iptables_bin" -A "$firewall_chain" -p tcp --dport "$port" -j ACCEPT
     "$iptables_bin" -I INPUT -j "$firewall_chain"
+    echo "Supervisor opened the Kindle firewall for TCP port $port."
 fi
 
 case "$1" in
     /*) expected_exe=$(CDPATH= cd -- "$(dirname "$1")" && pwd -P)/$(basename "$1") ;;
     *) expected_exe=$1 ;;
 esac
+echo "Supervisor launching the ZenFM backend."
 "$@" &
 child=$!
 child_start=$(process_start "$child")
@@ -253,6 +256,8 @@ while kill -0 "$child" 2>/dev/null && [ "$attempt" -lt 20 ]; do
 done
 [ -n "$child_exe" ] || { echo "could not identify ZenFM child executable" >&2; exit 1; }
 printf '%s\n' "$child_exe" > "$lock_dir/child.exe"
+echo "Supervisor started the ZenFM backend (pid $child)."
 if wait "$child"; then status=0; else status=$?; fi
 child=
+echo "ZenFM backend exited with status $status."
 exit "$status"

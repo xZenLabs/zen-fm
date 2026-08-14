@@ -450,6 +450,9 @@ func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	if _, err := a.files.Write(".hidden.txt", strings.NewReader("hidden"), false); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := a.files.Write("README", strings.NewReader("extensionless text"), false); err != nil {
+		t.Fatal(err)
+	}
 	html := `<p>exact</p><script>sourceMustRemain()</script>`
 	if _, err := a.files.Write("page.html", strings.NewReader(html), false); err != nil {
 		t.Fatal(err)
@@ -468,6 +471,10 @@ func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	response = a.request(http.MethodGet, "/api/v1/search?path=%2F&q=hidden&hidden=true", nil, cookie, "", "")
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), ".hidden.txt") {
 		t.Fatalf("hidden search: %d %s", response.Code, response.Body.String())
+	}
+	response = a.request(http.MethodGet, "/api/v1/files/content?path=%2FREADME", nil, cookie, "", "")
+	if response.Code != http.StatusOK || response.Body.String() != "extensionless text" || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+		t.Fatalf("extensionless text source: %d %q %#v", response.Code, response.Body.String(), response.Header())
 	}
 	response = a.request(http.MethodGet, "/api/v1/files/content?path=%2Fpage.html", nil, cookie, "", "")
 	if response.Code != http.StatusOK || response.Body.String() != html || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" {

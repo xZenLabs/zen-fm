@@ -27,9 +27,11 @@ ZenFM does not use privileged or hidden downgrade APIs.
 Protect `main` and require `CI required checks` before a release tag can be
 created. This aggregate covers Go vet and race tests, the fuzz smoke test, Node
 24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
-KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
-build/layout validation of all four KOReader bundles plus both-ABI APK.
-Pull-request packages are development-signed artifacts and are never published.
+KOReader Lua/shell/package tests, and Android compile and JVM tests. Pull
+requests and manually dispatched CI runs also build and validate all four
+KOReader bundles plus the both-ABI APK. Those packages are development-signed
+artifacts and are never published; `main` and `dev` pushes omit this duplicate
+job because their release workflows build and verify the publishable artifacts.
 
 The Security workflow runs `govulncheck`, OSV Scanner, npm audit, and dependency
 review when applicable. CodeQL analyzes Go, JavaScript/TypeScript, and
@@ -40,6 +42,11 @@ After CI succeeds on a `main` push, the stable-release workflow verifies the CI
 result on that same commit. A green result on a later commit does not qualify an
 older release candidate. Beta publication applies the same CI-only gate to its
 `dev` commit.
+
+GitHub loads workflows triggered by `workflow_run` from the default branch.
+Release-workflow changes therefore must land on `main` before either workflow,
+including a beta for `dev`, will use them. The release job still checks out and
+builds the exact source commit that passed CI.
 
 ## Legacy compiler qualification
 
@@ -134,8 +141,8 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
    `plugin/zenfm.koplugin/changelog.lua`, then set `VERSION` on `dev` to
    that version. `VERSION` may also end
    in `-betaN`; the workflow strips that suffix when selecting the next number.
-2. Push to `dev`. CI runs all tests and development builds, then triggers the
-   beta workflow after it succeeds. The beta workflow uses that exact commit.
+2. Push to `dev`. CI runs all tests, then triggers the beta workflow after it
+   succeeds. The beta workflow uses that exact commit.
 3. The workflow selects the next unused `v<version>-betaN`, stamps it into the
    checkout, builds, signs, verifies, and attests all five artifacts, then
    publishes them as a GitHub prerelease with notes rendered from the Lua
@@ -152,7 +159,7 @@ release is still preferred over a beta with the same version base.
 1. Set `VERSION` to a new stable `major.minor.patch` and manually run the
    old-kernel QEMU and three physical-device qualifications against that exact
    release candidate.
-2. Merge the candidate to `main`. CI runs every test and development build.
+2. Merge the candidate to `main`. CI runs every test.
 3. After CI succeeds, the stable-release workflow skips publication when
    `v<version>` already exists. Security and CodeQL continue independently.
 4. Approve the `stable-release` environment after reviewing the source commit

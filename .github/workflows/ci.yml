@@ -135,6 +135,7 @@ jobs:
 
   package-builds:
     name: Build and verify development packages
+    if: github.event_name != 'push'
     needs: frontend
     runs-on: macos-latest
     timeout-minutes: 60
@@ -203,6 +204,7 @@ jobs:
           PLUGIN: ${{ needs.plugin.result }}
           ANDROID: ${{ needs.android.result }}
           PACKAGES: ${{ needs.package-builds.result }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           test "$GO_VET" = success
           test "$GO_RACE" = success
@@ -210,4 +212,8 @@ jobs:
           test "$FRONTEND" = success
           test "$PLUGIN" = success
           test "$ANDROID" = success
-          test "$PACKAGES" = success
+          if [ "$EVENT_NAME" = push ]; then
+            test "$PACKAGES" = skipped
+          else
+            test "$PACKAGES" = success
+          fi

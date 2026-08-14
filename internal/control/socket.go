@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -26,6 +27,7 @@ type Server struct {
 	Fingerprint        string
 	Stop               func()
 	ModeLessFilesystem bool
+	Logger             *log.Logger
 
 	mu       sync.Mutex
 	listener *net.UnixListener
@@ -35,6 +37,9 @@ type Server struct {
 func (s *Server) Run(ctx context.Context) error {
 	if s.Path == "" || s.Stop == nil {
 		return errors.New("control socket path and stop callback are required")
+	}
+	if s.Logger != nil {
+		s.Logger.Printf("control socket setup started: path=%q", s.Path)
 	}
 	if err := removeStaleSocket(s.Path); err != nil {
 		return err
@@ -59,6 +64,9 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	s.listener, s.original = listener, info
 	s.mu.Unlock()
+	if s.Logger != nil {
+		s.Logger.Printf("control socket ready: path=%q", s.Path)
+	}
 	defer s.closeAndClean()
 	go func() {
 		<-ctx.Done()
@@ -75,6 +83,9 @@ func (s *Server) Run(ctx context.Context) error {
 				return nil
 			}
 			return err
+		}
+		if s.Logger != nil {
+			s.Logger.Printf("control connection accepted")
 		}
 		s.handle(connection)
 	}
@@ -96,7 +107,16 @@ func (s *Server) handle(connection *net.UnixConn) {
 		_, _ = io.WriteString(connection, "error invalid-command\n")
 		return
 	}
-	switch strings.TrimSpace(line) {
+	command := strings.TrimSpace(line)
+	if s.Logger != nil {
+		switch command {
+		case "status", "stop":
+			s.Logger.Printf("control request received: command=%s", command)
+		default:
+			s.Logger.Printf("control request received: invalid command")
+		}
+	}
+	switch command {
 	case "status":
 		fingerprint := s.Fingerprint
 		if fingerprint == "" {

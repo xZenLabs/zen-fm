@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -97,7 +99,7 @@ func (l *pipeListener) Dial() (net.Conn, error) {
 
 func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 	listener := newPipeListener("kindle.local:53241")
-	_, plainListener, dispatcher := splitProtocols(listener)
+	_, plainListener, dispatcher := splitProtocols(listener, nil)
 	defer dispatcher.Close()
 	redirectServer := &http.Server{Handler: httpsRedirectHandler()}
 	defer redirectServer.Close()
@@ -123,7 +125,8 @@ func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 
 func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
 	listener := newPipeListener("kindle.local:53241")
-	tlsListener, _, dispatcher := splitProtocols(listener)
+	var logs bytes.Buffer
+	tlsListener, _, dispatcher := splitProtocols(listener, log.New(&logs, "", 0))
 	defer dispatcher.Close()
 	client, err := listener.Dial()
 	if err != nil {
@@ -145,6 +148,55 @@ func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("TLS bytes = %x, want %x", got, want)
+	}
+	if !strings.Contains(logs.String(), "connection classified:") || !strings.Contains(logs.String(), "protocol=https") {
+		t.Fatalf("protocol diagnostics = %q", logs.String())
+	}
+}
+
+func TestRequestDiagnosticsReportOutcomeWithoutSecrets(t *testing.T) {
+	var logs bytes.Buffer
+	logger := log.New(&logs, "", 0)
+	handler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unsupported", http.StatusUnsupportedMediaType)
+	}), logger)
+	request, err := http.NewRequest(http.MethodGet, "http://zenfm.test/api/v1/public/shares/share-secret/raw?path=/private.txt", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.RemoteAddr = "192.0.2.10:4242"
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+	got := logs.String()
+	for _, expected := range []string{"remote=192.0.2.10", "method=GET", "path=/api/v1/public/shares/[redacted]", "status=415"} {
+		if !strings.Contains(got, expected) {
+			t.Fatalf("request diagnostics %q missing %q", got, expected)
+		}
+	}
+	if strings.Contains(got, "share-secret") || strings.Contains(got, "private.txt") {
+		t.Fatalf("request diagnostics exposed a secret: %q", got)
+	}
+	for path, want := range map[string]string{
+		"/s/browser-secret/Nested":              "/s/[redacted]",
+		"/share/legacy-secret/Nested":           "/share/[redacted]",
+		"/api/v1/files/archive/download-ticket": "/api/v1/files/archive/[redacted]",
+		"/api/v1/uploads/upload-secret":         "/api/v1/uploads/[redacted]",
+		"/api/v1/files/content":                 "/api/v1/files/content",
+	} {
+		if got := diagnosticPath(path); got != want {
+			t.Errorf("diagnosticPath(%q) = %q, want %q", path, got, want)
+		}
+	}
+	logs.Reset()
+	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/assets/app.js", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	successHandler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), logger)
+	successHandler.ServeHTTP(httptest.NewRecorder(), request)
+	if logs.Len() != 0 {
+		t.Fatalf("successful static request produced diagnostics: %q", logs.String())
 	}
 }
 

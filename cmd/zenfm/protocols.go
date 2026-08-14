@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -48,12 +49,13 @@ type protocolDispatcher struct {
 	listener  net.Listener
 	tls       *connectionListener
 	plain     *connectionListener
+	logger    *log.Logger
 	done      chan struct{}
 	closeOnce sync.Once
 }
 
-func splitProtocols(listener net.Listener) (net.Listener, net.Listener, *protocolDispatcher) {
-	dispatcher := &protocolDispatcher{listener: listener, done: make(chan struct{})}
+func splitProtocols(listener net.Listener, logger *log.Logger) (net.Listener, net.Listener, *protocolDispatcher) {
+	dispatcher := &protocolDispatcher{listener: listener, logger: logger, done: make(chan struct{})}
 	dispatcher.tls = &connectionListener{
 		addr: listener.Addr(), connections: make(chan net.Conn),
 		dispatcherDone: dispatcher.done, closed: make(chan struct{}),
@@ -83,12 +85,20 @@ func (d *protocolDispatcher) dispatch(connection net.Conn) {
 	first, err := reader.Peek(1)
 	_ = connection.SetReadDeadline(time.Time{})
 	if err != nil {
+		if d.logger != nil {
+			d.logger.Printf("connection protocol detection failed: remote=%s error=%v", connection.RemoteAddr(), err)
+		}
 		_ = connection.Close()
 		return
 	}
 	target := d.plain
+	protocol := "http"
 	if first[0] == 0x16 { // A supported TLS connection starts with a handshake record.
 		target = d.tls
+		protocol = "https"
+	}
+	if d.logger != nil {
+		d.logger.Printf("connection classified: remote=%s protocol=%s", connection.RemoteAddr(), protocol)
 	}
 	wrapped := &bufferedConn{Conn: connection, reader: reader}
 	select {
