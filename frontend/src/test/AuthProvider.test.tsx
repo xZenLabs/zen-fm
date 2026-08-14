@@ -52,8 +52,8 @@ describe('session deadline', () => {
     render(<AuthProvider><Probe /></AuthProvider>)
 
     expect(await screen.findByText('authenticated')).toBeInTheDocument()
-    act(() => { vi.advanceTimersByTime(751) })
-    expect(screen.getByText('anonymous')).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(751))
+    await waitFor(() => expect(screen.getByText('anonymous')).toBeInTheDocument())
   })
 
   it('retains an authenticated cookie session through a transient validation failure', async () => {
