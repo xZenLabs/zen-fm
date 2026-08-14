@@ -49,8 +49,11 @@ process_start() {
 process_exe() {
     pid=$1
     if [ -e "/proc/$pid/exe" ]; then
-        readlink "/proc/$pid/exe" 2>/dev/null | sed 's/ (deleted)$//'
-        return
+        value=$(readlink "/proc/$pid/exe" 2>/dev/null | sed 's/ (deleted)$//' || true)
+        if [ -n "$value" ]; then
+            printf '%s\n' "$value"
+            return
+        fi
     fi
     value=$(ps -p "$pid" -o comm= 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
     if [ -n "$value" ]; then printf '%s\n' "$value"; else printf 'unverified-%s\n' "$pid"; fi
