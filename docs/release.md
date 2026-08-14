@@ -44,7 +44,7 @@ older release candidate. Beta publication applies the same CI-only gate to its
 ## Legacy compiler qualification
 
 The e-reader ARM binaries are compiled from the source release pinned in
-`toolchains/legacy/VERSION` and `SHA256`. It must remain `go1.26.5`; the
+`toolchains/legacy/VERSION` and `SHA256`. It must remain `go1.26.6`; the
 bootstrap verifies the official source archive before applying the reviewed
 Linux/ARM `epoll_wait` compatibility patch. Stable builds bootstrap into a
 fresh runner directory and never substitute an unpatched or end-of-life Go

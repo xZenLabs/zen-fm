@@ -24,7 +24,7 @@ printf '%s\n' \
   'done' \
   'jq -n --arg commit "$commit" '\''{' \
   '  schema:"zenfm-old-kernel-qemu-v1", commit:$commit, result:"pass",' \
-  '  toolchain:"go1.26.5-kindle", patchLevel:"ZenFM Linux/ARM old-kernel patch 1",' \
+  '  toolchain:"go1.26.6-kindle", patchLevel:"ZenFM Linux/ARM old-kernel patch 1",' \
   '  kernelRelease:"2.6.35", checks:{hardFloat:"pass",softFloat:"pass",start:"pass",health:"pass",stop:"pass"}' \
   '}'\'' > "$output"' > "$work/qemu-harness"
 chmod 700 "$work/qemu-harness"

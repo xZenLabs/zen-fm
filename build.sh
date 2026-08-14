@@ -128,7 +128,7 @@ if [ -z "$PACKAGE_ONLY" ]; then
     echo "Building KOReader backends..."
     GOFLAGS='-trimpath -buildvcs=false'
     LDFLAGS="-s -w -buildid= -X main.version=$VERSION"
-    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/go1.26.5-kindle/bin/go}
+    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/go1.26.6-kindle/bin/go}
     if [ ! -x "$LEGACY_GO" ] && [ -z "${ZENFM_LEGACY_GO:-}" ]; then
         "$SCRIPT_DIR/toolchains/legacy/bootstrap.sh"
     fi

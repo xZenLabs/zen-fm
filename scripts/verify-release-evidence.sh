@@ -18,7 +18,7 @@ QEMU="$DIR/old-kernel-qemu.json"
 [ -f "$QEMU" ] || { echo "old-kernel QEMU evidence is missing" >&2; exit 1; }
 jq -e --arg commit "$COMMIT" '
   .schema == "zenfm-old-kernel-qemu-v2" and .commit == $commit and .result == "pass" and
-  .toolchain == "go1.26.5-kindle" and .patchLevel == "ZenFM Linux/ARM old-kernel patch 1" and
+  .toolchain == "go1.26.6-kindle" and .patchLevel == "ZenFM Linux/ARM old-kernel patch 1" and
   (.kernelRelease | test("^2\\.6\\.")) and
   (.builds.hardFloatSHA256 | type == "string" and test("^[0-9a-f]{64}$")) and
   (.builds.softFloatSHA256 | type == "string" and test("^[0-9a-f]{64}$")) and

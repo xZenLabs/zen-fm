@@ -1,7 +1,7 @@
 # Development guide
 
 Run commands from the ZenFM repository root unless a section says otherwise.
-Use Node 24 and Go 1.26.5 to match CI.
+Use Node 24 and Go 1.26.6 to match CI.
 
 ## Frontend only, with mock data
 
@@ -112,7 +112,7 @@ debug-signed Android companion APK.
 The all-platform builder currently runs on macOS because it creates a universal
 macOS binary with `lipo`. It requires:
 
-- Go 1.26.5 and Node 24;
+- Go 1.26.6 and Node 24;
 - JDK 17 and Gradle 8.6;
 - Android SDK platform/build-tools 34;
 - Android NDK 25.2.9519653;
@@ -135,9 +135,9 @@ Without `ANDROID_KEYSTORE_PATH`, `build.sh` automatically creates a debug-signed
 development APK. The stable and beta release workflows supply the persistent
 Android signing credentials when they build published artifacts.
 
-The first e-reader build bootstraps the pinned, patched Go 1.26.5 compiler for
+The first e-reader build bootstraps the pinned, patched Go 1.26.6 compiler for
 old ARM kernels. Set `ZENFM_GO_SOURCE_ARCHIVE` to an already downloaded
-`go1.26.5.src.tar.gz` when developing offline.
+`go1.26.6.src.tar.gz` when developing offline.
 
 The root, frontend, and Android build entry points clear their generated
 artifact directories before validation or compilation. Android native builds
@@ -196,7 +196,7 @@ and build both float variants:
 ```sh
 sh scripts/verify-legacy-toolchain.sh
 sh toolchains/legacy/bootstrap.sh
-ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.5-kindle/bin/go"
+ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.6-kindle/bin/go"
 
 (cd "$ZENFM_DEV_DIR/src" && env GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
   "$ZENFM_LEGACY_GO" build -trimpath -buildvcs=false -ldflags "$ZENFM_LDFLAGS" \

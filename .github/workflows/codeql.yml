@@ -37,7 +37,7 @@ jobs:
       - if: matrix.language == 'go' || matrix.language == 'java-kotlin'
         uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.5'
+          go-version: '1.26.6'
           cache: true
       - if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@v5.7.0
