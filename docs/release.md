@@ -132,8 +132,8 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 
 1. Set `VERSION` on `dev` to the intended stable base version. It may also end
    in `-betaN`; the workflow strips that suffix when selecting the next number.
-2. Push to `dev`. CI runs all tests and development builds, while the beta
-   workflow waits for `CI required checks` on that exact commit.
+2. Push to `dev`. CI runs all tests and development builds, then triggers the
+   beta workflow after it succeeds. The beta workflow uses that exact commit.
 3. The workflow selects the next unused `v<version>-betaN`, stamps it into the
    checkout, builds, signs, verifies, and attests all five artifacts, then
    publishes them as a GitHub prerelease. It does not change `VERSION` in Git.
