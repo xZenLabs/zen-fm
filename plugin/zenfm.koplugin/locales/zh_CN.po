@@ -45,9 +45,6 @@ msgstr "另一个 ZenFM Android 请求仍待处理。"
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "您确定要将 <filename>{{name}}</filename> 移动到 <path>{{destination}}</path> 吗？"
 
-msgid "Backend version: "
-msgstr "后端版本："
-
 msgid "Beta updates"
 msgstr "测试版更新"
 
@@ -69,6 +66,9 @@ msgstr "校验和"
 msgid "Choose a private password"
 msgstr "选择私人密码"
 
+msgid "Clear find"
+msgstr "明确查找"
+
 msgid "Clear search"
 msgstr "清空"
 
@@ -77,6 +77,9 @@ msgstr "客户端超时"
 
 msgid "Close"
 msgstr "关闭"
+
+msgid "Close file"
+msgstr "关闭文件"
 
 msgid "Confirm"
 msgstr "确定"
@@ -177,6 +180,9 @@ msgstr "路径"
 msgid "Files"
 msgstr "文件"
 
+msgid "Find in file"
+msgstr "在文件中查找"
+
 msgid "Finish setup"
 msgstr "完成设置"
 
@@ -185,9 +191,6 @@ msgstr "文件夹名称"
 
 msgid "General"
 msgstr "一般的"
-
-msgid "generated"
-msgstr "生成的"
 
 msgid "Grid view"
 msgstr "网格视图"
@@ -255,6 +258,12 @@ msgstr "新建文件夹"
 msgid "New password"
 msgstr "新密码"
 
+msgid "Next match"
+msgstr "下一场比赛"
+
+msgid "No matches"
+msgstr "没有匹配项"
+
 msgid "No shared links"
 msgstr "没有共享链接"
 
@@ -296,6 +305,9 @@ msgstr "港口："
 
 msgid "Preview is unavailable for this file."
 msgstr "该文件暂不支持预览"
+
+msgid "Previous match"
+msgstr "上一场比赛"
 
 msgid "Refresh"
 msgstr "刷新"
@@ -444,18 +456,6 @@ msgstr "此文件太大或不支持安全编辑。"
 msgid "This link is unavailable or has expired."
 msgstr "该链接不可用或已过期。"
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "TLS 证书路径（空白使用生成的证书）"
-
-msgid "TLS certificate: "
-msgstr "TLS 证书："
-
-msgid "TLS private key: "
-msgstr "TLS 私钥："
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS 私钥路径（空白使用生成的密钥）"
-
 msgid "Token name"
 msgstr "代币名称"
 
@@ -479,6 +479,12 @@ msgstr "上传"
 
 msgid "Upload a file or create one."
 msgstr "上传文件或创建文件。"
+
+msgid "Upload files"
+msgstr "上传文件"
+
+msgid "Upload folder"
+msgstr "上传文件夹"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "正在上传 {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "ZenFM 请求待处理..."
 msgid "ZenFM started."
 msgstr "ZenFM 启动。"
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM 在不活动后停止。"
+
 msgid "ZenFM stopped."
 msgstr "ZenFM 停止了。"
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} 项目"
 
 msgid "{{count}} items selected"
 msgstr "已选择 {{count}} 项目"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} 共 {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} 已存在。将此选择应用于此上传中的所有冲突。"

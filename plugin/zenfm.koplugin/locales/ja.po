@@ -45,9 +45,6 @@ msgstr "別の ZenFM Android リクエストがまだ保留中です。"
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "<filename>{{name}}</filename> を <path>{{destination}}</path> に移動してもよろしいですか?"
 
-msgid "Backend version: "
-msgstr "バックエンドのバージョン:"
-
 msgid "Beta updates"
 msgstr "ベータ版のアップデート"
 
@@ -69,6 +66,9 @@ msgstr "チェックサム"
 msgid "Choose a private password"
 msgstr "プライベートパスワードを選択してください"
 
+msgid "Clear find"
+msgstr "検索をクリア"
+
 msgid "Clear search"
 msgstr "クリアー"
 
@@ -77,6 +77,9 @@ msgstr "クライアントのタイムアウト"
 
 msgid "Close"
 msgstr "閉じる"
+
+msgid "Close file"
+msgstr "ファイルを閉じる"
 
 msgid "Confirm"
 msgstr "確認する"
@@ -177,6 +180,9 @@ msgstr "パス"
 msgid "Files"
 msgstr "ファイル"
 
+msgid "Find in file"
+msgstr "ファイル内で検索"
+
 msgid "Finish setup"
 msgstr "セットアップを完了する"
 
@@ -185,9 +191,6 @@ msgstr "フォルダ名"
 
 msgid "General"
 msgstr "一般的な"
-
-msgid "generated"
-msgstr "生成された"
 
 msgid "Grid view"
 msgstr "グリッドビュー"
@@ -255,6 +258,12 @@ msgstr "新規フォルダー"
 msgid "New password"
 msgstr "新しいパスワード"
 
+msgid "Next match"
+msgstr "次の試合"
+
+msgid "No matches"
+msgstr "一致しません"
+
 msgid "No shared links"
 msgstr "共有リンクはありません"
 
@@ -296,6 +305,9 @@ msgstr "ポート："
 
 msgid "Preview is unavailable for this file."
 msgstr "プレビューはこのファイルでは利用できません"
+
+msgid "Previous match"
+msgstr "前回の試合"
 
 msgid "Refresh"
 msgstr "リフレッシュ"
@@ -444,18 +456,6 @@ msgstr "このファイルは大きすぎるか、安全に編集するにはサ
 msgid "This link is unavailable or has expired."
 msgstr "このリンクは利用できないか、有効期限が切れています。"
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "TLS 証明書パス (空白は生成された証明書を使用)"
-
-msgid "TLS certificate: "
-msgstr "TLS 証明書:"
-
-msgid "TLS private key: "
-msgstr "TLS 秘密キー:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS 秘密キーのパス (空白は生成されたキーを使用)"
-
 msgid "Token name"
 msgstr "トークン名"
 
@@ -479,6 +479,12 @@ msgstr "アップロード"
 
 msgid "Upload a file or create one."
 msgstr "ファイルをアップロードするか、ファイルを作成します。"
+
+msgid "Upload files"
+msgstr "ファイルをアップロードする"
+
+msgid "Upload folder"
+msgstr "アップロードフォルダー"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "{{name}} をアップロード中 — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "ZenFM リクエストは保留中です…"
 msgid "ZenFM started."
 msgstr "ZenFM始めました。"
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM は非アクティブになった後に停止しました。"
+
 msgid "ZenFM stopped."
 msgstr "ZenFMが停止しました。"
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} アイテム"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} アイテムが選択されました"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}}/{{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} はすでに存在します。この選択をこのアップロード内のすべての競合に適用します。"

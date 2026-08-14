@@ -45,9 +45,6 @@ msgstr "Another ZenFM Android request is still pending."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Backend version: "
-
 msgid "Beta updates"
 msgstr "Beta updates"
 
@@ -69,6 +66,9 @@ msgstr "Checksum"
 msgid "Choose a private password"
 msgstr "Choose a private password"
 
+msgid "Clear find"
+msgstr "Clear find"
+
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -77,6 +77,9 @@ msgstr "Client timeout"
 
 msgid "Close"
 msgstr "Close"
+
+msgid "Close file"
+msgstr "Close file"
 
 msgid "Confirm"
 msgstr "Confirm"
@@ -177,6 +180,9 @@ msgstr "File or folder path"
 msgid "Files"
 msgstr "Files"
 
+msgid "Find in file"
+msgstr "Find in file"
+
 msgid "Finish setup"
 msgstr "Finish setup"
 
@@ -185,9 +191,6 @@ msgstr "Folder name"
 
 msgid "General"
 msgstr "General"
-
-msgid "generated"
-msgstr "generated"
 
 msgid "Grid view"
 msgstr "Grid view"
@@ -255,6 +258,12 @@ msgstr "New folder"
 msgid "New password"
 msgstr "New password"
 
+msgid "Next match"
+msgstr "Next match"
+
+msgid "No matches"
+msgstr "No matches"
+
 msgid "No shared links"
 msgstr "No shared links"
 
@@ -296,6 +305,9 @@ msgstr "Port: "
 
 msgid "Preview is unavailable for this file."
 msgstr "Preview is unavailable for this file."
+
+msgid "Previous match"
+msgstr "Previous match"
 
 msgid "Refresh"
 msgstr "Refresh"
@@ -444,18 +456,6 @@ msgstr "This file is too large or unsupported for safe editing."
 msgid "This link is unavailable or has expired."
 msgstr "This link is unavailable or has expired."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "TLS certificate path (blank uses generated certificate)"
-
-msgid "TLS certificate: "
-msgstr "TLS certificate: "
-
-msgid "TLS private key: "
-msgstr "TLS private key: "
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS private-key path (blank uses generated key)"
-
 msgid "Token name"
 msgstr "Token name"
 
@@ -479,6 +479,12 @@ msgstr "Upload"
 
 msgid "Upload a file or create one."
 msgstr "Upload a file or create one."
+
+msgid "Upload files"
+msgstr "Upload files"
+
+msgid "Upload folder"
+msgstr "Upload folder"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Uploading {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "ZenFM request pending…"
 msgid "ZenFM started."
 msgstr "ZenFM started."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM stopped after inactivity."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM stopped."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} items"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} items selected"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} of {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} already exists. Apply this choice to all conflicts in this upload."

@@ -45,9 +45,6 @@ msgstr "Een ander ZenFM Android-verzoek is nog in behandeling."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Weet u zeker dat u <filename>{{name}}</filename> wilt verplaatsen naar <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Backend-versie:"
-
 msgid "Beta updates"
 msgstr "Bèta-updates"
 
@@ -69,6 +66,9 @@ msgstr "Controlesom"
 msgid "Choose a private password"
 msgstr "Kies een privéwachtwoord"
 
+msgid "Clear find"
+msgstr "Duidelijke vondst"
+
 msgid "Clear search"
 msgstr "Wissen"
 
@@ -77,6 +77,9 @@ msgstr "Time-out van client"
 
 msgid "Close"
 msgstr "Sluiten"
+
+msgid "Close file"
+msgstr "Bestand sluiten"
 
 msgid "Confirm"
 msgstr "Bevestigen"
@@ -177,6 +180,9 @@ msgstr "Pad"
 msgid "Files"
 msgstr "Bestanden"
 
+msgid "Find in file"
+msgstr "Zoek in bestand"
+
 msgid "Finish setup"
 msgstr "Voltooi de installatie"
 
@@ -185,9 +191,6 @@ msgstr "Mapnaam"
 
 msgid "General"
 msgstr "Algemeen"
-
-msgid "generated"
-msgstr "gegenereerd"
 
 msgid "Grid view"
 msgstr "Rasterweergave"
@@ -255,6 +258,12 @@ msgstr "Nieuwe map"
 msgid "New password"
 msgstr "Uw nieuwe wachtwoord"
 
+msgid "Next match"
+msgstr "Volgende wedstrijd"
+
+msgid "No matches"
+msgstr "Geen overeenkomsten"
+
 msgid "No shared links"
 msgstr "Geen gedeelde links"
 
@@ -296,6 +305,9 @@ msgstr "Haven:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Geen voorbeeld beschikbaar voor dit bestand."
+
+msgid "Previous match"
+msgstr "Vorige wedstrijd"
 
 msgid "Refresh"
 msgstr "Vernieuwen"
@@ -444,18 +456,6 @@ msgstr "Dit bestand is te groot of wordt niet ondersteund voor veilige bewerking
 msgid "This link is unavailable or has expired."
 msgstr "Deze link is niet beschikbaar of is verlopen."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "TLS-certificaatpad (leeg gebruikt gegenereerd certificaat)"
-
-msgid "TLS certificate: "
-msgstr "TLS-certificaat:"
-
-msgid "TLS private key: "
-msgstr "TLS-privésleutel:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS-privésleutelpad (leeg gebruikt gegenereerde sleutel)"
-
 msgid "Token name"
 msgstr "Tokennaam"
 
@@ -479,6 +479,12 @@ msgstr "Uploaden"
 
 msgid "Upload a file or create one."
 msgstr "Upload een bestand of maak er een."
+
+msgid "Upload files"
+msgstr "Bestanden uploaden"
+
+msgid "Upload folder"
+msgstr "Map uploaden"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Uploaden {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "ZenFM-verzoek in behandeling…"
 msgid "ZenFM started."
 msgstr "ZenFM is gestart."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM stopte na inactiviteit."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM is gestopt."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} artikelen"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} items geselecteerd"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} van {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} bestaat al. Pas deze keuze toe op alle conflicten in deze upload."

@@ -45,9 +45,6 @@ msgstr "Một yêu cầu ZenFM Android khác vẫn đang chờ xử lý."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Bạn có chắc chắn muốn di chuyển <filename>{{name}}</filename> sang <path>{{destination}}</path> không?"
 
-msgid "Backend version: "
-msgstr "Phiên bản phụ trợ:"
-
 msgid "Beta updates"
 msgstr "Cập nhật thử nghiệm"
 
@@ -69,6 +66,9 @@ msgstr "Tổng kiểm tra"
 msgid "Choose a private password"
 msgstr "Chọn mật khẩu riêng"
 
+msgid "Clear find"
+msgstr "Xóa tìm kiếm"
+
 msgid "Clear search"
 msgstr "Xóa"
 
@@ -77,6 +77,9 @@ msgstr "Thời gian chờ của khách hàng"
 
 msgid "Close"
 msgstr "Đóng"
+
+msgid "Close file"
+msgstr "Đóng tập tin"
 
 msgid "Confirm"
 msgstr "Xác nhận"
@@ -177,6 +180,9 @@ msgstr "Đường dẫn"
 msgid "Files"
 msgstr "Tập tin"
 
+msgid "Find in file"
+msgstr "Tìm trong tập tin"
+
 msgid "Finish setup"
 msgstr "Hoàn tất thiết lập"
 
@@ -185,9 +191,6 @@ msgstr "Tên thư mục"
 
 msgid "General"
 msgstr "Tổng quan"
-
-msgid "generated"
-msgstr "tạo ra"
 
 msgid "Grid view"
 msgstr "Chế độ xem lưới"
@@ -255,6 +258,12 @@ msgstr "Thư mục mới"
 msgid "New password"
 msgstr "Mật khẩu mới của bạn"
 
+msgid "Next match"
+msgstr "Trận đấu tiếp theo"
+
+msgid "No matches"
+msgstr "Không có kết quả phù hợp"
+
 msgid "No shared links"
 msgstr "Không có liên kết được chia sẻ"
 
@@ -296,6 +305,9 @@ msgstr "Cảng:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Không có bản xem trước cho tập tin này."
+
+msgid "Previous match"
+msgstr "Trận đấu trước"
 
 msgid "Refresh"
 msgstr "Làm cho khỏe lại"
@@ -444,18 +456,6 @@ msgstr "Tệp này quá lớn hoặc không được hỗ trợ để chỉnh s�
 msgid "This link is unavailable or has expired."
 msgstr "Liên kết này không có sẵn hoặc đã hết hạn."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Đường dẫn chứng chỉ TLS (trống sử dụng chứng chỉ được tạo)"
-
-msgid "TLS certificate: "
-msgstr "Chứng chỉ TLS:"
-
-msgid "TLS private key: "
-msgstr "Khóa riêng TLS:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Đường dẫn khóa riêng TLS (trống sử dụng khóa được tạo)"
-
 msgid "Token name"
 msgstr "Tên mã thông báo"
 
@@ -479,6 +479,12 @@ msgstr "Tải lên"
 
 msgid "Upload a file or create one."
 msgstr "Tải lên một tập tin hoặc tạo một tập tin."
+
+msgid "Upload files"
+msgstr "Tải tập tin lên"
+
+msgid "Upload folder"
+msgstr "Tải lên thư mục"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Đang tải lên {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Yêu cầu ZenFM đang chờ xử lý…"
 msgid "ZenFM started."
 msgstr "ZenFM đã bắt đầu."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM đã dừng sau khi không hoạt động."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM đã dừng."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} mục"
 
 msgid "{{count}} items selected"
 msgstr "Đã chọn {{count}} mục"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} trong tổng số {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} đã tồn tại. Áp dụng lựa chọn này cho tất cả xung đột trong quá trình tải lên này."

@@ -45,9 +45,6 @@ msgstr "Ένα άλλο αίτημα Android ZenFM είναι ακόμη σε ε
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Είστε βέβαιοι ότι θέλετε να μετακινήσετε <filename>{{name}}</filename> σε <path>{{destination}}</path>;"
 
-msgid "Backend version: "
-msgstr "Έκδοση backend:"
-
 msgid "Beta updates"
 msgstr "Ενημερώσεις beta"
 
@@ -69,6 +66,9 @@ msgstr "Άθροισμα ελέγχου"
 msgid "Choose a private password"
 msgstr "Επιλέξτε έναν ιδιωτικό κωδικό πρόσβασης"
 
+msgid "Clear find"
+msgstr "Καθαρή εύρεση"
+
 msgid "Clear search"
 msgstr "Καθαρισμός"
 
@@ -77,6 +77,9 @@ msgstr "Λήξη χρονικού ορίου πελάτη"
 
 msgid "Close"
 msgstr "Κλείσιμο"
+
+msgid "Close file"
+msgstr "Κλείσιμο αρχείου"
 
 msgid "Confirm"
 msgstr "Εντάξει"
@@ -177,6 +180,9 @@ msgstr "Διαδρομή"
 msgid "Files"
 msgstr "Αρχεία"
 
+msgid "Find in file"
+msgstr "Βρείτε στο αρχείο"
+
 msgid "Finish setup"
 msgstr "Ολοκληρώστε τη ρύθμιση"
 
@@ -185,9 +191,6 @@ msgstr "Όνομα φακέλου"
 
 msgid "General"
 msgstr "Γενικός"
-
-msgid "generated"
-msgstr "που δημιουργείται"
 
 msgid "Grid view"
 msgstr "Προβολή πλέγματος"
@@ -255,6 +258,12 @@ msgstr "Νέος φάκελος"
 msgid "New password"
 msgstr "Νέος κωδικός πρόσβασης"
 
+msgid "Next match"
+msgstr "Επόμενος αγώνας"
+
+msgid "No matches"
+msgstr "Χωρίς αγώνες"
+
 msgid "No shared links"
 msgstr "Δεν υπάρχουν κοινόχρηστοι σύνδεσμοι"
 
@@ -296,6 +305,9 @@ msgstr "Λιμάνι:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Η προεπισκόπηση δεν είναι διαθέσιμη για αυτό το αρχείο."
+
+msgid "Previous match"
+msgstr "Προηγούμενο ματς"
 
 msgid "Refresh"
 msgstr "Φρεσκάρω"
@@ -444,18 +456,6 @@ msgstr "Αυτό το αρχείο είναι πολύ μεγάλο ή δεν υ
 msgid "This link is unavailable or has expired."
 msgstr "Αυτός ο σύνδεσμος δεν είναι διαθέσιμος ή έχει λήξει."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Διαδρομή πιστοποιητικού TLS (το κενό χρησιμοποιεί το πιστοποιητικό που δημιουργείται)"
-
-msgid "TLS certificate: "
-msgstr "Πιστοποιητικό TLS:"
-
-msgid "TLS private key: "
-msgstr "Ιδιωτικό κλειδί TLS:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Διαδρομή ιδιωτικού κλειδιού TLS (το κενό χρησιμοποιεί το κλειδί που δημιουργήθηκε)"
-
 msgid "Token name"
 msgstr "Συμβολικό όνομα"
 
@@ -479,6 +479,12 @@ msgstr "Μεταφόρτωση"
 
 msgid "Upload a file or create one."
 msgstr "Ανεβάστε ένα αρχείο ή δημιουργήστε ένα."
+
+msgid "Upload files"
+msgstr "Μεταφόρτωση αρχείων"
+
+msgid "Upload folder"
+msgstr "Μεταφόρτωση φακέλου"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Μεταφόρτωση {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Αίτημα ZenFM σε εκκρεμότητα…"
 msgid "ZenFM started."
 msgstr "Το ZenFM ξεκίνησε."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "Το ZenFM σταμάτησε μετά από αδράνεια."
+
 msgid "ZenFM stopped."
 msgstr "Το ZenFM σταμάτησε."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} στοιχεία"
 
 msgid "{{count}} items selected"
 msgstr "Επιλέχθηκαν {{count}} στοιχεία"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} από {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "Το {{name}} υπάρχει ήδη. Εφαρμόστε αυτήν την επιλογή σε όλες τις διενέξεις σε αυτήν τη μεταφόρτωση."

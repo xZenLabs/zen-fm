@@ -45,9 +45,6 @@ msgstr "Друга заявка за ZenFM Android все още чака."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Сигурни ли сте, че искате да преместите <filename>{{name}}</filename> в <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Бекенд версия:"
-
 msgid "Beta updates"
 msgstr "Бета актуализации"
 
@@ -69,6 +66,9 @@ msgstr "Контролна сума"
 msgid "Choose a private password"
 msgstr "Изберете лична парола"
 
+msgid "Clear find"
+msgstr "Ясна находка"
+
 msgid "Clear search"
 msgstr "Изчисти"
 
@@ -77,6 +77,9 @@ msgstr "Време за изчакване на клиента"
 
 msgid "Close"
 msgstr "Затвори"
+
+msgid "Close file"
+msgstr "Затваряне на файла"
 
 msgid "Confirm"
 msgstr "Потвърди"
@@ -177,6 +180,9 @@ msgstr "Път"
 msgid "Files"
 msgstr "Файлове"
 
+msgid "Find in file"
+msgstr "Намерете във файла"
+
 msgid "Finish setup"
 msgstr "Завършете настройката"
 
@@ -185,9 +191,6 @@ msgstr "Име на папка"
 
 msgid "General"
 msgstr "генерал"
-
-msgid "generated"
-msgstr "генерирани"
 
 msgid "Grid view"
 msgstr "Мрежов изглед"
@@ -255,6 +258,12 @@ msgstr "Нова папка"
 msgid "New password"
 msgstr "Вашата нова парола"
 
+msgid "Next match"
+msgstr "Следващ мач"
+
+msgid "No matches"
+msgstr "Няма съвпадения"
+
 msgid "No shared links"
 msgstr "Няма споделени връзки"
 
@@ -296,6 +305,9 @@ msgstr "Порт:"
 
 msgid "Preview is unavailable for this file."
 msgstr "За този файл не е наличен преглед."
+
+msgid "Previous match"
+msgstr "Предишен мач"
 
 msgid "Refresh"
 msgstr "Опресняване"
@@ -444,18 +456,6 @@ msgstr "Този файл е твърде голям или не се поддъ
 msgid "This link is unavailable or has expired."
 msgstr "Тази връзка не е достъпна или е изтекла."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Път на TLS сертификат (празен използва генериран сертификат)"
-
-msgid "TLS certificate: "
-msgstr "TLS сертификат:"
-
-msgid "TLS private key: "
-msgstr "TLS частен ключ:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS път на частен ключ (празното използва генериран ключ)"
-
 msgid "Token name"
 msgstr "Име на токена"
 
@@ -479,6 +479,12 @@ msgstr "Качи"
 
 msgid "Upload a file or create one."
 msgstr "Качете файл или създайте такъв."
+
+msgid "Upload files"
+msgstr "Качване на файлове"
+
+msgid "Upload folder"
+msgstr "Папка за качване"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Качване {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Изчакваща заявка за ZenFM..."
 msgid "ZenFM started."
 msgstr "ZenFM започна."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM спря след неактивност."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM спря."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} артикула"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} избрани артикули"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} от {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} вече съществува. Приложете този избор към всички конфликти в това качване."

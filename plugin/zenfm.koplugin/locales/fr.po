@@ -45,9 +45,6 @@ msgstr "Une autre demande ZenFM Android est toujours en attente."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Êtes-vous sûr de vouloir déplacer <filename>{{name}}</filename> vers <path>{{destination}}</path> ?"
 
-msgid "Backend version: "
-msgstr "Version back-end :"
-
 msgid "Beta updates"
 msgstr "Mises à jour bêta"
 
@@ -69,6 +66,9 @@ msgstr "Somme de contrôle"
 msgid "Choose a private password"
 msgstr "Choisissez un mot de passe privé"
 
+msgid "Clear find"
+msgstr "Effacer la recherche"
+
 msgid "Clear search"
 msgstr "Effacer"
 
@@ -77,6 +77,9 @@ msgstr "Délai d'expiration du client"
 
 msgid "Close"
 msgstr "Fermer"
+
+msgid "Close file"
+msgstr "Fermer le fichier"
 
 msgid "Confirm"
 msgstr "Confirmer"
@@ -177,6 +180,9 @@ msgstr "Chemin"
 msgid "Files"
 msgstr "Fichiers"
 
+msgid "Find in file"
+msgstr "Rechercher dans le fichier"
+
 msgid "Finish setup"
 msgstr "Terminer la configuration"
 
@@ -185,9 +191,6 @@ msgstr "Nom du dossier"
 
 msgid "General"
 msgstr "Général"
-
-msgid "generated"
-msgstr "généré"
 
 msgid "Grid view"
 msgstr "Vue grille"
@@ -255,6 +258,12 @@ msgstr "Nouveau dossier"
 msgid "New password"
 msgstr "Votre nouveau mot de passe"
 
+msgid "Next match"
+msgstr "Prochain match"
+
+msgid "No matches"
+msgstr "Aucune correspondance"
+
 msgid "No shared links"
 msgstr "Aucun lien partagé"
 
@@ -296,6 +305,9 @@ msgstr "Port:"
 
 msgid "Preview is unavailable for this file."
 msgstr "L'aperçu n'est pas disponible pour ce fichier."
+
+msgid "Previous match"
+msgstr "Match précédent"
 
 msgid "Refresh"
 msgstr "Rafraîchir"
@@ -444,18 +456,6 @@ msgstr "Ce fichier est trop volumineux ou n'est pas pris en charge pour une modi
 msgid "This link is unavailable or has expired."
 msgstr "Ce lien n'est pas disponible ou a expiré."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Chemin du certificat TLS (le blanc utilise le certificat généré)"
-
-msgid "TLS certificate: "
-msgstr "Certificat TLS :"
-
-msgid "TLS private key: "
-msgstr "Clé privée TLS :"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Chemin de clé privée TLS (le blanc utilise la clé générée)"
-
 msgid "Token name"
 msgstr "Nom du jeton"
 
@@ -479,6 +479,12 @@ msgstr "Importer"
 
 msgid "Upload a file or create one."
 msgstr "Téléchargez un fichier ou créez-en un."
+
+msgid "Upload files"
+msgstr "Télécharger des fichiers"
+
+msgid "Upload folder"
+msgstr "Télécharger le dossier"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Téléchargement de {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Demande ZenFM en attente…"
 msgid "ZenFM started."
 msgstr "ZenFM a démarré."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM s'est arrêté après inactivité."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM s'est arrêté."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} éléments"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} éléments sélectionnés"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} sur {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} existe déjà. Appliquez ce choix à tous les conflits dans ce téléchargement."

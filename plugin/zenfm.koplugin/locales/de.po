@@ -45,9 +45,6 @@ msgstr "Eine weitere ZenFM-Android-Anfrage steht noch aus."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Sind Sie sicher, dass Sie <filename>{{name}}</filename> nach <path>{{destination}}</path> verschieben möchten?"
 
-msgid "Backend version: "
-msgstr "Backend-Version:"
-
 msgid "Beta updates"
 msgstr "Beta-Updates"
 
@@ -69,6 +66,9 @@ msgstr "Prüfsumme"
 msgid "Choose a private password"
 msgstr "Wählen Sie ein privates Passwort"
 
+msgid "Clear find"
+msgstr "Klarer Fund"
+
 msgid "Clear search"
 msgstr "Leeren"
 
@@ -77,6 +77,9 @@ msgstr "Client-Timeout"
 
 msgid "Close"
 msgstr "Schließen"
+
+msgid "Close file"
+msgstr "Datei schließen"
 
 msgid "Confirm"
 msgstr "Bestätigen"
@@ -177,6 +180,9 @@ msgstr "Pfad"
 msgid "Files"
 msgstr "Dateien"
 
+msgid "Find in file"
+msgstr "In der Datei suchen"
+
 msgid "Finish setup"
 msgstr "Beenden Sie die Einrichtung"
 
@@ -185,9 +191,6 @@ msgstr "Ordnername"
 
 msgid "General"
 msgstr "Allgemein"
-
-msgid "generated"
-msgstr "generiert"
 
 msgid "Grid view"
 msgstr "Rasteransicht"
@@ -255,6 +258,12 @@ msgstr "Neuer Ordner"
 msgid "New password"
 msgstr "Dein neues Passwort"
 
+msgid "Next match"
+msgstr "Nächstes Spiel"
+
+msgid "No matches"
+msgstr "Keine Übereinstimmungen"
+
 msgid "No shared links"
 msgstr "Keine geteilten Links"
 
@@ -296,6 +305,9 @@ msgstr "Hafen:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Für diese Datei ist keine Vorschau verfügbar."
+
+msgid "Previous match"
+msgstr "Vorheriges Spiel"
 
 msgid "Refresh"
 msgstr "Aktualisieren"
@@ -444,18 +456,6 @@ msgstr "Diese Datei ist zu groß oder wird für eine sichere Bearbeitung nicht u
 msgid "This link is unavailable or has expired."
 msgstr "Dieser Link ist nicht verfügbar oder abgelaufen."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "TLS-Zertifikatpfad (leer, verwendet generiertes Zertifikat)"
-
-msgid "TLS certificate: "
-msgstr "TLS-Zertifikat:"
-
-msgid "TLS private key: "
-msgstr "Privater TLS-Schlüssel:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "TLS-Pfad für den privaten Schlüssel (leer, verwendet generierten Schlüssel)"
-
 msgid "Token name"
 msgstr "Tokenname"
 
@@ -479,6 +479,12 @@ msgstr "Hochladen"
 
 msgid "Upload a file or create one."
 msgstr "Laden Sie eine Datei hoch oder erstellen Sie eine."
+
+msgid "Upload files"
+msgstr "Dateien hochladen"
+
+msgid "Upload folder"
+msgstr "Ordner hochladen"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Hochladen {{name}} – {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "ZenFM-Anfrage ausstehend…"
 msgid "ZenFM started."
 msgstr "ZenFM gestartet."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM wurde nach Inaktivität gestoppt."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM hat angehalten."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} Elemente"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} Elemente ausgewählt"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} von {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} existiert bereits. Wenden Sie diese Auswahl auf alle Konflikte in diesem Upload an."

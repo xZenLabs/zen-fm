@@ -45,9 +45,6 @@ msgstr "O altă solicitare ZenFM Android este încă în așteptare."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Sigur doriți să mutați <filename>{{name}}</filename> în <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Versiunea backend:"
-
 msgid "Beta updates"
 msgstr "Actualizări beta"
 
@@ -69,6 +66,9 @@ msgstr "Sumă de control"
 msgid "Choose a private password"
 msgstr "Alegeți o parolă privată"
 
+msgid "Clear find"
+msgstr "Găsire clară"
+
 msgid "Clear search"
 msgstr "Curăță"
 
@@ -77,6 +77,9 @@ msgstr "Timeout client"
 
 msgid "Close"
 msgstr "Închide"
+
+msgid "Close file"
+msgstr "Închideți fișierul"
 
 msgid "Confirm"
 msgstr "Confirma"
@@ -177,6 +180,9 @@ msgstr "Calea fișierului sau a folderului"
 msgid "Files"
 msgstr "Fișiere"
 
+msgid "Find in file"
+msgstr "Găsiți în fișier"
+
 msgid "Finish setup"
 msgstr "Finalizați configurarea"
 
@@ -185,9 +191,6 @@ msgstr "Numele dosarului"
 
 msgid "General"
 msgstr "General"
-
-msgid "generated"
-msgstr "generate"
 
 msgid "Grid view"
 msgstr "Vizualizare grilă"
@@ -255,6 +258,12 @@ msgstr "Director nou"
 msgid "New password"
 msgstr "Noua ta parolă"
 
+msgid "Next match"
+msgstr "Următorul meci"
+
+msgid "No matches"
+msgstr "Fără meciuri"
+
 msgid "No shared links"
 msgstr "Nu există linkuri partajate"
 
@@ -296,6 +305,9 @@ msgstr "Port:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Previzualizarea nu este disponibilă pentru acest fișier."
+
+msgid "Previous match"
+msgstr "Meciul anterior"
 
 msgid "Refresh"
 msgstr "Reîmprospăta"
@@ -444,18 +456,6 @@ msgstr "Acest fișier este prea mare sau neacceptat pentru editare în siguranț
 msgid "This link is unavailable or has expired."
 msgstr "Acest link este indisponibil sau a expirat."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Calea certificatului TLS (blank folosește certificatul generat)"
-
-msgid "TLS certificate: "
-msgstr "Certificat TLS:"
-
-msgid "TLS private key: "
-msgstr "Cheie privată TLS:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Calea cheii private TLS (gol folosește cheia generată)"
-
 msgid "Token name"
 msgstr "Nume simbol"
 
@@ -479,6 +479,12 @@ msgstr "Încarcă"
 
 msgid "Upload a file or create one."
 msgstr "Încărcați un fișier sau creați unul."
+
+msgid "Upload files"
+msgstr "Încărcați fișiere"
+
+msgid "Upload folder"
+msgstr "Încărcați folderul"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Se încarcă {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Solicitare ZenFM în așteptare..."
 msgid "ZenFM started."
 msgstr "ZenFM a început."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM sa oprit după inactivitate."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM sa oprit."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} articole"
 
 msgid "{{count}} items selected"
 msgstr "{{count}} elemente selectate"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} din {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} există deja. Aplicați această opțiune tuturor conflictelor din această încărcare."

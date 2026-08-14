@@ -45,9 +45,6 @@ msgstr "Další požadavek ZenFM pro Android stále čeká na vyřízení."
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Opravdu chcete přesunout <filename>{{name}}</filename> do <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Backend verze:"
-
 msgid "Beta updates"
 msgstr "Beta aktualizace"
 
@@ -69,6 +66,9 @@ msgstr "Kontrolní součet"
 msgid "Choose a private password"
 msgstr "Zvolte soukromé heslo"
 
+msgid "Clear find"
+msgstr "Jasný nález"
+
 msgid "Clear search"
 msgstr "Vymazat"
 
@@ -77,6 +77,9 @@ msgstr "Časový limit klienta"
 
 msgid "Close"
 msgstr "Zavřít"
+
+msgid "Close file"
+msgstr "Zavřít soubor"
 
 msgid "Confirm"
 msgstr "Potvrdit"
@@ -177,6 +180,9 @@ msgstr "Cesta"
 msgid "Files"
 msgstr "Soubory"
 
+msgid "Find in file"
+msgstr "Najít v souboru"
+
 msgid "Finish setup"
 msgstr "Dokončete nastavení"
 
@@ -185,9 +191,6 @@ msgstr "Název složky"
 
 msgid "General"
 msgstr "Generál"
-
-msgid "generated"
-msgstr "vytvořené"
 
 msgid "Grid view"
 msgstr "Zobrazení mřížky"
@@ -255,6 +258,12 @@ msgstr "Nová složka"
 msgid "New password"
 msgstr "Vaše nové heslo"
 
+msgid "Next match"
+msgstr "Další zápas"
+
+msgid "No matches"
+msgstr "Žádné zápasy"
+
 msgid "No shared links"
 msgstr "Žádné sdílené odkazy"
 
@@ -296,6 +305,9 @@ msgstr "Přístav:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Náhled pro tento soubor není k dispozici."
+
+msgid "Previous match"
+msgstr "Předchozí zápas"
 
 msgid "Refresh"
 msgstr "Obnovit"
@@ -444,18 +456,6 @@ msgstr "Tento soubor je příliš velký nebo není podporován pro bezpečné �
 msgid "This link is unavailable or has expired."
 msgstr "Tento odkaz je nedostupný nebo jeho platnost vypršela."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Cesta certifikátu TLS (prázdné používá vygenerovaný certifikát)"
-
-msgid "TLS certificate: "
-msgstr "TLS certifikát:"
-
-msgid "TLS private key: "
-msgstr "TLS soukromý klíč:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Cesta soukromého klíče TLS (prázdné používá vygenerovaný klíč)"
-
 msgid "Token name"
 msgstr "Název tokenu"
 
@@ -479,6 +479,12 @@ msgstr "Nahrát"
 
 msgid "Upload a file or create one."
 msgstr "Nahrajte soubor nebo jej vytvořte."
+
+msgid "Upload files"
+msgstr "Nahrajte soubory"
+
+msgid "Upload folder"
+msgstr "Nahrát složku"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Nahrávání {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Žádost ZenFM čeká…"
 msgid "ZenFM started."
 msgstr "ZenFM začal."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM se po nečinnosti zastavil."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM se zastavil."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} položek"
 
 msgid "{{count}} items selected"
 msgstr "Vybráno {{count}} položek"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} z {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} již existuje. Použít tuto volbu na všechny konflikty v tomto nahrávání."

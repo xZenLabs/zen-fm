@@ -45,9 +45,6 @@ msgstr "Інший запит ZenFM Android все ще очікує на роз
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Ви впевнені, що бажаєте перемістити <filename>{{name}}</filename> до <path>{{destination}}</path>?"
 
-msgid "Backend version: "
-msgstr "Бекенд версія:"
-
 msgid "Beta updates"
 msgstr "Бета-оновлення"
 
@@ -69,6 +66,9 @@ msgstr "Контрольна сума"
 msgid "Choose a private password"
 msgstr "Виберіть особистий пароль"
 
+msgid "Clear find"
+msgstr "Ясна знахідка"
+
 msgid "Clear search"
 msgstr "Очистити"
 
@@ -77,6 +77,9 @@ msgstr "Час очікування клієнта"
 
 msgid "Close"
 msgstr "Закрити"
+
+msgid "Close file"
+msgstr "Закрити файл"
 
 msgid "Confirm"
 msgstr "ОК"
@@ -177,6 +180,9 @@ msgstr "Шлях"
 msgid "Files"
 msgstr "Файли"
 
+msgid "Find in file"
+msgstr "Знайти у файлі"
+
 msgid "Finish setup"
 msgstr "Завершити налаштування"
 
@@ -185,9 +191,6 @@ msgstr "Назва папки"
 
 msgid "General"
 msgstr "Загальний"
-
-msgid "generated"
-msgstr "створений"
 
 msgid "Grid view"
 msgstr "Вигляд сітки"
@@ -255,6 +258,12 @@ msgstr "Новий каталог"
 msgid "New password"
 msgstr "Новий пароль"
 
+msgid "Next match"
+msgstr "Наступний матч"
+
+msgid "No matches"
+msgstr "Немає збігів"
+
 msgid "No shared links"
 msgstr "Немає спільних посилань"
 
@@ -296,6 +305,9 @@ msgstr "Порт:"
 
 msgid "Preview is unavailable for this file."
 msgstr "Попередній перегляд для цього файлу недоступний."
+
+msgid "Previous match"
+msgstr "Попередній матч"
 
 msgid "Refresh"
 msgstr "Оновити"
@@ -444,18 +456,6 @@ msgstr "Цей файл завеликий або не підтримуєтьс�
 msgid "This link is unavailable or has expired."
 msgstr "Це посилання недоступне або термін його дії закінчився."
 
-msgid "TLS certificate path (blank uses generated certificate)"
-msgstr "Шлях сертифіката TLS (порожній використовує згенерований сертифікат)"
-
-msgid "TLS certificate: "
-msgstr "Сертифікат TLS:"
-
-msgid "TLS private key: "
-msgstr "Закритий ключ TLS:"
-
-msgid "TLS private-key path (blank uses generated key)"
-msgstr "Шлях закритого ключа TLS (порожній використовує згенерований ключ)"
-
 msgid "Token name"
 msgstr "Назва маркера"
 
@@ -479,6 +479,12 @@ msgstr "Вивантажити"
 
 msgid "Upload a file or create one."
 msgstr "Завантажте файл або створіть його."
+
+msgid "Upload files"
+msgstr "Завантажте файли"
+
+msgid "Upload folder"
+msgstr "Завантажити папку"
 
 msgid "Uploading {{name}} — {{progress}}%"
 msgstr "Завантаження {{name}} — {{progress}}%"
@@ -531,6 +537,9 @@ msgstr "Запит ZenFM очікує…"
 msgid "ZenFM started."
 msgstr "ZenFM стартував."
 
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM зупинився після бездіяльності."
+
 msgid "ZenFM stopped."
 msgstr "ZenFM зупинився."
 
@@ -545,6 +554,9 @@ msgstr "{{action}} {{count}} пунктів"
 
 msgid "{{count}} items selected"
 msgstr "Вибрано {{count}} елементів"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} з {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} вже існує. Застосуйте цей вибір до всіх конфліктів у цьому завантаженні."
