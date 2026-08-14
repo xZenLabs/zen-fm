@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type MouseEvent } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent,
+  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent, Checkbox,
   Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment,
   LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TableSortLabel, TextField, Tooltip, Typography, useMediaQuery, useTheme,
@@ -167,6 +167,7 @@ export function FilesPage() {
   const queryClient = useQueryClient()
   const theme = useTheme()
   const mobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const coarseInput = useMediaQuery('(pointer: coarse)')
   const uploadInput = useRef<HTMLInputElement>(null)
   const uploadAbort = useRef<AbortController | null>(null)
   const path = `/${params['*'] ?? ''}`.replaceAll('//', '/')
@@ -199,6 +200,7 @@ export function FilesPage() {
   const [conflict, setConflict] = useState<File | null>(null)
   const conflictResolver = useRef<((choice: ConflictChoice) => void) | null>(null)
   const droppedFilesHandler = useRef<(dataTransfer: DataTransfer, destination: string) => void>(() => undefined)
+  const fileShortcutHandler = useRef<(event: globalThis.KeyboardEvent) => void>(() => undefined)
   const draggedEntry = useRef<FileEntry | null>(null)
   const selectionAnchor = useRef<string | null>(null)
   const selectionPath = useRef(path)
@@ -372,6 +374,37 @@ export function FilesPage() {
     setDeleting([...targets])
     closeMenu()
   }
+
+  fileShortcutHandler.current = (event) => {
+    if (event.defaultPrevented || event.repeat || event.isComposing
+      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (event.key !== 'Enter' && event.key !== 'Delete') return
+    if (document.querySelector('[role="dialog"], [role="menu"]')) return
+    const target = event.target
+    if (target instanceof Element) {
+      const control = target.closest('button, a, input, textarea, select, [contenteditable="true"], [role="button"], [role="link"], [role="menuitem"]')
+      if (control && (!control.classList.contains('MuiCardActionArea-root')
+        || event.key === 'Enter' && !control.closest('.file-card.selected'))) return
+    }
+    if (event.key === 'Enter') {
+      const entry = selectedEntries.length === 1 ? selectedEntries[0] : undefined
+      if (!entry) return
+      event.preventDefault()
+      event.stopPropagation()
+      openEntry(entry)
+      return
+    }
+    if (selectedEntries.length === 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    beginDelete(selectedEntries)
+  }
+
+  useEffect(() => {
+    const handleFileShortcut = (event: globalThis.KeyboardEvent) => fileShortcutHandler.current(event)
+    document.addEventListener('keydown', handleFileShortcut, true)
+    return () => document.removeEventListener('keydown', handleFileShortcut, true)
+  }, [])
 
   const askAboutConflict = (file: File, signal: AbortSignal) => new Promise<ConflictChoice>((resolve) => {
     const finish = (choice: ConflictChoice) => {
@@ -696,6 +729,21 @@ export function FilesPage() {
     setSelectedPaths(new Set([entry.path]))
   }
 
+  const toggleEntrySelection = (entry: FileEntry) => {
+    setSelected(entry)
+    selectionAnchor.current = entry.path
+    setSelectedPaths((current) => {
+      const next = new Set(current)
+      if (next.has(entry.path)) next.delete(entry.path)
+      else next.add(entry.path)
+      return next
+    })
+  }
+
+  const selectionCheckbox = (entry: FileEntry) => coarseInput && entry.type !== 'special'
+    ? <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': entry.name }} onClick={(event) => event.stopPropagation()} onChange={() => toggleEntrySelection(entry)} sx={{ p: 0.5 }} />
+    : null
+
   const startArchiveDownload = async (paths: string[], filename: string) => {
     try {
       const ticket = await api.files.createArchiveTicket(paths)
@@ -786,7 +834,7 @@ export function FilesPage() {
             <Box role="list" display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap={1.5}>
               {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
                 <CardActionArea component="div" onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
-                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type !== 'directory' && <>{formatBytes(entry.size)} · </>}{formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
+                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}>{selectionCheckbox(entry)}<FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type !== 'directory' && <>{formatBytes(entry.size)} · </>}{formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
                 </CardActionArea>
               </Card>)}
             </Box>
@@ -799,7 +847,7 @@ export function FilesPage() {
                 <TableCell aria-label="Actions" />
               </TableRow></TableHead>
               <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover draggable={entry.type !== 'special'} selected={selectedPaths.has(entry.path)} className={`file-row${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragStart={(event) => startMoveDrag(event, entry)} onDragEnd={endMoveDrag} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : rejectMoveDrop} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : rejectMoveDrop} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>
-                <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
+                <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{selectionCheckbox(entry)}{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(entry.modifiedAt)}</TableCell>
                 <TableCell align="right"><IconButton aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></TableCell>

@@ -128,6 +128,101 @@ describe('file browser', () => {
     expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
   })
 
+  it('opens a highlighted file preview with Enter', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'manual.bin', path: '/manual.bin', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' }],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const item = await screen.findByRole('listitem', { name: 'manual.bin' })
+    const actionArea = item.querySelector<HTMLElement>('.MuiCardActionArea-root')!
+    await user.click(actionArea)
+    expect(item).toHaveClass('selected')
+    expect(actionArea).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
+  })
+
+  it('selects a focused grid item before Enter opens it', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'alpha.bin', path: '/alpha.bin', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'bravo.bin', path: '/bravo.bin', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const alpha = await screen.findByRole('listitem', { name: 'alpha.bin' })
+    const bravo = screen.getByRole('listitem', { name: 'bravo.bin' })
+    await user.click(alpha.querySelector<HTMLElement>('.MuiCardActionArea-root')!)
+    bravo.querySelector<HTMLElement>('.MuiCardActionArea-root')!.focus()
+
+    await user.keyboard('{Enter}')
+
+    expect(alpha).not.toHaveClass('selected')
+    expect(bravo).toHaveClass('selected')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('dialog', { name: 'bravo.bin' })).toBeInTheDocument()
+  })
+
+  it('enters a highlighted folder with Enter', async () => {
+    server.use(http.get('http://localhost/api/v1/files', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path')
+      return HttpResponse.json(path === '/Books'
+        ? { path, advancedMode: false, entries: [{ name: 'chapter.txt', path: '/Books/chapter.txt', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }] }
+        : { path: '/', advancedMode: false, entries: [{ name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }] })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const folder = await screen.findByRole('row', { name: /Books/ })
+    await user.click(folder)
+    expect(folder).toHaveClass('selected')
+
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
+  })
+
+  it('prompts to delete all highlighted files and folders with Delete', async () => {
+    let deletions = 0
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [
+          { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })),
+      http.delete('http://localhost/api/v1/files', () => {
+        deletions++
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const books = await screen.findByRole('row', { name: /Books/ })
+    const notes = screen.getByRole('row', { name: /notes\.txt/ })
+    fireEvent.click(books)
+    fireEvent.click(notes, { ctrlKey: true })
+    await user.keyboard('{Delete}')
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete 2 items?' })
+    expect(dialog).toHaveTextContent('2 items selected')
+    expect(deletions).toBe(0)
+  })
+
   it('selects ranges with shift-click and toggles items with ctrl/cmd-click', async () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
@@ -155,6 +250,43 @@ describe('file browser', () => {
     fireEvent.click(delta, { metaKey: true })
     expect(bravo).not.toHaveClass('selected')
     expect(delta).toHaveClass('selected')
+  })
+
+  it('shows coarse-input checkboxes before file and folder icons for multi-selection', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(pointer: coarse)', media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: true,
+      entries: [
+        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'socket', path: '/run/socket', type: 'special', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const books = await screen.findByRole('row', { name: /Books/ })
+    const notes = screen.getByRole('row', { name: /notes\.txt/ })
+    const booksCheckbox = within(books).getByRole('checkbox', { name: 'Books' })
+    const notesCheckbox = within(notes).getByRole('checkbox', { name: 'notes.txt' })
+    expect(books.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(books).getByTestId('FolderRoundedIcon'))
+    expect(notes.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(notes).getByTestId('InsertDriveFileRoundedIcon'))
+    expect(within(screen.getByRole('row', { name: /socket/ })).queryByRole('checkbox')).not.toBeInTheDocument()
+
+    await user.click(booksCheckbox)
+    await user.click(notesCheckbox)
+    expect(booksCheckbox).toBeChecked()
+    expect(notesCheckbox).toBeChecked()
+    expect(books).toHaveClass('selected')
+    expect(notes).toHaveClass('selected')
+
+    await user.click(screen.getByRole('button', { name: 'Grid view' }))
+    const booksCard = screen.getByRole('listitem', { name: 'Books' })
+    expect(booksCard.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(booksCard).getByTestId('FolderRoundedIcon'))
+    expect(within(booksCard).getByRole('checkbox', { name: 'Books' })).toBeChecked()
   })
 
   it('moves and deletes every selected item and shows the selection count in each dialog', async () => {
