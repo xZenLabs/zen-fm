@@ -103,7 +103,11 @@ local function version_parts(value)
     local core, prerelease = tostring(value or ""):gsub("^v", ""):match("^([0-9]+%.[0-9]+%.[0-9]+)%-?(.*)$")
     if not core then return nil end
     local major, minor, patch = core:match("^(%d+)%.(%d+)%.(%d+)$")
-    return { tonumber(major), tonumber(minor), tonumber(patch), prerelease ~= "", prerelease }
+    local prerelease_name, prerelease_number = prerelease:match("^(.-)(%d+)$")
+    return {
+        tonumber(major), tonumber(minor), tonumber(patch), prerelease ~= "",
+        prerelease_name or prerelease, tonumber(prerelease_number) or 0,
+    }
 end
 
 function Updater.version_greater(left, right)
@@ -113,7 +117,8 @@ function Updater.version_greater(left, right)
         if a[index] ~= b[index] then return a[index] > b[index] end
     end
     if a[4] ~= b[4] then return not a[4] end
-    return a[5] > b[5]
+    if a[5] ~= b[5] then return a[5] > b[5] end
+    return a[6] > b[6]
 end
 
 function Updater.asset_name(daemon, version)
@@ -131,10 +136,10 @@ function Updater.asset_name(daemon, version)
     return nil
 end
 
-function Updater.select_release(releases, daemon, current_version)
+function Updater.select_release(releases, daemon, current_version, allow_prerelease)
     local best
     for _, release in ipairs(releases or {}) do
-        if not release.draft and not release.prerelease then
+        if not release.draft and (allow_prerelease or not release.prerelease) then
             local version = tostring(release.tag_name or ""):gsub("^v", "")
             local expected = Updater.asset_name(daemon, version)
             if expected and Updater.version_greater(version, current_version) then
@@ -285,14 +290,14 @@ function Updater.validate_lua_tree(root)
     return walk(root, 0)
 end
 
-local function latest(daemon)
+local function latest(daemon, allow_prerelease)
     local body, err = request(releases_url, maximum_metadata_bytes)
     if not body then return nil, err end
     local ok_json, JSON = pcall(require, "json")
     if not ok_json then return nil, "JSON support is unavailable" end
     local decoded_ok, releases = pcall(JSON.decode, body)
     if not decoded_ok or type(releases) ~= "table" then return nil, "GitHub returned invalid release metadata" end
-    return Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir))
+    return Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir), allow_prerelease)
 end
 
 local function validate_stage(daemon, directory, version)
@@ -414,8 +419,8 @@ function Updater.finalize_pending(daemon)
     return false, "updated backend failed health check; previous plugin restored. Restart KOReader."
 end
 
-function Updater.install_latest(daemon)
-    local release, err = latest(daemon)
+function Updater.install_latest(daemon, allow_prerelease)
+    local release, err = latest(daemon, allow_prerelease)
     if not release then return false, err or "ZenFM is up to date" end
     if release.size and (release.size <= 0 or release.size > maximum_package_bytes) then
         return false, "release package size is invalid"

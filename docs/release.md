@@ -140,8 +140,9 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 
 Run the beta workflow manually from `dev` to produce another beta for its
 current commit. Include `ci-skip` in a push commit message when that push should
-run CI without publishing a beta. ZenFM's built-in updaters ignore prereleases;
-beta testers install the published assets explicitly.
+run CI without publishing a beta. ZenFM's built-in updaters use stable releases
+by default; testers can enable **Beta updates** to allow prereleases. A stable
+release is still preferred over a beta with the same version base.
 
 ## Stable promotion
 

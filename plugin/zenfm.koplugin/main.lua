@@ -344,8 +344,9 @@ end
 
 function ZenFM:update()
     notice(_("Checking for a ZenFM update…"))
+    local beta_updates = self.daemon.settings.values.beta_updates == true
     if self.daemon:is_android() then
-        local ok, result = Updater.install_latest(self.daemon)
+        local ok, result = Updater.install_latest(self.daemon, beta_updates)
         local plugin_failed = not ok and result ~= "ZenFM is up to date"
         notice("KOReader plugin bundle: " .. tostring(result)
             .. "\nAndroid companion APK: opening updater…", plugin_failed)
@@ -353,7 +354,7 @@ function ZenFM:update()
         if not companion_ok then notice(tostring(companion_result), true) end
         return companion_ok, companion_result
     end
-    local ok, result = Updater.install_latest(self.daemon)
+    local ok, result = Updater.install_latest(self.daemon, beta_updates)
     local plugin_failed = not ok and result ~= "ZenFM is up to date"
     notice(tostring(result), plugin_failed)
     return ok, result
@@ -399,6 +400,14 @@ function ZenFM:settings_menu()
             callback = function()
                 local enabled = self.daemon.settings.values.auto_stop_minutes == 30
                 self.daemon.settings:set("auto_stop_minutes", enabled and 0 or 30)
+            end,
+        },
+        {
+            text = _("Beta updates"),
+            checked_func = function() return self.daemon.settings.values.beta_updates end,
+            keep_menu_open = true,
+            callback = function()
+                self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
             end,
         },
         {

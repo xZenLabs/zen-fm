@@ -144,12 +144,14 @@ test("Android defaults auto-stop to 30 minutes and preserves an explicit off set
     }
     equal(daemon.settings.values.auto_stop_minutes, 30)
     assert(daemon.settings:set("auto_stop_minutes", 0))
+    assert(daemon.settings:set("beta_updates", true))
 
     local reloaded = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
         path_exists = function() return false end,
     }
     equal(reloaded.settings.values.auto_stop_minutes, 0)
+    assert(reloaded.settings.values.beta_updates)
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
@@ -468,6 +470,10 @@ test("Android handoff carries paired token and validated settings", function()
     contains(uri, "root=%2Fstorage%2Femulated%2F0")
     contains(uri, "port=9443")
     contains(uri, "auto_stop=30m")
+    assert(not uri:find("beta=", 1, true))
+    values.beta_updates = true
+    local update_uri = assert(daemon:android_uri("update"))
+    contains(update_uri, "beta=1")
     os.remove(state .. "/android-control.token")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
@@ -691,12 +697,15 @@ end)
 test("settings validation", function()
     local values = Settings.sanitize{
         port = 70000, advanced_root = true, insecure_http = true,
-        custom_root = "relative", auto_stop_minutes = 45, tls_cert = "/cert", tls_key = "relative",
+        custom_root = "relative", auto_stop_minutes = 45, beta_updates = "yes",
+        tls_cert = "/cert", tls_key = "relative",
     }
     equal(values.port, 8443)
     assert(values.advanced_root and values.insecure_http)
     equal(values.custom_root, "")
     equal(values.auto_stop_minutes, 0)
+    assert(not values.beta_updates)
+    assert(Settings.sanitize{ beta_updates = true }.beta_updates)
     equal(values.tls_key, "")
     equal(Settings.sanitize{ custom_root = "/" }.custom_root, "")
     equal(Settings.sanitize{ custom_root = "/safe/../" }.custom_root, "")
@@ -757,6 +766,39 @@ test("release selection requires a GitHub digest and bounded size", function()
     assert(not Updater.select_release({ release("", 42) }, daemon, "1.2.2"))
     assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 0) }, daemon, "1.2.2"))
     assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 201 * 1024 * 1024) }, daemon, "1.2.2"))
+end)
+
+test("beta release selection remains stable-first for matching versions", function()
+    local daemon = {
+        is_android = function() return false end,
+        platform = function() return "host" end,
+        kernel = function() return "linux" end,
+    }
+    local function release(version, prerelease)
+        return {
+            tag_name = "v" .. version,
+            prerelease = prerelease,
+            assets = {{
+                name = "ZenFM-koreader-linux-" .. version .. ".zip",
+                browser_download_url = "https://github.com/xZenLabs/zen-fm/releases/download/v"
+                    .. version .. "/ZenFM-koreader-linux-" .. version .. ".zip",
+                digest = "sha256:" .. string.rep("a", 64),
+                size = 42,
+            }},
+        }
+    end
+
+    local releases = {
+        release("1.3.0-beta10", true),
+        release("1.2.0", false),
+    }
+    equal(Updater.select_release(releases, daemon, "1.2.0"), nil)
+    equal(assert(Updater.select_release(releases, daemon, "1.2.0", true)).version, "1.3.0-beta10")
+    equal(assert(Updater.select_release({
+        release("1.3.0-beta10", true),
+        release("1.3.0", false),
+    }, daemon, "1.2.0", true)).version, "1.3.0")
+    assert(Updater.version_greater("1.3.0-beta10", "1.3.0-beta2"))
 end)
 
 test("staged plugin Lua is compiled before activation", function()
@@ -1105,6 +1147,11 @@ test("dispatcher exposes the server toggle and settings show its backend version
     local menu = owner:settings_menu()
     equal(menu[1].text_func(), "Backend version: 9.8.7")
     assert(not menu[1].enabled_func())
+    local beta_item
+    for _, item in ipairs(menu) do
+        if item.text == "Beta updates" then beta_item = item break end
+    end
+    assert(beta_item and not beta_item.checked_func())
     equal(menu[#menu].text, "Update")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
@@ -1315,7 +1362,8 @@ test("Android update opens the companion only after plugin update work", functio
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = {
         finalize_pending = function() return true end,
-        install_latest = function()
+        install_latest = function(_, beta_updates)
+            assert(beta_updates)
             table.insert(events, "plugin-update")
             return false, "ZenFM is up to date"
         end,
@@ -1324,6 +1372,7 @@ test("Android update opens the companion only after plugin update work", functio
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
     local owner = setmetatable({
         daemon = {
+            settings = { values = { beta_updates = true } },
             is_android = function() return true end,
             open_android = function(_, action)
                 equal(action, "update")

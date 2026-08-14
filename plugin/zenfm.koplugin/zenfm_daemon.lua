@@ -318,6 +318,8 @@ function Daemon:android_uri(action, request_id)
         for _, key in ipairs({ "root", "port", "insecure", "auto_stop", "tls_cert", "tls_key" }) do
             table.insert(query, key .. "=" .. Util.url_encode(fields[key]))
         end
+    elseif action == "update" and self.settings.values.beta_updates then
+        table.insert(query, "beta=1")
     end
     return "zenfm://" .. action .. "?" .. table.concat(query, "&"), request_id
 end

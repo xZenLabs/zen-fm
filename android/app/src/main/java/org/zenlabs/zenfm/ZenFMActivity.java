@@ -139,7 +139,7 @@ public final class ZenFMActivity extends Activity {
         }
     }
 
-    private void beginUpdate(String home) {
+    private void beginUpdate(String home, boolean allowPrerelease) {
         UpdateState.Outcome pending = ZenFMUpdater.inspect(this);
         if (pending == UpdateState.Outcome.INSTALL_PENDING
             || pending == UpdateState.Outcome.VERIFY_PENDING) {
@@ -150,7 +150,7 @@ public final class ZenFMActivity extends Activity {
             .setMessage("Downloading and verifying release metadata. Keep this window open to continue directly to Android's installer.")
             .setCancelable(false).create();
         updateProgress.show();
-        ZenFMUpdater.start(this, home);
+        ZenFMUpdater.start(this, home, allowPrerelease);
     }
 
     void onUpdateReady() {
@@ -310,7 +310,7 @@ public final class ZenFMActivity extends Activity {
             else if ("status".equals(action)) sendAction(ZenFMService.ACTION_STATUS);
             else if ("reset".equals(action)) sendAction(ZenFMService.ACTION_RESET);
             else if ("update".equals(action)) {
-                beginUpdate(validatedHome(uri));
+                beginUpdate(validatedHome(uri), "1".equals(uri.getQueryParameter("beta")));
                 return;
             }
             else {
