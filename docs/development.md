@@ -132,8 +132,8 @@ also prefers SDKMAN's pinned Gradle 8.6 installation over another global
 Gradle version. Set any of these variables explicitly to override discovery.
 
 Without `ANDROID_KEYSTORE_PATH`, `build.sh` automatically creates a debug-signed
-development APK. CI supplies the persistent Android signing credentials for
-release builds.
+development APK. The stable and beta release workflows supply the persistent
+Android signing credentials when they build published artifacts.
 
 The first e-reader build bootstraps the pinned, patched Go 1.26.5 compiler for
 old ARM kernels. Set `ZENFM_GO_SOURCE_ARCHIVE` to an already downloaded

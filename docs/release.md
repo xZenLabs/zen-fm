@@ -30,15 +30,16 @@ Protect `main` and require these checks before a release tag can be created:
   Node 24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
   KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
   build/layout validation of all four KOReader bundles plus both-ABI APK.
-  Pull-request packages are deliberately unsigned development artifacts and
-  are never published.
+  Pull-request packages are development-signed artifacts and are never
+  published.
 - `Security required checks`, which aggregates `govulncheck`, OSV Scanner, npm
   audit, and the pull-request dependency review when applicable.
 - CodeQL `Analyze go`, `Analyze javascript-typescript`, and
   `Analyze java-kotlin` checks. CodeQL uses the v4 action generation.
 
-The stable-release workflow re-queries those exact checks on the tag commit. A
-green result on some later commit does not qualify an older tag.
+After CI succeeds on a `main` push, the stable-release workflow waits for those
+exact checks on the same commit. A green result on a later commit does not
+qualify an older release candidate.
 
 ## Legacy compiler qualification
 
@@ -64,18 +65,22 @@ Manually smoke-test the same stable tag on:
 
 Use `scripts/run-physical-kindle-smoke.sh` with the selected device and attached
 hardware. The external harness performs start, login, browse, upload, download,
-TLS-fingerprint, and stop checks. Review the results before manually dispatching
-the stable-release workflow; GitHub Actions does not enforce these manual
-qualification checks.
+TLS-fingerprint, and stop checks. Review the results before merging the stable
+version to `main` and approving its release environment; GitHub Actions does
+not enforce these manual qualification checks.
 
 ## Signing configuration
 
-Create a protected `stable-release` GitHub environment. It protects access to
-the Android release key and publication. Require independent reviewers,
-restrict it to `main`, and prevent administrators from bypassing the rule where
-repository policy permits.
+Create protected `stable-release` and `beta-release` GitHub environments to
+gate publication. Require independent reviewers for `stable-release`, restrict
+it to `main`, and prevent administrators from bypassing the rule where
+repository policy permits. Restrict `beta-release` to `dev`; leave it without
+required reviewers only when every successful `dev` push should publish
+automatically. Protect `dev` so only trusted maintainers can push or merge
+workflow changes that receive beta signing access.
 
-Store these values as environment secrets on `stable-release`:
+Store these values once as repository Actions secrets. Both workflows use the
+same signing key so Android accepts beta and stable builds as updates:
 
 | Secret | Requirement |
 | --- | --- |
@@ -123,18 +128,35 @@ keytool -importkeystore \
 Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 `ANDROID_KEYSTORE_PASSWORD`.
 
+## Beta promotion
+
+1. Set `VERSION` on `dev` to the intended stable base version. It may also end
+   in `-betaN`; the workflow strips that suffix when selecting the next number.
+2. Push to `dev`. CI runs all tests and development builds, while the beta
+   workflow waits for `CI required checks` on that exact commit.
+3. The workflow selects the next unused `v<version>-betaN`, stamps it into the
+   checkout, builds, signs, verifies, and attests all five artifacts, then
+   publishes them as a GitHub prerelease. It does not change `VERSION` in Git.
+
+Run the beta workflow manually from `dev` to produce another beta for its
+current commit. Include `ci-skip` in a push commit message when that push should
+run CI without publishing a beta. ZenFM's built-in updaters ignore prereleases;
+beta testers install the published assets explicitly.
+
 ## Stable promotion
 
-1. Set `VERSION` to a stable `major.minor.patch`, pass every required check,
-   and create the matching existing tag `v<version>`.
-2. Manually run the old-kernel QEMU qualification and the three physical-device
-   qualifications against that exact tag.
-3. Dispatch `Stable release` from `main` with the tag.
-4. Approve the `stable-release` environment only after reviewing the manual
-   test results and expected source commit.
+1. Set `VERSION` to a new stable `major.minor.patch` and manually run the
+   old-kernel QEMU and three physical-device qualifications against that exact
+   release candidate.
+2. Merge the candidate to `main`. CI runs every test and development build.
+3. After CI succeeds, the stable-release workflow waits for Security and CodeQL
+   on the same commit and skips publication when `v<version>` already exists.
+4. Approve the `stable-release` environment after reviewing the source commit
+   and CI results. The workflow builds, signs, verifies, attests, creates the
+   `v<version>` tag when needed, and publishes all five release artifacts.
 5. Download the published assets, verify GitHub artifact attestations, and
    install-test the final archives before announcement.
 
-The stable workflow rejects prerelease versions. It verifies the tag and
-required GitHub checks, but manual QEMU and device qualification remains the
-release owner's responsibility.
+The stable workflow rejects prerelease versions and keeps manual dispatch for
+an existing tag as a recovery path. Manual QEMU and device qualification remain
+the release owner's responsibility.

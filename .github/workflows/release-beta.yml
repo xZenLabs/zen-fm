@@ -1,29 +1,21 @@
-name: Stable release
-run-name: Release ${{ inputs.tag || github.event.workflow_run.head_sha }}
+name: Beta release
+run-name: Beta release ${{ github.sha }}
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  push:
+    branches: [dev]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing stable SemVer tag (for example v1.0.0)
-        required: true
-        type: string
 
 concurrency:
-  group: stable-release
+  group: beta-release
   cancel-in-progress: false
 
 jobs:
   prepare:
-    name: Prepare stable release
+    name: Prepare beta release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.conclusion == 'success')
+      !contains(github.event.head_commit.message, 'ci-skip')
     runs-on: ubuntu-latest
     permissions:
       checks: read
@@ -36,38 +28,46 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ inputs.tag || github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Validate source and wait for required checks
+      - name: Wait for CI and resolve the next beta version
         id: source
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          version=$(sed -n '1{s/^[[:space:]]*//;s/[[:space:]]*$//;p;}' VERSION)
-          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          source_version=$(sed -n '1{s/^[[:space:]]*//;s/[[:space:]]*$//;p;}' VERSION)
+          base_version=$(printf '%s\n' "$source_version" | sed 's/-beta[0-9][0-9]*$//')
+          [[ "$base_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           commit=$(git rev-parse 'HEAD^{commit}')
-          tag=${INPUT_TAG:-v$version}
-          test "$tag" = "v$version"
-
-          if git show-ref --verify --quiet "refs/tags/$tag"; then
-            test "$commit" = "$(git rev-parse "$tag^{commit}")"
-          elif [ -n "$INPUT_TAG" ]; then
-            echo "manual releases require an existing tag: $tag" >&2
-            exit 1
-          fi
+          base="v$base_version"
 
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub release $tag already exists; nothing to publish."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
+
+          latest=$(gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 1000 \
+            --json tagName \
+            --jq '.[].tagName' \
+            | sed -n 's/^v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)\(-beta[0-9][0-9]*\)\{0,1\}$/\1/p' \
+            | sort -V \
+            | tail -n 1)
+          if [ -n "$latest" ]; then
+            lower=$(printf '%s\n%s\n' "$base_version" "$latest" | sort -V | head -n 1)
+            if [ "$lower" = "$base_version" ] && [ "$base_version" != "$latest" ]; then
+              echo "Version $base_version is lower than current release $latest; nothing to publish."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
+
+          number=1
+          while gh release view "${base}-beta${number}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            git show-ref --verify --quiet "refs/tags/${base}-beta${number}"; do
+            number=$((number + 1))
+          done
+          beta_version="${base_version}-beta${number}"
 
           deadline=$((SECONDS + 1800))
           while :; do
@@ -76,46 +76,39 @@ jobs:
               "repos/$GITHUB_REPOSITORY/commits/$commit/check-runs?filter=latest&per_page=100" \
               --jq '.check_runs[] | [.name, .status, .conclusion, .app.slug, .completed_at] | @tsv' \
               > "$RUNNER_TEMP/check-runs.tsv"
-            waiting=
-            for required in \
-              'CI required checks' \
-              'Security required checks' \
-              'Analyze go' \
-              'Analyze javascript-typescript' \
-              'Analyze java-kotlin'; do
-              status=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $2; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              conclusion=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $3; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              completed_at=$(awk -F '\t' -v required="$required" \
-                '$1 == required && $4 == "github-actions" { print $5; exit }' \
-                "$RUNNER_TEMP/check-runs.tsv")
-              if [ "$status" = completed ]; then
-                if [ "$conclusion" != success ] || [ -z "$completed_at" ]; then
-                  echo "required check failed: $required ($conclusion)" >&2
-                  exit 1
-                fi
-              else
-                waiting="$waiting $required"
+            status=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $2; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            conclusion=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $3; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            completed_at=$(awk -F '\t' \
+              '$1 == "CI required checks" && $4 == "github-actions" { print $5; exit }' \
+              "$RUNNER_TEMP/check-runs.tsv")
+            if [ "$status" = completed ]; then
+              if [ "$conclusion" != success ] || [ -z "$completed_at" ]; then
+                echo "CI required checks failed: $conclusion" >&2
+                exit 1
               fi
-            done
-            [ -n "$waiting" ] || break
+              break
+            fi
             if [ "$SECONDS" -ge "$deadline" ]; then
-              echo "timed out waiting for:$waiting" >&2
+              echo "timed out waiting for CI required checks" >&2
               exit 1
             fi
-            echo "waiting for:$waiting"
+            echo "waiting for CI required checks"
             sleep 15
           done
+
           echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "tag=v$beta_version" >> "$GITHUB_OUTPUT"
+          echo "version=$beta_version" >> "$GITHUB_OUTPUT"
 
   release:
-    name: Build and release
+    name: Build and release beta
     needs: prepare
     if: needs.prepare.outputs.publish == 'true'
-    environment: stable-release
+    environment: beta-release
     runs-on: macos-latest
     permissions:
       attestations: write
@@ -126,6 +119,9 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.commit }}
           fetch-depth: 0
+
+      - name: Stamp beta version
+        run: printf '%s\n' '${{ needs.prepare.outputs.version }}' > VERSION
 
       - uses: actions/setup-go@v7.0.0
         with:
@@ -160,7 +156,7 @@ jobs:
           test -s "$RUNNER_TEMP/zenfm-release.p12"
           chmod 600 "$RUNNER_TEMP/zenfm-release.p12"
 
-      - name: Build and verify release assets
+      - name: Build and verify beta assets
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zenfm-release.p12
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -174,12 +170,12 @@ jobs:
           sh scripts/verify-release-assets.sh dist "$VERSION"
           apksigner verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
 
-      - name: Attest every published ZenFM artifact
+      - name: Attest every published ZenFM beta artifact
         uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: dist/*
 
-      - name: Create release and upload assets
+      - name: Create prerelease and upload assets
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
@@ -189,4 +185,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target '${{ needs.prepare.outputs.commit }}' \
             --title "ZenFM $TAG" \
-            --generate-notes
+            --generate-notes \
+            --prerelease
