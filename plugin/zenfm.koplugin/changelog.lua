@@ -8,6 +8,8 @@ return {
         "Hide misleading folder sizes and keep folders alphabetical when sorting by size",
         "Add opt-in beta updates with correct prerelease version ordering",
         "Better logging",
+        "Open file fullscreen",
+        "Find in page",
         "Single http/https port",
         "Redirect http -> https if http is disabled",
         "Customize inactivity timeout"
