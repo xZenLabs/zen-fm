@@ -17,7 +17,7 @@ it('navigates nested public directories with capability-relative API paths', asy
     }
     return HttpResponse.json({
       name: 'Library', path: '/',
-      entries: [{ name: 'Nested', path: '/Nested', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }],
+      entries: [{ name: 'Nested', path: '/Nested', type: 'directory', size: 4096, modifiedAt: '2026-01-01T00:00:00Z' }],
     })
   }))
   const user = userEvent.setup()
@@ -31,6 +31,8 @@ it('navigates nested public directories with capability-relative API paths', asy
 
   await user.click(screen.getByRole('link', { name: 'Shared files' }))
   expect(await screen.findByRole('link', { name: 'Nested' })).toBeInTheDocument()
+  expect(screen.getByText('—')).toBeInTheDocument()
+  expect(screen.queryByText('4 KB')).not.toBeInTheDocument()
 })
 
 it('unlocks a password-protected share at the requested nested path', async () => {

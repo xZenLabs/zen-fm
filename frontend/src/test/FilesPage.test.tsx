@@ -495,6 +495,8 @@ describe('file browser', () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
       entries: [
+        { name: 'Zulu', path: '/Zulu', type: 'directory', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'Archive', path: '/Archive', type: 'directory', size: 8192, modifiedAt: '2026-01-01T00:00:00Z' },
         { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 100, modifiedAt: '2026-01-03T00:00:00Z' },
         { name: 'zebra.txt', path: '/zebra.txt', type: 'file', size: 10, modifiedAt: '2026-01-04T00:00:00Z' },
       ],
@@ -507,6 +509,8 @@ describe('file browser', () => {
     expect(screen.getByRole('button', { name: 'Date modified' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Size' }))
     expect(screen.getAllByRole('row').slice(1).map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Archive'),
+      expect.stringContaining('Zulu'),
       expect.stringContaining('zebra.txt'),
       expect.stringContaining('alpha.txt'),
     ])
@@ -707,11 +711,11 @@ describe('file browser', () => {
     expect(screen.queryByRole('img', { name: 'vector.svg' })).not.toBeInTheDocument()
   })
 
-  it('shows size and modified date for files and folders in grid view', async () => {
+  it('does not present filesystem metadata as a folder size in grid view', async () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
       entries: [
-        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T12:00:00Z' },
+        { name: 'Books', path: '/Books', type: 'directory', size: 4096, modifiedAt: '2026-01-01T12:00:00Z' },
         { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 512, modifiedAt: '2026-01-02T12:00:00Z' },
       ],
     })))
@@ -721,8 +725,8 @@ describe('file browser', () => {
     await user.click(await screen.findByRole('button', { name: 'Grid view' }))
     const folder = screen.getByRole('listitem', { name: 'Books' })
     const file = screen.getByRole('listitem', { name: 'notes.txt' })
-    expect(within(folder).getByText(`0 B · ${formatShortDate('2026-01-01T12:00:00Z')}`)).toBeInTheDocument()
-    expect(folder).not.toHaveTextContent('Folder')
+    expect(within(folder).getByText(`— · ${formatShortDate('2026-01-01T12:00:00Z')}`)).toBeInTheDocument()
+    expect(folder).not.toHaveTextContent('4 KB')
     expect(within(file).getByText(`512 B · ${formatShortDate('2026-01-02T12:00:00Z')}`)).toBeInTheDocument()
     expect(getComputedStyle(within(folder).getByTestId('FolderRoundedIcon').parentElement!).alignItems).toBe('center')
   })

@@ -33,7 +33,7 @@ const english = {
     signIn: 'Sign in', signingIn: 'Signing in…', failed: 'The username or password is incorrect.',
     setupTitle: 'Choose a private password', setupBody: 'Replace the temporary password before accessing your files.',
     currentPassword: 'Temporary password', newPassword: 'New password', confirmPassword: 'Confirm password',
-    passwordHint: 'Use at least 12 characters.', completeSetup: 'Finish setup',
+    passwordHint: 'Use at least 12 characters.', showPassword: 'Show password', hidePassword: 'Hide password', completeSetup: 'Finish setup',
   },
   files: {
     search: 'Search this folder', upload: 'Upload', newFile: 'New file', newFolder: 'New folder', empty: 'Nothing here yet',

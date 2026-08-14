@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Alert, Box, Breadcrumbs, Button, Card, CardContent, Container, Link, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Breadcrumbs, Button, Card, CardContent, Container, Link, Stack, Typography } from '@mui/material'
 import DownloadRounded from '@mui/icons-material/DownloadRounded'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import InsertDriveFileRounded from '@mui/icons-material/InsertDriveFileRounded'
@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { ZenMark } from '../components/ZenMark'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
+import { PasswordField } from '../components/PasswordField'
 import { formatBytes, formatDate } from '../utils'
 
 function publicShareRoute(secret: string, path: string) {
@@ -38,7 +39,7 @@ export function PublicSharePage() {
       <Box component="header" borderBottom={1} borderColor="divider"><Container maxWidth="lg" sx={{ py: 2 }}><ZenMark /></Container></Box>
       <Container component="main" maxWidth="md" sx={{ py: { xs: 4, sm: 7 } }}>
         {share.isPending ? <LoadingPane /> : share.error ? <ErrorPane error={share.error} /> : share.data.passwordRequired ? (
-          <Card variant="outlined" sx={{ maxWidth: 430, mx: 'auto' }}><CardContent><Stack component="form" gap={2.5} onSubmit={submit}><LockRounded color="primary" /><Box><Typography variant="h1">{t('shares.publicTitle')}</Typography><Typography color="text.secondary" mt={1}>Enter the password to continue.</Typography></Box><TextField type="password" autoFocus label={t('shares.password')} value={password} onChange={(event) => setPassword(event.target.value)} />{unlock.error && <Alert severity="error">{unlock.error.message}</Alert>}<Button type="submit" variant="contained" disabled={!password || unlock.isPending}>{t('shares.unlock')}</Button></Stack></CardContent></Card>
+          <Card variant="outlined" sx={{ maxWidth: 430, mx: 'auto' }}><CardContent><Stack component="form" gap={2.5} onSubmit={submit}><LockRounded color="primary" /><Box><Typography variant="h1">{t('shares.publicTitle')}</Typography><Typography color="text.secondary" mt={1}>Enter the password to continue.</Typography></Box><PasswordField autoFocus label={t('shares.password')} value={password} onChange={(event) => setPassword(event.target.value)} />{unlock.error && <Alert severity="error">{unlock.error.message}</Alert>}<Button type="submit" variant="contained" disabled={!password || unlock.isPending}>{t('shares.unlock')}</Button></Stack></CardContent></Card>
         ) : (
           <Stack gap={3}>
             <Box><Typography variant="h1">{share.data.name}</Typography><Typography color="text.secondary" mt={0.5}>{share.data.expiresAt ? `Available until ${formatDate(share.data.expiresAt)}` : t('shares.publicTitle')}</Typography></Box>
@@ -50,7 +51,7 @@ export function PublicSharePage() {
               })}
             </Breadcrumbs>}
             {share.data.entry && share.data.entry.type !== 'directory' && !share.data.entries ? <Card variant="outlined"><CardContent><Stack direction="row" alignItems="center" gap={2}><InsertDriveFileRounded color="primary" /><Box flex={1} minWidth={0}><Typography fontWeight={650} className="file-name">{share.data.entry.name}</Typography><Typography variant="caption" color="text.secondary">{formatBytes(share.data.entry.size)}</Typography></Box><Button component="a" href={api.shares.publicRawUrl(secret)} startIcon={<DownloadRounded />} variant="contained">{t('shares.download')}</Button></Stack></CardContent></Card> : (
-              <Stack gap={1}>{share.data.entries?.map((entry) => <Card variant="outlined" key={entry.path}><CardContent><Stack direction="row" alignItems="center" gap={2}>{entry.type === 'directory' ? <FolderRounded color="primary" /> : <InsertDriveFileRounded color="action" />}<Box flex={1} minWidth={0}>{entry.type === 'directory' ? <Typography component={RouterLink} to={publicShareRoute(secret, entry.path)} color="inherit" fontWeight={600} className="file-name" sx={{ display: 'block', textDecoration: 'none' }}>{entry.name}</Typography> : <Typography fontWeight={600} className="file-name">{entry.name}</Typography>}<Typography variant="caption" color="text.secondary">{formatBytes(entry.size)}</Typography></Box>{entry.type === 'file' && <Button component="a" href={api.shares.publicRawUrl(secret, entry.path)} startIcon={<DownloadRounded />}>{t('shares.download')}</Button>}</Stack></CardContent></Card>)}</Stack>
+              <Stack gap={1}>{share.data.entries?.map((entry) => <Card variant="outlined" key={entry.path}><CardContent><Stack direction="row" alignItems="center" gap={2}>{entry.type === 'directory' ? <FolderRounded color="primary" /> : <InsertDriveFileRounded color="action" />}<Box flex={1} minWidth={0}>{entry.type === 'directory' ? <Typography component={RouterLink} to={publicShareRoute(secret, entry.path)} color="inherit" fontWeight={600} className="file-name" sx={{ display: 'block', textDecoration: 'none' }}>{entry.name}</Typography> : <Typography fontWeight={600} className="file-name">{entry.name}</Typography>}<Typography variant="caption" color="text.secondary">{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</Typography></Box>{entry.type === 'file' && <Button component="a" href={api.shares.publicRawUrl(secret, entry.path)} startIcon={<DownloadRounded />}>{t('shares.download')}</Button>}</Stack></CardContent></Card>)}</Stack>
             )}
           </Stack>
         )}

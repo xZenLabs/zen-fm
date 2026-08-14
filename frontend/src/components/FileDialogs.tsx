@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { api, isConflictError } from '../api/client'
 import type { CreateShareInput, FileEntry } from '../api/types'
 import { ErrorPane, LoadingPane } from './Feedback'
+import { PasswordField } from './PasswordField'
 import { renderMarkdown } from '../markdown'
 import { parseCsv } from '../csv'
 import { formatBytes, formatDuration, joinPath } from '../utils'
@@ -330,7 +331,7 @@ export function CreateShareDialog({ entry, onClose, onCreated }: { entry: FileEn
       <DialogContent sx={{ pt: 2, overflow: 'visible' }}><Stack gap={2} pt={0.5}>
         <Typography color="text.secondary" className="file-name">{entry?.path}</Typography>
         <TextField label={t('shares.name')} value={name} onChange={(event) => setName(event.target.value)} />
-        <TextField label={t('shares.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <PasswordField label={t('shares.password')} value={password} onChange={(event) => setPassword(event.target.value)} />
         <TextField select label={t('shares.expiry')} value={expiresInSeconds ?? 0} onChange={(event) => setExpiry(Number(event.target.value) || undefined)}>
           <MenuItem value={3600}>{t('shares.oneHour')}</MenuItem><MenuItem value={86400}>{t('shares.oneDay')}</MenuItem><MenuItem value={604800}>{t('shares.oneWeek')}</MenuItem><MenuItem value={0}>{t('shares.never')}</MenuItem>
         </TextField>

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthProvider'
 import { offerToSavePassword } from '../auth/passwordCredential'
 import { AuthLayout } from '../components/AuthLayout'
+import { PasswordField } from '../components/PasswordField'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -35,7 +36,7 @@ export function LoginPage() {
       <Stack component="form" gap={2} onSubmit={(event) => void submit(event)}>
         {error && <Alert severity="error">{error}</Alert>}
         <TextField id="username" label={t('auth.username')} name="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required />
-        <TextField id="current-password" label={t('auth.password')} name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+        <PasswordField id="current-password" label={t('auth.password')} name="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
         <Button variant="contained" size="large" type="submit" disabled={pending || !username || !password}>{pending ? t('auth.signingIn') : t('auth.signIn')}</Button>
       </Stack>
     </AuthLayout>

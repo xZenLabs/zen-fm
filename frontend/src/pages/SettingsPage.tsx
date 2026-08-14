@@ -16,6 +16,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { formatDate } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
+import { PasswordField } from '../components/PasswordField'
 import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 export function SettingsPage() {
@@ -74,7 +75,7 @@ export function SettingsPage() {
 
         <Card variant="outlined"><CardContent><Stack component="form" gap={2} onSubmit={passwordSubmit}>
           <Typography variant="h2">{t('settings.password')}</Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><TextField fullWidth type="password" autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><TextField fullWidth type="password" autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('auth.passwordHint')} /></Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><PasswordField fullWidth autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><PasswordField fullWidth autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('auth.passwordHint')} /></Stack>
           {changePassword.error && <ErrorPane error={changePassword.error} />}<Button type="submit" variant="outlined" disabled={!currentPassword || Array.from(newPassword).length < 12 || changePassword.isPending} sx={{ alignSelf: 'flex-start' }}>{t('settings.changePassword')}</Button>
         </Stack></CardContent></Card>
 

@@ -261,6 +261,7 @@ export function FilesPage() {
     return [...visible].sort((left, right) => {
       if (left.type === 'directory' && right.type !== 'directory') return -1
       if (left.type !== 'directory' && right.type === 'directory') return 1
+      if (sort === 'size' && left.type === 'directory') return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
       const comparison = sort === 'size' ? left.size - right.size
         : sort === 'modified' ? new Date(left.modifiedAt).valueOf() - new Date(right.modifiedAt).valueOf()
           : left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
@@ -755,7 +756,7 @@ export function FilesPage() {
             <Box role="list" display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap={1.5}>
               {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
                 <CardActionArea component="div" onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
-                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{formatBytes(entry.size)} · {formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
+                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{entry.type === 'directory' ? '—' : formatBytes(entry.size)} · {formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
                 </CardActionArea>
               </Card>)}
             </Box>
