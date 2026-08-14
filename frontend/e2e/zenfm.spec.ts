@@ -11,7 +11,6 @@ const password = 'zenfm-e2e-owner-password'
 
 async function login(page: Page, baseURL = normalURL, ownerPassword = password) {
   await page.goto(`${baseURL}/login`)
-  await page.getByLabel('Username').fill('koreader')
   await page.locator('input[name="password"]').fill(ownerPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/files(?:\/|$)/)
@@ -31,17 +30,16 @@ test.describe('ZenFM real binary', () => {
 
   test('forces setup-only sessions to replace the temporary password', async ({ page }) => {
     await page.goto(`${setupURL}/login`)
-    await page.getByLabel('Username').fill('koreader')
     await page.locator('input[name="password"]').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(`${setupURL}/setup`)
-    await expect(page.getByRole('heading', { name: 'Choose a private password' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'New Password' })).toBeVisible()
 
     const locked = await page.request.get(`${setupURL}/api/v1/files?path=/`)
     expect(locked.status()).toBe(403)
 
-    await page.getByLabel('New password').fill('zenfm-e2e-setup-password')
-    await page.getByLabel('Confirm password').fill('zenfm-e2e-setup-password')
+    await page.getByLabel('New password').fill('seven77')
+    await page.getByLabel('Confirm password').fill('seven77')
     await page.getByRole('button', { name: 'Finish setup' }).click()
     await expect(page).toHaveURL(/\/files(?:\/|$)/)
   })
@@ -266,7 +264,6 @@ test.describe('ZenFM real binary', () => {
   test('serves the embedded app over a generated HTTPS certificate', async ({ page }) => {
     await page.goto(`${httpsURL}/login`)
     expect(new URL(page.url()).protocol).toBe('https:')
-    await page.getByLabel('Username').fill('koreader')
     await page.locator('input[name="password"]').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.getByLabel('New password').fill('zenfm-e2e-https-password')

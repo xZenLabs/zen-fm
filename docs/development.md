@@ -15,10 +15,7 @@ npm run dev:mock
 ```
 
 Open the URL printed by Vite, normally <http://localhost:5173>, and sign in
-with:
-
-- Username: `koreader`
-- Password: `koreader`
+with the password `koreader`.
 
 The mock contains folders, text/Markdown/CSV/image fixtures, a hidden file,
 shares, settings, and token examples. Common file mutations and direct uploads
@@ -63,8 +60,8 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173>. First run uses
-`koreader` / `koreader123456789` and requires an immediate password change.
+Open <http://localhost:5173>. First run uses the password
+`koreader123456789` and requires an immediate password change.
 The explicit HTTP flag is appropriate only for this loopback development
 setup.
 
@@ -295,10 +292,10 @@ the active ZenFM listening port.
 The default server is HTTPS on port 53241, shared by every installation and by
 both transport modes unless changed in the plugin settings. While HTTPS is
 enabled, plain HTTP requests to that port redirect to the same URL over HTTPS.
-Initial login is
-`koreader` / `koreader123456789`; file APIs remain locked until the password is
-changed. The plugin supervisor keeps the server detached and handles the Kindle
-firewall. Prefer the plugin to a hand-started process for device tests.
+The initial login password is `koreader123456789`; file APIs remain locked
+until it is changed. The plugin supervisor keeps the server detached and
+handles the Kindle firewall. Prefer the plugin to a hand-started process for
+device tests.
 
 On non-Android devices, runtime files live under
 `<KOReader settings directory>/ZenFM`:

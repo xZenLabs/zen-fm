@@ -16,7 +16,7 @@
   "password": "Change password",
   "currentPassword": "Current password",
   "newPassword": "New password",
-  "passwordHint": "Use at least 12 characters.",
+  "minimumPasswordHint": "Use at least 7 characters.",
   "changePassword": "Change password",
   "passwordChanged": "Password changed; sessions and API tokens were revoked.",
   "tokens": "Personal API tokens",

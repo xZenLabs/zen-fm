@@ -56,7 +56,7 @@ func TestInitialOwnerAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if owner.Username != SetupUsername || !owner.SetupRequired || !auth.VerifyPassword(owner.PasswordHash, SetupPassword) {
+	if !owner.SetupRequired || !auth.VerifyPassword(owner.PasswordHash, SetupPassword) {
 		t.Fatalf("unexpected owner: %+v", owner)
 	}
 	settings, err := s.Settings()

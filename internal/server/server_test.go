@@ -103,7 +103,7 @@ func responseCookie(t *testing.T, r *httptest.ResponseRecorder, name string) *ht
 
 func (a *testAPI) login(password string) (*http.Cookie, string, bool) {
 	a.t.Helper()
-	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"`+password+`"}`), nil, "", "")
+	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"`+password+`"}`), nil, "", "")
 	if r.Code != http.StatusOK {
 		a.t.Fatalf("login: %d %s", r.Code, r.Body.String())
 	}
@@ -645,7 +645,7 @@ func TestSharePasswordThrottleAppliesAcrossClientAddresses(t *testing.T) {
 	}
 }
 
-func TestSetupPasswordMustActuallyChangeAndCountsUnicodeCharacters(t *testing.T) {
+func TestSetupPasswordMustActuallyChangeAndRequiresSevenCharacters(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf, _ := a.login(state.SetupPassword)
 	same := `{"newPassword":"` + state.SetupPassword + `"}`
@@ -653,24 +653,31 @@ func TestSetupPasswordMustActuallyChangeAndCountsUnicodeCharacters(t *testing.T)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("setup credential retained: %d %s", response.Code, response.Body.String())
 	}
-	shortUnicode := `{"newPassword":"` + strings.Repeat("🔒", 11) + `"}`
+	shortUnicode := `{"newPassword":"` + strings.Repeat("🔒", 6) + `"}`
 	response = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(shortUnicode), cookie, csrf, "")
 	if response.Code != http.StatusBadRequest {
-		t.Fatalf("11-character Unicode password accepted: %d", response.Code)
+		t.Fatalf("six-character Unicode password accepted: %d", response.Code)
+	}
+	minimumUnicode := `{"newPassword":"` + strings.Repeat("🔒", 7) + `"}`
+	response = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(minimumUnicode), cookie, csrf, "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("seven-character Unicode password rejected: %d %s", response.Code, response.Body.String())
+	}
+	_, _, setupRequired := a.login(strings.Repeat("🔒", 7))
+	if setupRequired {
+		t.Fatal("setup remained required after accepting the replacement password")
 	}
 }
 
-func TestGHSA_43mmUniformLoginFailureAndDistributedAccountLimit(t *testing.T) {
+func TestPasswordOnlyLoginAndDistributedAccountLimit(t *testing.T) {
 	a := newTestAPI(t)
-	wrongUser := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"someone","password":"koreader123456789"}`), nil, "", "")
-	a.loginLimiterForTestReset()
-	wrongPassword := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"incorrect"}`), nil, "", "")
-	if wrongUser.Code != http.StatusUnauthorized || wrongPassword.Code != http.StatusUnauthorized || wrongUser.Body.String() != wrongPassword.Body.String() {
-		t.Fatalf("non-uniform failures: %d %q / %d %q", wrongUser.Code, wrongUser.Body.String(), wrongPassword.Code, wrongPassword.Body.String())
+	wrongPassword := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"incorrect"}`), nil, "", "")
+	if wrongPassword.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong password: %d %s", wrongPassword.Code, wrongPassword.Body.String())
 	}
 	a = newTestAPI(t)
 	for index := range 5 {
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"wrong"}`))
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"wrong"}`))
 		request.RemoteAddr = fmt.Sprintf("192.0.2.%d:1234", index+1)
 		response := httptest.NewRecorder()
 		a.handler.ServeHTTP(response, request)
@@ -678,7 +685,7 @@ func TestGHSA_43mmUniformLoginFailureAndDistributedAccountLimit(t *testing.T) {
 			t.Fatalf("failure %d = %d", index, response.Code)
 		}
 	}
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"koreader123456789"}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"koreader123456789"}`))
 	request.RemoteAddr = "198.51.100.8:1234"
 	response := httptest.NewRecorder()
 	a.handler.ServeHTTP(response, request)

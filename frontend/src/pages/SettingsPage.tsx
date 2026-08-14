@@ -54,7 +54,7 @@ export function SettingsPage() {
   })
   const revokeToken = useMutation({ mutationFn: api.tokens.remove, onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['tokens'] }) })
 
-  const passwordSubmit = (event: FormEvent) => { event.preventDefault(); if (Array.from(newPassword).length >= 12) changePassword.mutate() }
+  const passwordSubmit = (event: FormEvent) => { event.preventDefault(); if (Array.from(newPassword).length >= 7) changePassword.mutate() }
 
   if (settings.isPending) return <Stack gap={2.5}><PageHeader title={t('settings.title')} /><LoadingPane /></Stack>
   if (settings.error) return <Stack gap={2.5}><PageHeader title={t('settings.title')} /><ErrorPane error={settings.error} /></Stack>
@@ -75,8 +75,8 @@ export function SettingsPage() {
 
         <Card variant="outlined"><CardContent><Stack component="form" gap={2} onSubmit={passwordSubmit}>
           <Typography variant="h2">{t('settings.password')}</Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><PasswordField fullWidth autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><PasswordField fullWidth autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('settings.passwordHint')} /></Stack>
-          {changePassword.error && <ErrorPane error={changePassword.error} />}<Button type="submit" variant="outlined" disabled={!currentPassword || Array.from(newPassword).length < 12 || changePassword.isPending} sx={{ alignSelf: 'flex-start' }}>{t('settings.changePassword')}</Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><PasswordField fullWidth autoComplete="current-password" label={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /><PasswordField fullWidth autoComplete="new-password" label={t('settings.newPassword')} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={t('settings.minimumPasswordHint')} /></Stack>
+          {changePassword.error && <ErrorPane error={changePassword.error} />}<Button type="submit" variant="outlined" disabled={!currentPassword || Array.from(newPassword).length < 7 || changePassword.isPending} sx={{ alignSelf: 'flex-start' }}>{t('settings.changePassword')}</Button>
         </Stack></CardContent></Card>
 
         <Card variant="outlined"><CardContent><Stack gap={2}>

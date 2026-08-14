@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	SetupUsername           = "koreader"
 	SetupPassword           = "koreader123456789"
 	credentialTouchInterval = time.Minute
 )
@@ -63,7 +62,6 @@ type pendingSessionTouch struct {
 }
 
 type Owner struct {
-	Username      string `json:"username"`
 	PasswordHash  string `json:"passwordHash"`
 	SetupRequired bool   `json:"setupRequired"`
 	PasswordSetAt int64  `json:"passwordSetAt"`
@@ -171,7 +169,7 @@ func (s *Store) initialize(params auth.PasswordParams) error {
 		return fmt.Errorf("hash setup password: %w", err)
 	}
 	now := s.now().Unix()
-	owner := Owner{Username: SetupUsername, PasswordHash: hash, SetupRequired: true, PasswordSetAt: now}
+	owner := Owner{PasswordHash: hash, SetupRequired: true, PasswordSetAt: now}
 	settings := Settings{Theme: "system", Locale: "en", ShowHidden: false, ClientTimeoutSeconds: 30}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		if tx.Bucket(bucketOwner).Get(ownerKey) != nil {

@@ -8,7 +8,7 @@ interface AuthContextValue {
   status: AuthStatus
   session: Session | null
   validationError: Error | null
-  login: (username: string, password: string) => Promise<Session>
+  login: (password: string) => Promise<Session>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   completeSetup: (newPassword: string) => Promise<void>
@@ -77,8 +77,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => timers.forEach((timer) => window.clearTimeout(timer))
   }, [becomeAnonymous, refresh, session, status])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const next = await api.session.login(username, password)
+  const login = useCallback(async (password: string) => {
+    const next = await api.session.login(password)
     setValidationError(null)
     setSession(next)
     setStatus(next.authenticated ? 'authenticated' : 'anonymous')

@@ -15,15 +15,25 @@ local ZenFM = WidgetContainer:extend{
 }
 
 local server_poll_seconds = 60
+local update_timeout_seconds = 120
 
 local function notice(text, warning, persistent)
     local timeout = warning and 6 or 3
     if persistent then timeout = false end
-    UIManager:show(InfoMessage:new{
+    local message = InfoMessage:new{
         text = text,
         icon = warning and "notice-warning" or nil,
         timeout = timeout,
-    })
+    }
+    UIManager:show(message)
+    return message
+end
+
+local function close_notice(message)
+    message.dismiss_callback = nil
+    if not UIManager.isWidgetShown or UIManager:isWidgetShown(message) then
+        UIManager:close(message)
+    end
 end
 
 function ZenFM:init()
@@ -403,11 +413,11 @@ end
 
 function ZenFM:confirm_reset_login()
     UIManager:show(ConfirmBox:new{
-        text = _("Reset the owner login to the setup-only credentials and revoke every session and API token?"),
+        text = _("Reset the owner login to the setup-only password and revoke every session and API token?"),
         ok_text = _("Reset login"),
         ok_callback = function()
             self.server_monitor = nil
-            local success = _("Login reset. Use koreader / koreader123456789 and choose a new password.")
+            local success = _("Login reset. Use koreader123456789 and choose a new password.")
             if self.daemon:is_android() then
                 local started = self:begin_android_action("reset", function(ok, detail)
                     if ok then self.android_running = false else self:start_server_monitor() end
@@ -424,21 +434,69 @@ function ZenFM:confirm_reset_login()
 end
 
 function ZenFM:update()
-    notice(_("Checking for a ZenFM update…"))
-    local beta_updates = self.daemon.settings.values.beta_updates == true
-    if self.daemon:is_android() then
-        local ok, result = Updater.install_latest(self.daemon, beta_updates)
-        local plugin_failed = not ok and result ~= "ZenFM is up to date"
-        notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
-            .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
-        local companion_ok, companion_result = self.daemon:open_android("update")
-        if not companion_ok then notice(tostring(companion_result), true) end
-        return companion_ok, companion_result
+    if self.daemon:is_android() and not self:android_cached_running() then
+        return self:begin_android_action("start", function(ok, detail)
+            if not ok then
+                notice(tostring(detail), true)
+                return
+            end
+            self.android_running = true
+            self:start_server_monitor(true)
+            self:update()
+        end)
     end
-    local ok, result = Updater.install_latest(self.daemon, beta_updates)
-    local plugin_failed = not ok and result ~= "ZenFM is up to date"
-    notice(tostring(result), plugin_failed)
-    return ok, result
+
+    local beta_updates = self.daemon.settings.values.beta_updates == true
+    local progress = notice(_("Checking for a ZenFM update…"), false, true)
+    UIManager:forceRePaint()
+    UIManager:scheduleIn(0.1, function()
+        local Trapper = require("ui/trapper")
+        Trapper:wrap(function()
+            local co = coroutine.running()
+            local timed_out = false
+            local timeout_callback = function()
+                timed_out = true
+                coroutine.resume(co, false)
+            end
+            UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
+            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.prepare_latest(self.daemon, beta_updates)
+            end, progress)
+            UIManager:unschedule(timeout_callback)
+            close_notice(progress)
+            if not completed then
+                notice(timed_out and _("ZenFM update timed out.") or _("ZenFM update cancelled."), timed_out)
+                return
+            end
+
+            local ok = false
+            if prepared then
+                local installing = notice(_("Installing ZenFM update…"), false, true)
+                UIManager:forceRePaint()
+                ok, result = Updater.activate_stage(self.daemon, result)
+                close_notice(installing)
+            end
+            if self.daemon:is_android() then
+                local plugin_failed = not ok and result ~= "ZenFM is up to date"
+                notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
+                    .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
+                local companion_ok, companion_result = self.daemon:open_android("update")
+                if not companion_ok then notice(tostring(companion_result), true) end
+                return
+            end
+            if not ok then
+                notice(tostring(result), result ~= "ZenFM is up to date")
+                return
+            end
+
+            notice(_("Restarting KOReader…"), false, true)
+            UIManager:tickAfterNext(function()
+                local Event = require("ui/event")
+                UIManager:broadcastEvent(Event:new("Restart"))
+            end)
+        end)
+    end)
+    return true, "update started"
 end
 
 function ZenFM:settings_menu()

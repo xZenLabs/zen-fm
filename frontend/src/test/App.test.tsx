@@ -6,37 +6,37 @@ import { renderApp } from './renderApp'
 
 describe('authentication flow', () => {
   it('shows login and routes a temporary owner session to mandatory setup', async () => {
+    let loginBody: Record<string, unknown> | undefined
     server.use(
       http.get('http://localhost/api/v1/session', () => HttpResponse.json({ title: 'Unauthorized', status: 401 }, { status: 401 })),
-      http.post('http://localhost/api/v1/session', () => HttpResponse.json({ authenticated: true, username: 'koreader', setupRequired: true, csrfToken: 'x'.repeat(32) })),
+      http.post('http://localhost/api/v1/session', async ({ request }) => {
+        loginBody = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ authenticated: true, setupRequired: true, csrfToken: 'x'.repeat(32) })
+      }),
     )
     const user = userEvent.setup()
     renderApp('/login')
 
-    const username = await screen.findByLabelText(/Username/)
-    const password = screen.getByLabelText(/Password/)
+    const password = await screen.findByLabelText(/Password/)
     const heading = screen.getByRole('heading', { name: 'ZenFM' })
     expect(heading.parentElement?.querySelector('.zen-mark')).toHaveStyle({ width: '52px', height: '52px' })
     expect(document.querySelectorAll('.zen-mark')).toHaveLength(1)
-    expect(username).toHaveAttribute('name', 'username')
-    expect(username).toHaveAttribute('id', 'username')
-    expect(username).toHaveAttribute('autocomplete', 'username')
+    expect(screen.queryByLabelText(/Username/)).not.toBeInTheDocument()
     expect(password).toHaveAttribute('name', 'password')
     expect(password).toHaveAttribute('id', 'current-password')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
 
-    await user.type(username, 'koreader')
     await user.type(password, 'temporary password')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('heading', { name: 'Choose a private password' })).toBeInTheDocument()
+    expect(loginBody).toEqual({ password: 'temporary password' })
+    expect(await screen.findByRole('heading', { name: 'New Password' })).toBeInTheDocument()
     expect(screen.getByText('Replace the temporary password before accessing your files.')).toBeInTheDocument()
   })
 
-  it('counts Unicode code points when enforcing the 12-character setup password', async () => {
+  it('requires seven Unicode characters for the setup password', async () => {
     server.use(http.get('http://localhost/api/v1/session', () => HttpResponse.json({
       authenticated: true,
-      username: 'koreader',
       setupRequired: true,
       csrfToken: 'unicode-password-csrf-value-12345',
     })))
@@ -45,11 +45,7 @@ describe('authentication flow', () => {
 
     const newPassword = await screen.findByLabelText(/New password/)
     const confirmation = screen.getByLabelText(/Confirm password/)
-    const username = document.querySelector('input[name="username"]')
     expect(screen.queryByLabelText(/Temporary password/)).not.toBeInTheDocument()
-    expect(username).toHaveAttribute('id', 'username')
-    expect(username).toHaveAttribute('autocomplete', 'username')
-    expect(username).toHaveValue('koreader')
     expect(newPassword).toHaveAttribute('id', 'new-password')
     expect(newPassword).toHaveAttribute('name', 'new-password')
     expect(newPassword).toHaveAttribute('autocomplete', 'new-password')
@@ -57,8 +53,8 @@ describe('authentication flow', () => {
     expect(confirmation).toHaveAttribute('name', 'confirm-password')
     expect(confirmation).toHaveAttribute('autocomplete', 'new-password')
 
-    await user.type(newPassword, '🌿'.repeat(11))
-    await user.type(confirmation, '🌿'.repeat(11))
+    await user.type(newPassword, '🌿'.repeat(6))
+    await user.type(confirmation, '🌿'.repeat(6))
     expect(screen.getByRole('button', { name: 'Finish setup' })).toBeDisabled()
 
     await user.type(newPassword, '🌿')
@@ -86,7 +82,6 @@ describe('authentication flow', () => {
     server.use(
       http.get('http://localhost/api/v1/session', () => HttpResponse.json({
         authenticated: true,
-        username: 'koreader',
         setupRequired: true,
         csrfToken: 'setup-password-csrf-value-123456',
       })),
@@ -94,7 +89,6 @@ describe('authentication flow', () => {
         body = await request.json() as Record<string, unknown>
         return HttpResponse.json({
           authenticated: true,
-          username: 'koreader',
           setupRequired: false,
           csrfToken: 'replacement-csrf-value-1234567',
         })
@@ -109,7 +103,7 @@ describe('authentication flow', () => {
       await user.click(screen.getByRole('button', { name: 'Finish setup' }))
 
       await waitFor(() => expect(stored).toHaveBeenCalledTimes(1))
-      expect(stored.mock.calls[0]?.[0]).toMatchObject({ id: 'koreader', password: 'a permanent owner password' })
+      expect(stored.mock.calls[0]?.[0]).toMatchObject({ id: 'owner', password: 'a permanent owner password' })
       expect(body).toEqual({ newPassword: 'a permanent owner password' })
       expect(await screen.findByRole('heading', { name: 'Files' })).toBeInTheDocument()
     } finally {

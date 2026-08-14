@@ -27,7 +27,7 @@ TypeScript/React/MUI frontend and revocable server-side sessions.
 1. Install the KOReader bundle matching the device and restart KOReader.
 2. Open **Tools > Network > ZenFM** and start the server.
 3. Open the URL displayed by the plugin from another device.
-4. Sign in with `koreader` / `koreader123456789` and immediately choose a new
+4. Sign in with the password `koreader123456789` and immediately choose a new
    password. File and token APIs remain disabled until that change succeeds.
 
 HTTPS uses a locally generated certificate, so a browser may require the owner
@@ -98,8 +98,8 @@ npm ci
 npm run dev:mock
 ```
 
-Open <http://localhost:5173> and use
-`koreader` / `koreader`. The mock API and its sample filesystem live
+Open <http://localhost:5173> and use the password `koreader`. The mock API and
+its sample filesystem live
 only in memory and reset when Vite restarts.
 
 See [docs/development.md](docs/development.md) for local full-stack work,

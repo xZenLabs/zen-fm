@@ -38,10 +38,10 @@ function invoke(middleware: Connect.NextHandleFunction, method: string, url: str
   })
 }
 
-it('uses koreader as the demo username and password', async () => {
+it('uses koreader as the demo password', async () => {
   const middleware = createMockApiMiddleware()
 
-  const login = await invoke(middleware, 'POST', '/api/v1/session', { username: 'koreader', password: 'koreader' })
+  const login = await invoke(middleware, 'POST', '/api/v1/session', { password: 'koreader' })
   expect(login.status).toBe(200)
 })
 

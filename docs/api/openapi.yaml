@@ -1205,13 +1205,11 @@ components:
     LoginRequest:
       type: object
       additionalProperties: false
-      required: [username, password]
+      required: [password]
       properties:
-        username:
-          type: string
-          maxLength: 128
         password:
           type: string
+          minLength: 1
           maxLength: 1024
     PasswordChange:
       type: object
@@ -1224,7 +1222,7 @@ components:
           description: Required after initial setup; omit when the authenticated owner session is completing mandatory setup.
         newPassword:
           type: string
-          minLength: 12
+          minLength: 7
           maxLength: 1024
     Session:
       type: object
@@ -1233,9 +1231,6 @@ components:
       properties:
         authenticated:
           type: boolean
-        username:
-          type: string
-          const: koreader
         setupRequired:
           type: boolean
         csrfToken:

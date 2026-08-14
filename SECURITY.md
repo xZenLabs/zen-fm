@@ -21,9 +21,9 @@ that posture and are deliberately explicit:
   certificate, or lock themselves out. Special files and pseudo-filesystems
   are listed, but are not opened as regular content.
 
-The first-run credentials are public (`koreader` / `koreader123456789`) and
-exist only to enter the mandatory password-change flow. Start a new device on
-a trusted network and change them immediately.
+The first-run password is public (`koreader123456789`) and exists only to enter
+the mandatory password-change flow. Start a new device on
+a trusted network and change it immediately.
 
 ## Security boundaries
 
@@ -38,4 +38,3 @@ a trusted network and change them immediately.
 
 The upstream File Browser advisory disposition is maintained in
 [`docs/security-advisories.md`](docs/security-advisories.md).
-

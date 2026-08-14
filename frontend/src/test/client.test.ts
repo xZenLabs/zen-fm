@@ -13,7 +13,7 @@ describe('API client security', () => {
       }),
     )
 
-    await api.session.login('koreader', 'correct horse battery staple')
+    await api.session.login('correct horse battery staple')
     await api.settings.update({ theme: 'dark' })
 
     expect(received).toBe('secure-session-csrf-value-1234567890')

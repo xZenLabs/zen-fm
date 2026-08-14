@@ -371,6 +371,12 @@ function Updater.install_stage(daemon, stage_root, resume_after_update)
     return true, "ZenFM updated. Restart KOReader to finish activation."
 end
 
+local function stop_and_wait(daemon)
+    local stopped, err = daemon:stop()
+    if stopped then stopped, err = daemon:wait_until_stopped() end
+    return stopped, err
+end
+
 function Updater.finalize_pending(daemon)
     local plugin_dir = daemon.plugin_dir
     local marker = plugin_dir .. "/.update-pending"
@@ -387,7 +393,11 @@ function Updater.finalize_pending(daemon)
         if parent then Util.remove_tree(backup, parent) end
         return true
     end
-    local ready, err = daemon:ensure_backend()
+    -- A prior KOReader process may have requested shutdown but exited before
+    -- the supervisor finished. Never let that old backend satisfy the health
+    -- check for the newly activated plugin.
+    local ready, err = stop_and_wait(daemon)
+    if ready then ready, err = daemon:ensure_backend() end
     if ready then ready, err = daemon:start() end
     if ready then
         local ok_socket, socket = pcall(require, "socket")
@@ -399,7 +409,7 @@ function Updater.finalize_pending(daemon)
         if not ready then err = "updated backend failed its control-socket health check" end
     end
     if ready and desired_state == "stop" then
-        ready, err = daemon:stop()
+        ready, err = stop_and_wait(daemon)
         if not ready then err = "updated backend passed health verification but could not be stopped" end
     end
     if ready then
@@ -408,7 +418,11 @@ function Updater.finalize_pending(daemon)
         if parent then Util.remove_tree(backup, parent) end
         return true
     end
-    daemon:stop()
+    local rollback_ready, rollback_err = stop_and_wait(daemon)
+    if not rollback_ready then
+        return false, "updated backend failed health check and rollback could not stop it: "
+            .. tostring(rollback_err or err)
+    end
     local parent = plugin_dir:match("^(.*)/[^/]+$")
     local failed = plugin_dir .. ".failed"
     if not parent or not Util.remove_tree(failed, parent)
@@ -419,7 +433,10 @@ function Updater.finalize_pending(daemon)
     return false, "updated backend failed health check; previous plugin restored. Restart KOReader."
 end
 
-function Updater.install_latest(daemon, allow_prerelease)
+function Updater.prepare_latest(daemon, allow_prerelease)
+    if Util.path_exists(daemon.plugin_dir .. "/.update-pending") then
+        return false, "Restart KOReader to finish the pending ZenFM update."
+    end
     local release, err = latest(daemon, allow_prerelease)
     if not release then return false, err or "ZenFM is up to date" end
     if release.size and (release.size <= 0 or release.size > maximum_package_bytes) then
@@ -445,13 +462,25 @@ function Updater.install_latest(daemon, allow_prerelease)
     if not unpacked then return false, tostring(unpack_err or "could not extract update") end
     local root, validation_err = validate_stage(daemon, stage, release.version)
     if not root then return false, validation_err end
+    return true, root
+end
+
+function Updater.activate_stage(daemon, root)
     local was_running = false
     if not daemon:is_android() then
         was_running = daemon:status()
-        local stopped, stop_err = daemon:stop()
+        local stopped, stop_err = stop_and_wait(daemon)
         if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
     end
-    return Updater.install_stage(daemon, root, was_running)
+    local installed, result = Updater.install_stage(daemon, root, was_running)
+    if not installed and was_running then daemon:start() end
+    return installed, result
+end
+
+function Updater.install_latest(daemon, allow_prerelease)
+    local prepared, result = Updater.prepare_latest(daemon, allow_prerelease)
+    if not prepared then return false, result end
+    return Updater.activate_stage(daemon, result)
 end
 
 return Updater

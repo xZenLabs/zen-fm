@@ -512,7 +512,7 @@ func sessionCookieName(secure bool) string {
 
 func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
-		"authenticated": true, "username": state.SetupUsername, "setupRequired": setup,
+		"authenticated": true, "setupRequired": setup,
 		"csrfToken": v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }

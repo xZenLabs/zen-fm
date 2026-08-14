@@ -3,7 +3,6 @@ import { posix } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, Plugin } from 'vite'
 
-const USERNAME = 'koreader'
 const DEMO_PASSWORD = 'koreader'
 const SESSION_COOKIE = 'zenfm_mock_session=demo'
 const CSRF_TOKEN = 'zenfm-mock-csrf-token-0000000000'
@@ -153,7 +152,6 @@ function session() {
   const time = Date.now()
   return {
     authenticated: true,
-    username: USERNAME,
     setupRequired: false,
     csrfToken: CSRF_TOKEN,
     idleExpiresAt: new Date(time + 2 * 60 * 60 * 1000).toISOString(),
@@ -225,8 +223,8 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
 
     try {
       if (path === '/api/v1/session' && method === 'POST') {
-        const credentials = await readJSON<{ username?: string; password?: string }>(request)
-        if (credentials.username !== USERNAME || credentials.password !== ownerPassword) return sendProblem(response, 401, 'Invalid username or password.')
+        const credentials = await readJSON<{ password?: string }>(request)
+        if (credentials.password !== ownerPassword) return sendProblem(response, 401, 'Invalid password.')
         return sendJSON(response, 200, session(), { 'Set-Cookie': `${SESSION_COOKIE}; Path=/; HttpOnly; SameSite=Strict` })
       }
 
@@ -269,7 +267,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
         const input = await readJSON<{ currentPassword?: string; newPassword?: string }>(request)
         if (input.currentPassword === undefined) return sendProblem(response, 401, 'Current password is required.')
         if (input.currentPassword !== ownerPassword) return sendProblem(response, 401, 'Current password is incorrect.')
-        if (Array.from(input.newPassword ?? '').length < 12) return sendProblem(response, 422, 'New password must contain at least 12 characters.')
+        if (Array.from(input.newPassword ?? '').length < 7) return sendProblem(response, 422, 'New password must contain at least 7 characters.')
         ownerPassword = input.newPassword || ownerPassword
         return sendJSON(response, 200, session())
       }
@@ -454,7 +452,7 @@ export function mockApiPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(createMockApiMiddleware())
       server.config.logger.info('\n  ZenFM mock API is active')
-      server.config.logger.info(`  Login: ${USERNAME} / ${DEMO_PASSWORD}`)
+      server.config.logger.info(`  Password: ${DEMO_PASSWORD}`)
       server.config.logger.info('  Data resets when this Vite process stops; TUS and archive downloads are not simulated.\n')
     },
   }

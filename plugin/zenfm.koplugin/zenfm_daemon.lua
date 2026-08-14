@@ -443,15 +443,24 @@ function Daemon:stop()
     return false, err or response or "control socket did not accept stop"
 end
 
+function Daemon:wait_until_stopped()
+    for _ = 1, 50 do
+        local running = self:status()
+        if not running and not self.path_exists(self:pid_path())
+            and not self.path_exists(self:pid_path() .. ".lock") then
+            return true
+        end
+        self.sleep(0.1)
+    end
+    return false, "ZenFM did not stop completely"
+end
+
 function Daemon:restart()
     local stopped, err = self:stop()
     if not stopped then return false, err end
-    for _ = 1, 50 do
-        local running = self:status()
-        if not running and not self.path_exists(self:pid_path()) then return self:start() end
-        self.sleep(0.1)
-    end
-    return false, "ZenFM did not stop before restart"
+    stopped, err = self:wait_until_stopped()
+    if not stopped then return false, "ZenFM did not stop before restart" end
+    return self:start()
 end
 
 function Daemon:reset_login()

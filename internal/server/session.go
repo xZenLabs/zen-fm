@@ -1,8 +1,6 @@
 package server
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
 	"net/http"
 	"strings"
 	"time"
@@ -24,10 +22,9 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-	if err := readJSON(w, r, &request, 4<<10); err != nil || len(request.Username) > 128 || len(request.Password) > 1024 {
+	if err := readJSON(w, r, &request, 4<<10); err != nil || len(request.Password) > 1024 {
 		problem(w, r, http.StatusBadRequest, "Invalid Request", "invalid login request")
 		return
 	}
@@ -40,10 +37,8 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, err)
 		return
 	}
-	providedUser, expectedUser := sha256.Sum256([]byte(request.Username)), sha256.Sum256([]byte(owner.Username))
-	validUser := subtle.ConstantTimeCompare(providedUser[:], expectedUser[:]) == 1
 	validPassword := auth.VerifyPassword(owner.PasswordHash, request.Password)
-	if !validUser || !validPassword {
+	if !validPassword {
 		s.loginLimiter.fail(keys...)
 		problem(w, r, http.StatusUnauthorized, "Authentication Failed", "credentials were not accepted")
 		return
@@ -82,8 +77,8 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		CurrentPassword string `json:"currentPassword"`
 		NewPassword     string `json:"newPassword"`
 	}
-	if err := readJSON(w, r, &request, 4<<10); err != nil || len(request.CurrentPassword) > 1024 || !utf8.ValidString(request.NewPassword) || utf8.RuneCountInString(request.NewPassword) < 12 || len(request.NewPassword) > 1024 {
-		problem(w, r, http.StatusBadRequest, "Invalid Password", "new password must contain 12 to 1024 characters")
+	if err := readJSON(w, r, &request, 4<<10); err != nil || len(request.CurrentPassword) > 1024 || !utf8.ValidString(request.NewPassword) || utf8.RuneCountInString(request.NewPassword) < 7 || len(request.NewPassword) > 1024 {
+		problem(w, r, http.StatusBadRequest, "Invalid Password", "new password must contain at least 7 characters and not exceed 1024 bytes")
 		return
 	}
 	if constantEqual(request.CurrentPassword, request.NewPassword) {

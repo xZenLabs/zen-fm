@@ -288,6 +288,6 @@ func runReset(args []string, stdout, stderr io.Writer) error {
 	if err := store.ResetLogin(auth.DefaultPasswordParams); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Login reset to setup-only %s / %s; all sessions and API tokens were revoked.\n", state.SetupUsername, state.SetupPassword)
+	fmt.Fprintf(stdout, "Login reset to setup-only password %s; all sessions and API tokens were revoked.\n", state.SetupPassword)
 	return nil
 }
