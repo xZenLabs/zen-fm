@@ -183,9 +183,19 @@ function ZenFM:onDispatcherRegisterActions()
     })
 end
 
+function ZenFM:wait_for_network_before_start()
+    local NetworkMgr = require("ui/network/manager")
+    return NetworkMgr:willRerunWhenConnected(function()
+        local running = self.daemon:is_android()
+            and self:android_cached_running() or self.daemon:status()
+        if not running then self:onToggleZenFM() end
+    end)
+end
+
 function ZenFM:onToggleZenFM()
     if self.daemon:is_android() then
         local running = self:android_cached_running()
+        if not running and self:wait_for_network_before_start() then return true end
         local action = running and "stop" or "start"
         if running then self.server_monitor = nil end
         local started = self:begin_android_action(action, function(ok, detail)
@@ -208,6 +218,7 @@ function ZenFM:onToggleZenFM()
         return started
     end
     local running = self.daemon:status()
+    if not running and self:wait_for_network_before_start() then return true end
     local ok, detail
     if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
@@ -365,25 +376,28 @@ function ZenFM:restart_after_server_setting_change()
     return true
 end
 
-function ZenFM:set_http(enabled)
+function ZenFM:set_http(enabled, touchmenu_instance)
     local saved = self.daemon.settings:set("insecure_http", enabled)
     if not saved then
         notice(_("Invalid value."), true)
         return false
+    end
+    if touchmenu_instance then
+        touchmenu_instance:updateItems()
+        UIManager:forceRePaint()
     end
     return self:restart_after_server_setting_change()
 end
 
 function ZenFM:confirm_http(touchmenu_instance)
     if self.daemon.settings.values.insecure_http then
-        return self:set_http(false)
+        return self:set_http(false, touchmenu_instance)
     end
     UIManager:show(ConfirmBox:new{
         text = _("HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"),
         ok_text = _("Enable HTTP"),
         ok_callback = function()
-            self:set_http(true)
-            touchmenu_instance:updateItems()
+            self:set_http(true, touchmenu_instance)
         end,
     })
 end
@@ -489,11 +503,18 @@ function ZenFM:update()
                 return
             end
 
-            notice(_("Restarting KOReader…"), false, true)
-            UIManager:tickAfterNext(function()
-                local Event = require("ui/event")
-                UIManager:broadcastEvent(Event:new("Restart"))
-            end)
+            UIManager:show(ConfirmBox:new{
+                text = tostring(result),
+                ok_text = _("Restart now"),
+                cancel_text = _("Later"),
+                ok_callback = function()
+                    notice(_("Restarting KOReader…"), false, true)
+                    UIManager:tickAfterNext(function()
+                        local Event = require("ui/event")
+                        UIManager:broadcastEvent(Event:new("Restart"))
+                    end)
+                end,
+            })
         end)
     end)
     return true, "update started"
@@ -515,6 +536,7 @@ function ZenFM:settings_menu()
         {
             text = _("Use unencrypted HTTP"),
             checked_func = function() return self.daemon.settings.values.insecure_http end,
+            check_callback_updates_menu = true,
             keep_menu_open = true,
             callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
         },

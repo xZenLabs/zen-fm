@@ -1341,6 +1341,66 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
+test("starting waits for KOReader network connection but stopping does not", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+        "ui/network/manager",
+    }
+    local saved = {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function() end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local connected, retry, network_checks = false, nil, 0
+    package.loaded["ui/network/manager"] = {
+        willRerunWhenConnected = function(_, callback)
+            network_checks = network_checks + 1
+            if connected then return false end
+            retry = callback
+            return true
+        end,
+    }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local running, starts, stops = false, 0, 0
+    local owner = setmetatable({
+        daemon = {
+            is_android = function() return false end,
+            status = function() return running end,
+            start = function() starts = starts + 1 running = true return true end,
+            stop = function() stops = stops + 1 running = false return true end,
+        },
+        start_server_monitor = function() end,
+        onShowZenFMStatus = function() end,
+    }, { __index = ZenFM })
+
+    assert(owner:onToggleZenFM())
+    equal(starts, 0)
+    equal(stops, 0)
+    equal(network_checks, 1)
+    assert(type(retry) == "function")
+
+    connected = true
+    retry()
+    equal(starts, 1)
+    equal(network_checks, 2)
+
+    connected = false
+    assert(owner:onToggleZenFM())
+    equal(stops, 1)
+    equal(network_checks, 2)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
 test("inactivity timeout label opens a number wheel and its checkbox only toggles it", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
@@ -1420,13 +1480,18 @@ test("changing server settings while running restarts and refreshes the menu", f
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
     }
-    local saved, shown = {}, {}
+    local saved, shown, events, settings = {}, {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
     package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
     package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
-    package.loaded["ui/uimanager"] = { show = function(_, message) table.insert(shown, message) end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) table.insert(shown, message) end,
+        forceRePaint = function()
+            table.insert(events, "repaint:" .. tostring(settings.values.insecure_http))
+        end,
+    }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
@@ -1434,7 +1499,7 @@ test("changing server settings while running restarts and refreshes the menu", f
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
     local port, restarts, menu_refreshes = 54321, 0, 0
-    local settings = {
+    settings = {
         values = { port = port, insecure_http = false, advanced_root = false },
         set = function(self, key, value) self.values[key] = value return true end,
     }
@@ -1446,6 +1511,7 @@ test("changing server settings while running restarts and refreshes the menu", f
             status = function() return true end,
             restart = function()
                 restarts = restarts + 1
+                table.insert(events, "restart:" .. tostring(settings.values.insecure_http))
                 local scheme = settings.values.insecure_http and "http" or "https"
                 return true, "ok running " .. scheme .. "://0.0.0.0:" .. port .. " -"
             end,
@@ -1456,21 +1522,29 @@ test("changing server settings while running restarts and refreshes the menu", f
         },
     }, { __index = ZenFM })
 
+    local touchmenu = { updateItems = function()
+        menu_refreshes = menu_refreshes + 1
+        table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
+    end }
     local http_item = owner:settings_menu()[2]
-    http_item.callback({ updateItems = function() menu_refreshes = menu_refreshes + 1 end })
+    http_item.callback(touchmenu)
     equal(shown[1].ok_text, "Enable HTTP")
     shown[1].ok_callback()
     assert(settings.values.insecure_http)
     equal(menu_refreshes, 1)
     equal(settings.values.port, port)
     equal(restarts, 1)
+    equal(table.concat(events, ","), "menu:true,repaint:true,restart:true")
     contains(shown[2].text, "http://192.168.1.2:" .. port)
     contains(shown[2].text, "Warning: unencrypted HTTP is enabled.")
 
-    assert(owner:confirm_http())
+    assert(owner:confirm_http(touchmenu))
     assert(not settings.values.insecure_http)
+    equal(menu_refreshes, 2)
     equal(settings.values.port, port)
     equal(restarts, 2)
+    equal(table.concat(events, ","),
+        "menu:true,repaint:true,restart:true,menu:false,repaint:false,restart:false")
     contains(shown[3].text, "https://192.168.1.2:" .. port)
 
     local advanced_item = owner:settings_menu()[3]
@@ -1479,7 +1553,7 @@ test("changing server settings while running restarts and refreshes the menu", f
     equal(shown[4].ok_text, "Expose entire filesystem")
     shown[4].ok_callback()
     assert(advanced_item.checked_func())
-    equal(menu_refreshes, 2)
+    equal(menu_refreshes, 3)
     equal(restarts, 3)
     contains(shown[5].text, "Warning: advanced root mode exposes the entire filesystem")
 
@@ -1542,6 +1616,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+        "ui/network/manager",
     }
     local saved, scheduled, shown = {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
@@ -1562,6 +1637,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+    package.loaded["ui/network/manager"] = { willRerunWhenConnected = function() return false end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
     local begin_actions, checks = {}, 0
@@ -1776,13 +1852,14 @@ test("server monitoring pauses in standby and checks immediately on resume", fun
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("e-reader menu update repaints, installs asynchronously, and restarts KOReader", function()
+test("e-reader menu update prompts before restarting KOReader", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "ui/event", "gettext",
         "zenfm_daemon", "zenfm_updater",
     }
     local saved, events, scheduled, shown = {}, {}, {}, {}
+    local restart_prompt, restart_callback
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -1791,7 +1868,12 @@ test("e-reader menu update repaints, installs asynchronously, and restarts KORea
     package.loaded["ui/uimanager"] = {
         show = function(_, message)
             shown[message] = true
-            table.insert(events, "notice:" .. message.text)
+            if message.ok_text == "Restart now" then
+                restart_prompt = message
+                table.insert(events, "confirm:" .. message.text)
+            else
+                table.insert(events, "notice:" .. message.text)
+            end
         end,
         close = function(_, message) shown[message] = nil end,
         forceRePaint = function() table.insert(events, "repaint") end,
@@ -1804,7 +1886,7 @@ test("e-reader menu update repaints, installs asynchronously, and restarts KORea
         end,
         tickAfterNext = function(_, callback)
             table.insert(events, "restart-scheduled")
-            callback()
+            restart_callback = callback
         end,
         broadcastEvent = function(_, event) table.insert(events, "event:" .. event.name) end,
     }
@@ -1828,7 +1910,7 @@ test("e-reader menu update repaints, installs asynchronously, and restarts KORea
         activate_stage = function(_, root)
             equal(root, "/prepared/plugin")
             table.insert(events, "activate")
-            return true, "installed"
+            return true, "ZenFM updated. Restart KOReader to finish activation."
         end,
     }
 
@@ -1849,10 +1931,21 @@ test("e-reader menu update repaints, installs asynchronously, and restarts KORea
     equal(events[4], "notice:Installing ZenFM update…")
     equal(events[5], "repaint")
     equal(events[6], "activate")
-    equal(events[7], "notice:Restarting KOReader…")
-    equal(events[8], "restart-scheduled")
-    equal(events[9], "event:Restart")
+    equal(events[7], "confirm:ZenFM updated. Restart KOReader to finish activation.")
+    equal(restart_prompt.ok_text, "Restart now")
+    equal(restart_prompt.cancel_text, "Later")
+    assert(restart_callback == nil)
+    equal(#events, 7)
     equal(#scheduled, 0)
+
+    restart_prompt.ok_callback()
+    equal(events[8], "notice:Restarting KOReader…")
+    equal(events[9], "restart-scheduled")
+    assert(type(restart_callback) == "function")
+    equal(#events, 9)
+
+    restart_callback()
+    equal(events[10], "event:Restart")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
