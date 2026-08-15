@@ -63,9 +63,6 @@ msgstr "Verifica della disponibilità di un aggiornamento ZenFM…"
 msgid "Checksum"
 msgstr "Somma di controllo"
 
-msgid "Choose a private password"
-msgstr "Scegli una password privata"
-
 msgid "Clear find"
 msgstr "Cancella ritrovamento"
 
@@ -207,6 +204,9 @@ msgstr "Timeout di inattività (minuti)"
 msgid "Inactivity timeout: %d min"
 msgstr "Timeout di inattività: %d min"
 
+msgid "Installing ZenFM update…"
+msgstr "Installazione dell'aggiornamento ZenFM…"
+
 msgid "Invalid value."
 msgstr "Valore non valido."
 
@@ -221,6 +221,9 @@ msgstr "Etichetta"
 
 msgid "Language"
 msgstr "Lingua"
+
+msgid "Later"
+msgstr "Dopo"
 
 msgid "Lifetime"
 msgstr "Tutta la vita"
@@ -237,8 +240,8 @@ msgstr "Porta di ascolto:"
 msgid "Loading…"
 msgstr "Caricamento..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Reimpostazione dell'accesso. Usa koreader / koreader123456789 e scegli una nuova password."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Reimpostazione dell'accesso. Usa koreader123456789 e scegli una nuova password."
 
 msgid "Move"
 msgstr "Sposta"
@@ -257,6 +260,9 @@ msgstr "Nuova cartella"
 
 msgid "New password"
 msgstr "La tua nuova password"
+
+msgid "New Password"
+msgstr "Nuova parola d'ordine"
 
 msgid "Next match"
 msgstr "Prossima partita"
@@ -330,8 +336,14 @@ msgstr "Reimposta accesso"
 msgid "Reset owner login"
 msgstr "Reimposta l'accesso del proprietario"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Reimpostare l'accesso del proprietario sulle credenziali di sola configurazione e revocare ogni sessione e token API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Reimpostare l'accesso del proprietario sulla password di sola configurazione e revocare ogni sessione e token API?"
+
+msgid "Restart now"
+msgstr "Ricomincia adesso"
+
+msgid "Restarting…"
+msgstr "Riavvio…"
 
 msgid "Revoke"
 msgstr "Revocare"
@@ -438,8 +450,8 @@ msgstr "Password temporanea"
 msgid "Text editor"
 msgstr "Editor di testo"
 
-msgid "The username or password is incorrect."
-msgstr "Credenziali errate"
+msgid "The password is incorrect."
+msgstr "La password non è corretta."
 
 msgid "Theme"
 msgstr "Tema"
@@ -498,14 +510,11 @@ msgstr "Utilizzare la radice avanzata per esporre /. Le radici personalizzate no
 msgid "Use an absolute path beginning with /."
 msgstr "Utilizzare un percorso assoluto che inizia con /."
 
-msgid "Use at least 12 characters."
-msgstr "Utilizza almeno 12 caratteri."
+msgid "Use at least 7 characters."
+msgstr "Utilizza almeno 7 caratteri."
 
 msgid "Use unencrypted HTTP"
 msgstr "Utilizza HTTP non crittografato"
-
-msgid "Username"
-msgstr "Nome utente"
 
 msgid "Version"
 msgstr "Versione"
@@ -542,6 +551,12 @@ msgstr "ZenFM si è interrotto dopo inattività."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM si è fermato."
+
+msgid "ZenFM update cancelled."
+msgstr "Aggiornamento ZenFM annullato."
+
+msgid "ZenFM update timed out."
+msgstr "L'aggiornamento ZenFM è scaduto."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Stato"

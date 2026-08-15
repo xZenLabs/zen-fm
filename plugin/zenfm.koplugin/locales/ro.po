@@ -63,9 +63,6 @@ msgstr "Se verifică o actualizare ZenFM..."
 msgid "Checksum"
 msgstr "Sumă de control"
 
-msgid "Choose a private password"
-msgstr "Alegeți o parolă privată"
-
 msgid "Clear find"
 msgstr "Găsire clară"
 
@@ -207,6 +204,9 @@ msgstr "Timeout inactivitate (minute)"
 msgid "Inactivity timeout: %d min"
 msgstr "Timeout inactivitate: %d min"
 
+msgid "Installing ZenFM update…"
+msgstr "Se instalează actualizarea ZenFM..."
+
 msgid "Invalid value."
 msgstr "Valoare nevalidă."
 
@@ -221,6 +221,9 @@ msgstr "Eticheta"
 
 msgid "Language"
 msgstr "Limba"
+
+msgid "Later"
+msgstr "Mai târziu"
 
 msgid "Lifetime"
 msgstr "Durata de viață"
@@ -237,8 +240,8 @@ msgstr "Port de ascultare:"
 msgid "Loading…"
 msgstr "Se încarcă..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Resetare autentificare. Folosiți koreader / koreader123456789 și alegeți o nouă parolă."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Resetare autentificare. Folosiți koreader123456789 și alegeți o nouă parolă."
 
 msgid "Move"
 msgstr "Mută"
@@ -257,6 +260,9 @@ msgstr "Director nou"
 
 msgid "New password"
 msgstr "Noua ta parolă"
+
+msgid "New Password"
+msgstr "Parolă Nouă"
 
 msgid "Next match"
 msgstr "Următorul meci"
@@ -330,8 +336,14 @@ msgstr "Resetați autentificarea"
 msgid "Reset owner login"
 msgstr "Resetați datele de conectare ale proprietarului"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Resetați datele de conectare ale proprietarului la datele de conectare numai pentru configurare și revocați fiecare sesiune și token API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Resetați datele de conectare ale proprietarului la parola doar de configurare și revocați fiecare sesiune și token API?"
+
+msgid "Restart now"
+msgstr "Reporniți acum"
+
+msgid "Restarting…"
+msgstr "Se repornește…"
 
 msgid "Revoke"
 msgstr "Revoca"
@@ -438,8 +450,8 @@ msgstr "Parolă temporară"
 msgid "Text editor"
 msgstr "Editor de text"
 
-msgid "The username or password is incorrect."
-msgstr "Informații greșite"
+msgid "The password is incorrect."
+msgstr "Parola este incorectă."
 
 msgid "Theme"
 msgstr "Temă"
@@ -498,14 +510,11 @@ msgstr "Utilizați rădăcină avansată pentru a expune /. Rădăcinile persona
 msgid "Use an absolute path beginning with /."
 msgstr "Utilizați o cale absolută care începe cu /."
 
-msgid "Use at least 12 characters."
-msgstr "Utilizați cel puțin 12 caractere."
+msgid "Use at least 7 characters."
+msgstr "Utilizați cel puțin 7 caractere."
 
 msgid "Use unencrypted HTTP"
 msgstr "Utilizați HTTP necriptat"
-
-msgid "Username"
-msgstr "Utilizator"
 
 msgid "Version"
 msgstr "Versiune"
@@ -542,6 +551,12 @@ msgstr "ZenFM sa oprit după inactivitate."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM sa oprit."
+
+msgid "ZenFM update cancelled."
+msgstr "Actualizarea ZenFM a fost anulată."
+
+msgid "ZenFM update timed out."
+msgstr "Actualizarea ZenFM a expirat."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Stare"

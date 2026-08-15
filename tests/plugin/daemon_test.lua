@@ -1939,7 +1939,7 @@ test("e-reader menu update prompts before restarting KOReader", function()
     equal(#scheduled, 0)
 
     restart_prompt.ok_callback()
-    equal(events[8], "notice:Restarting KOReader…")
+    equal(events[8], "notice:Restarting…")
     equal(events[9], "restart-scheduled")
     assert(type(restart_callback) == "function")
     equal(#events, 9)

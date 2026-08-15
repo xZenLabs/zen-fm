@@ -63,9 +63,6 @@ msgstr "Controleren op een ZenFM-update..."
 msgid "Checksum"
 msgstr "Controlesom"
 
-msgid "Choose a private password"
-msgstr "Kies een privéwachtwoord"
-
 msgid "Clear find"
 msgstr "Duidelijke vondst"
 
@@ -207,6 +204,9 @@ msgstr "Time-out bij inactiviteit (minuten)"
 msgid "Inactivity timeout: %d min"
 msgstr "Time-out bij inactiviteit: %d min"
 
+msgid "Installing ZenFM update…"
+msgstr "ZenFM-update installeren…"
+
 msgid "Invalid value."
 msgstr "Ongeldige waarde."
 
@@ -221,6 +221,9 @@ msgstr "Label"
 
 msgid "Language"
 msgstr "Taal"
+
+msgid "Later"
+msgstr "Later"
 
 msgid "Lifetime"
 msgstr "Levensduur"
@@ -237,8 +240,8 @@ msgstr "Luisterpoort:"
 msgid "Loading…"
 msgstr "Laden..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Inloggen opnieuw instellen. Gebruik koreader / koreader123456789 en kies een nieuw wachtwoord."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Inloggen opnieuw instellen. Gebruik koreader123456789 en kies een nieuw wachtwoord."
 
 msgid "Move"
 msgstr "Verplaatsen"
@@ -257,6 +260,9 @@ msgstr "Nieuwe map"
 
 msgid "New password"
 msgstr "Uw nieuwe wachtwoord"
+
+msgid "New Password"
+msgstr "Nieuw wachtwoord"
 
 msgid "Next match"
 msgstr "Volgende wedstrijd"
@@ -330,8 +336,14 @@ msgstr "Inloggen opnieuw instellen"
 msgid "Reset owner login"
 msgstr "Eigenaar-login opnieuw instellen"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "De login van de eigenaar resetten naar de inloggegevens voor alleen instellen en elke sessie en API-token intrekken?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "De login van de eigenaar resetten naar het alleen-installatiewachtwoord en elke sessie en API-token intrekken?"
+
+msgid "Restart now"
+msgstr "Start nu opnieuw op"
+
+msgid "Restarting…"
+msgstr "Opnieuw opstarten…"
 
 msgid "Revoke"
 msgstr "Herroepen"
@@ -438,8 +450,8 @@ msgstr "Tijdelijk wachtwoord"
 msgid "Text editor"
 msgstr "Als tekst bewerken"
 
-msgid "The username or password is incorrect."
-msgstr "Inloggegevens zijn incorrect"
+msgid "The password is incorrect."
+msgstr "Het wachtwoord is onjuist."
 
 msgid "Theme"
 msgstr "Thema"
@@ -498,14 +510,11 @@ msgstr "Gebruik Geavanceerde root om / bloot te leggen. Aangepaste wortels kunne
 msgid "Use an absolute path beginning with /."
 msgstr "Gebruik een absoluut pad dat begint met /."
 
-msgid "Use at least 12 characters."
-msgstr "Gebruik minimaal 12 tekens."
+msgid "Use at least 7 characters."
+msgstr "Gebruik minimaal 7 tekens."
 
 msgid "Use unencrypted HTTP"
 msgstr "Gebruik niet-versleutelde HTTP"
-
-msgid "Username"
-msgstr "Gebruikersnaam"
 
 msgid "Version"
 msgstr "Versie"
@@ -542,6 +551,12 @@ msgstr "ZenFM stopte na inactiviteit."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM is gestopt."
+
+msgid "ZenFM update cancelled."
+msgstr "ZenFM-update geannuleerd."
+
+msgid "ZenFM update timed out."
+msgstr "Er is een time-out opgetreden bij de ZenFM-update."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Status"

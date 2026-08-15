@@ -63,9 +63,6 @@ msgstr "Checking for a ZenFM update…"
 msgid "Checksum"
 msgstr "Checksum"
 
-msgid "Choose a private password"
-msgstr "Choose a private password"
-
 msgid "Clear find"
 msgstr "Clear find"
 
@@ -207,6 +204,9 @@ msgstr "Inactivity timeout (minutes)"
 msgid "Inactivity timeout: %d min"
 msgstr "Inactivity timeout: %d min"
 
+msgid "Installing ZenFM update…"
+msgstr "Installing ZenFM update…"
+
 msgid "Invalid value."
 msgstr "Invalid value."
 
@@ -221,6 +221,9 @@ msgstr "Label"
 
 msgid "Language"
 msgstr "Language"
+
+msgid "Later"
+msgstr "Later"
 
 msgid "Lifetime"
 msgstr "Lifetime"
@@ -237,8 +240,8 @@ msgstr "Listening port:"
 msgid "Loading…"
 msgstr "Loading…"
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Login reset. Use koreader / koreader123456789 and choose a new password."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Login reset. Use koreader123456789 and choose a new password."
 
 msgid "Move"
 msgstr "Move"
@@ -257,6 +260,9 @@ msgstr "New folder"
 
 msgid "New password"
 msgstr "New password"
+
+msgid "New Password"
+msgstr "New Password"
 
 msgid "Next match"
 msgstr "Next match"
@@ -330,8 +336,14 @@ msgstr "Reset login"
 msgid "Reset owner login"
 msgstr "Reset owner login"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Reset the owner login to the setup-only credentials and revoke every session and API token?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Reset the owner login to the setup-only password and revoke every session and API token?"
+
+msgid "Restart now"
+msgstr "Restart now"
+
+msgid "Restarting…"
+msgstr "Restarting…"
 
 msgid "Revoke"
 msgstr "Revoke"
@@ -438,8 +450,8 @@ msgstr "Temporary password"
 msgid "Text editor"
 msgstr "Text editor"
 
-msgid "The username or password is incorrect."
-msgstr "The username or password is incorrect."
+msgid "The password is incorrect."
+msgstr "The password is incorrect."
 
 msgid "Theme"
 msgstr "Theme"
@@ -498,14 +510,11 @@ msgstr "Use Advanced root to expose /. Custom roots cannot contain . or .. compo
 msgid "Use an absolute path beginning with /."
 msgstr "Use an absolute path beginning with /."
 
-msgid "Use at least 12 characters."
-msgstr "Use at least 12 characters."
+msgid "Use at least 7 characters."
+msgstr "Use at least 7 characters."
 
 msgid "Use unencrypted HTTP"
 msgstr "Use unencrypted HTTP"
-
-msgid "Username"
-msgstr "Username"
 
 msgid "Version"
 msgstr "Version"
@@ -542,6 +551,12 @@ msgstr "ZenFM stopped after inactivity."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM stopped."
+
+msgid "ZenFM update cancelled."
+msgstr "ZenFM update cancelled."
+
+msgid "ZenFM update timed out."
+msgstr "ZenFM update timed out."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Status"

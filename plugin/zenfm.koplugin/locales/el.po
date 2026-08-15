@@ -63,9 +63,6 @@ msgstr "Έλεγχος για ενημέρωση ZenFM…"
 msgid "Checksum"
 msgstr "Άθροισμα ελέγχου"
 
-msgid "Choose a private password"
-msgstr "Επιλέξτε έναν ιδιωτικό κωδικό πρόσβασης"
-
 msgid "Clear find"
 msgstr "Καθαρή εύρεση"
 
@@ -207,6 +204,9 @@ msgstr "Λήξη χρονικού ορίου αδράνειας (λεπτά)"
 msgid "Inactivity timeout: %d min"
 msgstr "Χρονικό όριο αδράνειας: %d λεπτά"
 
+msgid "Installing ZenFM update…"
+msgstr "Εγκατάσταση ενημέρωσης ZenFM…"
+
 msgid "Invalid value."
 msgstr "Μη έγκυρη τιμή."
 
@@ -221,6 +221,9 @@ msgstr "Επιγραφή"
 
 msgid "Language"
 msgstr "Γλώσσα"
+
+msgid "Later"
+msgstr "Αργότερα"
 
 msgid "Lifetime"
 msgstr "Διάρκεια ζωής"
@@ -237,8 +240,8 @@ msgstr "Θύρα ακρόασης:"
 msgid "Loading…"
 msgstr "Φορτώνει…"
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Επαναφορά σύνδεσης. Χρησιμοποιήστε το koreader / koreader123456789 και επιλέξτε νέο κωδικό πρόσβασης."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Επαναφορά σύνδεσης. Χρησιμοποιήστε το koreader123456789 και επιλέξτε νέο κωδικό πρόσβασης."
 
 msgid "Move"
 msgstr "Μετακίνηση"
@@ -256,6 +259,9 @@ msgid "New folder"
 msgstr "Νέος φάκελος"
 
 msgid "New password"
+msgstr "Νέος κωδικός πρόσβασης"
+
+msgid "New Password"
 msgstr "Νέος κωδικός πρόσβασης"
 
 msgid "Next match"
@@ -330,8 +336,14 @@ msgstr "Επαναφορά σύνδεσης"
 msgid "Reset owner login"
 msgstr "Επαναφορά σύνδεσης κατόχου"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Επαναφορά της σύνδεσης κατόχου στα διαπιστευτήρια μόνο για εγκατάσταση και ανάκληση κάθε περιόδου σύνδεσης και διακριτικού API;"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Επαναφορά της σύνδεσης κατόχου στον κωδικό πρόσβασης μόνο για ρύθμιση και ανάκληση κάθε περιόδου σύνδεσης και διακριτικού API;"
+
+msgid "Restart now"
+msgstr "Κάντε επανεκκίνηση τώρα"
+
+msgid "Restarting…"
+msgstr "Επανεκκίνηση…"
 
 msgid "Revoke"
 msgstr "Ανακαλώ"
@@ -438,8 +450,8 @@ msgstr "Προσωρινός κωδικός πρόσβασης"
 msgid "Text editor"
 msgstr "Επεξεργαστής κειμένου"
 
-msgid "The username or password is incorrect."
-msgstr "Λάθος όνομα ή/και κωδικός πρόσβασης"
+msgid "The password is incorrect."
+msgstr "Ο κωδικός πρόσβασης είναι λανθασμένος."
 
 msgid "Theme"
 msgstr "Μοτίβο"
@@ -498,14 +510,11 @@ msgstr "Χρησιμοποιήστε τη ρίζα για προχωρημένο
 msgid "Use an absolute path beginning with /."
 msgstr "Χρησιμοποιήστε μια απόλυτη διαδρομή που αρχίζει με /."
 
-msgid "Use at least 12 characters."
-msgstr "Χρησιμοποιήστε τουλάχιστον 12 χαρακτήρες."
+msgid "Use at least 7 characters."
+msgstr "Χρησιμοποιήστε τουλάχιστον 7 χαρακτήρες."
 
 msgid "Use unencrypted HTTP"
 msgstr "Χρησιμοποιήστε μη κρυπτογραφημένο HTTP"
-
-msgid "Username"
-msgstr "Όνομα χρήστη"
 
 msgid "Version"
 msgstr "Εκδοχή"
@@ -542,6 +551,12 @@ msgstr "Το ZenFM σταμάτησε μετά από αδράνεια."
 
 msgid "ZenFM stopped."
 msgstr "Το ZenFM σταμάτησε."
+
+msgid "ZenFM update cancelled."
+msgstr "Η ενημέρωση ZenFM ακυρώθηκε."
+
+msgid "ZenFM update timed out."
+msgstr "Το χρονικό όριο ενημέρωσης ZenFM έληξε."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Κατάσταση"

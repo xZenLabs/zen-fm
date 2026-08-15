@@ -63,9 +63,6 @@ msgstr "Đang kiểm tra bản cập nhật ZenFM…"
 msgid "Checksum"
 msgstr "Tổng kiểm tra"
 
-msgid "Choose a private password"
-msgstr "Chọn mật khẩu riêng"
-
 msgid "Clear find"
 msgstr "Xóa tìm kiếm"
 
@@ -207,6 +204,9 @@ msgstr "Thời gian chờ không hoạt động (phút)"
 msgid "Inactivity timeout: %d min"
 msgstr "Thời gian chờ không hoạt động: %d phút"
 
+msgid "Installing ZenFM update…"
+msgstr "Đang cài đặt bản cập nhật ZenFM…"
+
 msgid "Invalid value."
 msgstr "Giá trị không hợp lệ."
 
@@ -221,6 +221,9 @@ msgstr "Nhãn"
 
 msgid "Language"
 msgstr "Ngôn ngữ"
+
+msgid "Later"
+msgstr "Sau đó"
 
 msgid "Lifetime"
 msgstr "Trọn đời"
@@ -237,8 +240,8 @@ msgstr "Cổng nghe:"
 msgid "Loading…"
 msgstr "Đang tải..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Đăng nhập lại. Sử dụng koreader / koreader123456789 và chọn mật khẩu mới."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Đăng nhập lại. Sử dụng koreader123456789 và chọn mật khẩu mới."
 
 msgid "Move"
 msgstr "Di chuyển"
@@ -257,6 +260,9 @@ msgstr "Thư mục mới"
 
 msgid "New password"
 msgstr "Mật khẩu mới của bạn"
+
+msgid "New Password"
+msgstr "Mật khẩu mới"
 
 msgid "Next match"
 msgstr "Trận đấu tiếp theo"
@@ -330,8 +336,14 @@ msgstr "Đặt lại đăng nhập"
 msgid "Reset owner login"
 msgstr "Đặt lại thông tin đăng nhập của chủ sở hữu"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Đặt lại thông tin đăng nhập của chủ sở hữu thành thông tin xác thực chỉ thiết lập và thu hồi mọi phiên cũng như mã thông báo API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Đặt lại thông tin đăng nhập của chủ sở hữu thành mật khẩu chỉ thiết lập và thu hồi mọi phiên và mã thông báo API?"
+
+msgid "Restart now"
+msgstr "Khởi động lại ngay bây giờ"
+
+msgid "Restarting…"
+msgstr "Đang khởi động lại…"
 
 msgid "Revoke"
 msgstr "Thu hồi"
@@ -438,8 +450,8 @@ msgstr "Mật khẩu tạm thời"
 msgid "Text editor"
 msgstr "Trình soạn thảo văn bản"
 
-msgid "The username or password is incorrect."
-msgstr "Thông tin đăng nhập không đúng"
+msgid "The password is incorrect."
+msgstr "Mật khẩu không đúng."
 
 msgid "Theme"
 msgstr "Chủ đề"
@@ -498,14 +510,11 @@ msgstr "Sử dụng Advanced root để hiển thị /. Rễ tùy chỉnh không
 msgid "Use an absolute path beginning with /."
 msgstr "Sử dụng đường dẫn tuyệt đối bắt đầu bằng /."
 
-msgid "Use at least 12 characters."
-msgstr "Sử dụng ít nhất 12 ký tự."
+msgid "Use at least 7 characters."
+msgstr "Sử dụng ít nhất 7 ký tự."
 
 msgid "Use unencrypted HTTP"
 msgstr "Sử dụng HTTP không được mã hóa"
-
-msgid "Username"
-msgstr "Tên người dùng"
 
 msgid "Version"
 msgstr "Phiên bản"
@@ -542,6 +551,12 @@ msgstr "ZenFM đã dừng sau khi không hoạt động."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM đã dừng."
+
+msgid "ZenFM update cancelled."
+msgstr "Đã hủy cập nhật ZenFM."
+
+msgid "ZenFM update timed out."
+msgstr "Đã hết thời gian cập nhật ZenFM."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Trạng thái"

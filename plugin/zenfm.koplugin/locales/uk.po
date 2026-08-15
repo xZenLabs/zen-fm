@@ -63,9 +63,6 @@ msgstr "Перевірка оновлення ZenFM…"
 msgid "Checksum"
 msgstr "Контрольна сума"
 
-msgid "Choose a private password"
-msgstr "Виберіть особистий пароль"
-
 msgid "Clear find"
 msgstr "Ясна знахідка"
 
@@ -207,6 +204,9 @@ msgstr "Тайм-аут бездіяльності (хвилини)"
 msgid "Inactivity timeout: %d min"
 msgstr "Час бездіяльності: %d хв"
 
+msgid "Installing ZenFM update…"
+msgstr "Встановлення оновлення ZenFM…"
+
 msgid "Invalid value."
 msgstr "Недійсне значення."
 
@@ -221,6 +221,9 @@ msgstr "Мітка"
 
 msgid "Language"
 msgstr "Мова"
+
+msgid "Later"
+msgstr "Пізніше"
 
 msgid "Lifetime"
 msgstr "Тривалість життя"
@@ -237,8 +240,8 @@ msgstr "Порт прослуховування:"
 msgid "Loading…"
 msgstr "Завантаження..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Скидання входу. Використовуйте koreader / koreader123456789 і виберіть новий пароль."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Скидання входу. Використовуйте koreader123456789 і виберіть новий пароль."
 
 msgid "Move"
 msgstr "Перемістити"
@@ -256,6 +259,9 @@ msgid "New folder"
 msgstr "Новий каталог"
 
 msgid "New password"
+msgstr "Новий пароль"
+
+msgid "New Password"
 msgstr "Новий пароль"
 
 msgid "Next match"
@@ -330,8 +336,14 @@ msgstr "Скинути логін"
 msgid "Reset owner login"
 msgstr "Скинути логін власника"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Скинути дані для входу власника до облікових даних лише для налаштування та відкликати кожен сеанс і маркер API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Скинути обліковий запис власника на пароль лише для налаштування та відкликати кожен сеанс і маркер API?"
+
+msgid "Restart now"
+msgstr "Перезапустіть зараз"
+
+msgid "Restarting…"
+msgstr "Перезапуск…"
 
 msgid "Revoke"
 msgstr "Відкликати"
@@ -438,8 +450,8 @@ msgstr "Тимчасовий пароль"
 msgid "Text editor"
 msgstr "Текстовий редактор"
 
-msgid "The username or password is incorrect."
-msgstr "Неправильне ім'я користувача або пароль"
+msgid "The password is incorrect."
+msgstr "Пароль неправильний."
 
 msgid "Theme"
 msgstr "Тема"
@@ -498,14 +510,11 @@ msgstr "Використовуйте розширений root, щоб відк�
 msgid "Use an absolute path beginning with /."
 msgstr "Використовуйте абсолютний шлях, що починається з /."
 
-msgid "Use at least 12 characters."
-msgstr "Використовуйте принаймні 12 символів."
+msgid "Use at least 7 characters."
+msgstr "Використовуйте принаймні 7 символів."
 
 msgid "Use unencrypted HTTP"
 msgstr "Використовуйте незашифрований HTTP"
-
-msgid "Username"
-msgstr "Ім'я користувача"
 
 msgid "Version"
 msgstr "Версія"
@@ -542,6 +551,12 @@ msgstr "ZenFM зупинився після бездіяльності."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM зупинився."
+
+msgid "ZenFM update cancelled."
+msgstr "Оновлення ZenFM скасовано."
+
+msgid "ZenFM update timed out."
+msgstr "Час очікування оновлення ZenFM минув."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Статус"

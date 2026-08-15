@@ -63,9 +63,6 @@ msgstr "Kontrola aktualizace ZenFM…"
 msgid "Checksum"
 msgstr "Kontrolní součet"
 
-msgid "Choose a private password"
-msgstr "Zvolte soukromé heslo"
-
 msgid "Clear find"
 msgstr "Jasný nález"
 
@@ -207,6 +204,9 @@ msgstr "Časový limit nečinnosti (minuty)"
 msgid "Inactivity timeout: %d min"
 msgstr "Časový limit nečinnosti: %d min"
 
+msgid "Installing ZenFM update…"
+msgstr "Instalace aktualizace ZenFM…"
+
 msgid "Invalid value."
 msgstr "Neplatná hodnota."
 
@@ -221,6 +221,9 @@ msgstr "Označení"
 
 msgid "Language"
 msgstr "Jazyk"
+
+msgid "Later"
+msgstr "Později"
 
 msgid "Lifetime"
 msgstr "Celý život"
@@ -237,8 +240,8 @@ msgstr "Port pro poslech:"
 msgid "Loading…"
 msgstr "Načítání..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Obnovení přihlášení. Použijte koreader / koreader123456789 a zvolte si nové heslo."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Obnovení přihlášení. Použijte koreder123456789 a zvolte si nové heslo."
 
 msgid "Move"
 msgstr "Přesunout"
@@ -257,6 +260,9 @@ msgstr "Nová složka"
 
 msgid "New password"
 msgstr "Vaše nové heslo"
+
+msgid "New Password"
+msgstr "Nové heslo"
 
 msgid "Next match"
 msgstr "Další zápas"
@@ -330,8 +336,14 @@ msgstr "Resetovat přihlášení"
 msgid "Reset owner login"
 msgstr "Obnovit přihlašovací údaje vlastníka"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Obnovit přihlašovací údaje vlastníka na přihlašovací údaje pouze pro nastavení a zrušit každou relaci a token rozhraní API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Resetovat přihlášení vlastníka na heslo pouze pro nastavení a zrušit každou relaci a token API?"
+
+msgid "Restart now"
+msgstr "Restartujte nyní"
+
+msgid "Restarting…"
+msgstr "Restartování…"
 
 msgid "Revoke"
 msgstr "Zrušit"
@@ -438,8 +450,8 @@ msgstr "Dočasné heslo"
 msgid "Text editor"
 msgstr "Textový editor"
 
-msgid "The username or password is incorrect."
-msgstr "Nesprávné přihlašovací údaje"
+msgid "The password is incorrect."
+msgstr "Heslo je nesprávné."
 
 msgid "Theme"
 msgstr "Motiv"
@@ -498,14 +510,11 @@ msgstr "Použijte Advanced root k odhalení /. Vlastní kořeny nemohou obsahova
 msgid "Use an absolute path beginning with /."
 msgstr "Použijte absolutní cestu začínající na /."
 
-msgid "Use at least 12 characters."
-msgstr "Použijte alespoň 12 znaků."
+msgid "Use at least 7 characters."
+msgstr "Použijte alespoň 7 znaků."
 
 msgid "Use unencrypted HTTP"
 msgstr "Použijte nešifrovaný HTTP"
-
-msgid "Username"
-msgstr "Uživatelské jméno"
 
 msgid "Version"
 msgstr "Verze"
@@ -542,6 +551,12 @@ msgstr "ZenFM se po nečinnosti zastavil."
 
 msgid "ZenFM stopped."
 msgstr "ZenFM se zastavil."
+
+msgid "ZenFM update cancelled."
+msgstr "Aktualizace ZenFM zrušena."
+
+msgid "ZenFM update timed out."
+msgstr "Vypršel časový limit aktualizace ZenFM."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Stav"

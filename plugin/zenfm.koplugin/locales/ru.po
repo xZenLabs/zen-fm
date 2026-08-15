@@ -63,9 +63,6 @@ msgstr "Проверяем наличие обновления ZenFM…"
 msgid "Checksum"
 msgstr "Контрольная сумма"
 
-msgid "Choose a private password"
-msgstr "Выберите личный пароль"
-
 msgid "Clear find"
 msgstr "Очистить поиск"
 
@@ -207,6 +204,9 @@ msgstr "Тайм-аут бездействия (минуты)"
 msgid "Inactivity timeout: %d min"
 msgstr "Тайм-аут бездействия: %d мин."
 
+msgid "Installing ZenFM update…"
+msgstr "Установка обновления ZenFM…"
+
 msgid "Invalid value."
 msgstr "Недопустимое значение."
 
@@ -221,6 +221,9 @@ msgstr "Этикетка"
 
 msgid "Language"
 msgstr "Язык"
+
+msgid "Later"
+msgstr "Позже"
 
 msgid "Lifetime"
 msgstr "Продолжительность жизни"
@@ -237,8 +240,8 @@ msgstr "Порт прослушивания:"
 msgid "Loading…"
 msgstr "Загрузка..."
 
-msgid "Login reset. Use koreader / koreader123456789 and choose a new password."
-msgstr "Сброс входа в систему. Используйте koreader/koreader123456789 и выберите новый пароль."
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Сброс входа в систему. Используйте koreader123456789 и выберите новый пароль."
 
 msgid "Move"
 msgstr "Переместить"
@@ -256,6 +259,9 @@ msgid "New folder"
 msgstr "Новый каталог"
 
 msgid "New password"
+msgstr "Новый пароль"
+
+msgid "New Password"
 msgstr "Новый пароль"
 
 msgid "Next match"
@@ -330,8 +336,14 @@ msgstr "Сбросить логин"
 msgid "Reset owner login"
 msgstr "Сбросить логин владельца"
 
-msgid "Reset the owner login to the setup-only credentials and revoke every session and API token?"
-msgstr "Сбросить логин владельца на учетные данные только для настройки и отозвать каждый сеанс и токен API?"
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Сбросить логин владельца на пароль только для настройки и отозвать каждый сеанс и токен API?"
+
+msgid "Restart now"
+msgstr "Перезагрузить сейчас"
+
+msgid "Restarting…"
+msgstr "Перезапуск…"
 
 msgid "Revoke"
 msgstr "Отозвать"
@@ -438,8 +450,8 @@ msgstr "Временный пароль"
 msgid "Text editor"
 msgstr "Редактировать как текст"
 
-msgid "The username or password is incorrect."
-msgstr "Неверные данные"
+msgid "The password is incorrect."
+msgstr "Пароль неверен."
 
 msgid "Theme"
 msgstr "Тема"
@@ -498,14 +510,11 @@ msgstr "Используйте расширенный корень, чтобы �
 msgid "Use an absolute path beginning with /."
 msgstr "Используйте абсолютный путь, начинающийся с /."
 
-msgid "Use at least 12 characters."
-msgstr "Используйте не менее 12 символов."
+msgid "Use at least 7 characters."
+msgstr "Используйте не менее 7 символов."
 
 msgid "Use unencrypted HTTP"
 msgstr "Используйте незашифрованный HTTP"
-
-msgid "Username"
-msgstr "Имя пользователя"
 
 msgid "Version"
 msgstr "Версия"
@@ -542,6 +551,12 @@ msgstr "ZenFM остановился после бездействия."
 
 msgid "ZenFM stopped."
 msgstr "ЗенФМ остановился."
+
+msgid "ZenFM update cancelled."
+msgstr "Обновление ZenFM отменено."
+
+msgid "ZenFM update timed out."
+msgstr "Время обновления ZenFM истекло."
 
 msgid "ZenFM: Status"
 msgstr "ЗенФМ: Статус"

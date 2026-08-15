@@ -508,7 +508,7 @@ function ZenFM:update()
                 ok_text = _("Restart now"),
                 cancel_text = _("Later"),
                 ok_callback = function()
-                    notice(_("Restarting KOReader…"), false, true)
+                    notice(_("Restarting…"), false, true)
                     UIManager:tickAfterNext(function()
                         local Event = require("ui/event")
                         UIManager:broadcastEvent(Event:new("Restart"))
