@@ -234,6 +234,44 @@ func TestPublishTemporaryUsesPortableSameFilesystemRename(t *testing.T) {
 	}
 }
 
+func TestMoveUsesPortableSameFilesystemRename(t *testing.T) {
+	r, _ := testRoot(t, Options{})
+	if _, err := r.Write("source.txt", strings.NewReader("portable"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Mkdir("source-directory"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Write("source-directory/book.txt", strings.NewReader("book"), false); err != nil {
+		t.Fatal(err)
+	}
+	r.renameForMove = func(sourceParent *os.Root, source string, destinationParent *os.Root, destination string, overwrite bool) error {
+		if !overwrite {
+			return errRenameNoReplaceUnsupported
+		}
+		return renameReplace(sourceParent, source, destinationParent, destination)
+	}
+	r.linkForMove = func(*os.Root, string, *os.Root, string) error { return syscall.EPERM }
+
+	for _, move := range [][2]string{
+		{"source.txt", "renamed.txt"},
+		{"source-directory", "renamed-directory"},
+	} {
+		if _, err := r.Move(move[0], move[1], false); err != nil {
+			t.Fatalf("move %q to %q: %v", move[0], move[1], err)
+		}
+		if _, err := r.Entry(move[0]); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("source %q survived: %v", move[0], err)
+		}
+	}
+	if data, err := r.ReadContent("renamed.txt"); err != nil || string(data) != "portable" {
+		t.Fatalf("renamed file = %q, %v", data, err)
+	}
+	if data, err := r.ReadContent("renamed-directory/book.txt"); err != nil || string(data) != "book" {
+		t.Fatalf("renamed directory file = %q, %v", data, err)
+	}
+}
+
 func TestCopySizeAndByteProgressIncludeNestedFiles(t *testing.T) {
 	r, _ := testRoot(t, Options{})
 	if _, err := r.Mkdir("source"); err != nil {
@@ -305,6 +343,37 @@ func TestCopyAndMoveCanExplicitlyReplaceDirectories(t *testing.T) {
 		if strings.HasPrefix(entry.Name(), ".zenfm-replaced-") {
 			t.Fatalf("replacement backup leaked: %s", entry.Name())
 		}
+	}
+}
+
+func TestMoveDoesNotBackUpCaseInsensitiveAliasOfSource(t *testing.T) {
+	r, directory := testRoot(t, Options{})
+	if _, err := r.Mkdir("Books"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Write("Books/book.txt", strings.NewReader("book"), false); err != nil {
+		t.Fatal(err)
+	}
+	aliasInfo, err := os.Lstat(filepath.Join(directory, "books"))
+	if errors.Is(err, fs.ErrNotExist) {
+		t.Skip("filesystem is case-sensitive")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceInfo, err := os.Lstat(filepath.Join(directory, "Books"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(sourceInfo, aliasInfo) {
+		t.Skip("case variants are distinct filesystem objects")
+	}
+
+	if _, err := r.Move("Books", "books", false); err != nil {
+		t.Fatalf("case-only directory rename: %v", err)
+	}
+	if data, err := r.ReadContent("books/book.txt"); err != nil || string(data) != "book" {
+		t.Fatalf("renamed directory file = %q, %v", data, err)
 	}
 }
 

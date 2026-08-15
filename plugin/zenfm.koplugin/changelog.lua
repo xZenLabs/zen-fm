@@ -12,6 +12,7 @@ return {
         "Find in page",
         "Single http/https port",
         "Redirect http -> https if http is disabled",
-        "Customize inactivity timeout"
+        "Customize inactivity timeout",
+        "Bug fixes"
     },
 }
