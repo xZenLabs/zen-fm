@@ -53,13 +53,15 @@ builds the exact source commit that passed CI.
 The e-reader ARM binaries are compiled from the source release pinned in
 `toolchains/legacy/VERSION` and `SHA256`. It must remain `go1.26.6`; the
 bootstrap verifies the official source archive before applying the reviewed
-Linux/ARM `epoll_wait` compatibility patch. Stable builds bootstrap into a
+Linux/ARM old-kernel compatibility patch. Stable builds bootstrap into a
 fresh runner directory and never substitute an unpatched or end-of-life Go
 1.19/1.20 compiler.
 
-The compiler patch is necessary, but it does not prove compatibility with an
-old kernel. Before a stable release, manually run the QEMU harness against both
-ARM float ABIs using a genuine Kindle-era Linux 2.6 image. The helper
+The Linux/ARM patch uses `epoll_wait` in place of unsupported `epoll_pwait` and
+falls back from `accept4` to `accept` on `ENOSYS`. The compiler patch is
+necessary, but it does not prove compatibility with an old kernel. Before a
+stable release, manually run the QEMU harness against both ARM float ABIs using
+a genuine Kindle-era Linux 2.6 image. The helper
 `scripts/run-old-kernel-qemu-smoke.sh` validates the harness result.
 
 ## Physical Kindle qualification

@@ -193,7 +193,7 @@ and build both float variants:
 ```sh
 sh scripts/verify-legacy-toolchain.sh
 sh toolchains/legacy/bootstrap.sh
-ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.6-kindle/bin/go"
+ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.6-kindle-p2/bin/go"
 
 (cd "$ZENFM_DEV_DIR/src" && env GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
   "$ZENFM_LEGACY_GO" build -trimpath -buildvcs=false -ldflags "$ZENFM_LDFLAGS" \

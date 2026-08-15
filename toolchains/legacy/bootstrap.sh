@@ -4,9 +4,10 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 VERSION=$(sed -n '1p' "$SCRIPT_DIR/VERSION")
+PATCH_LEVEL='ZenFM Linux/ARM old-kernel patch 2'
 ARCHIVE="$VERSION.src.tar.gz"
 EXPECTED=$(sed -n '1{s/[[:space:]].*$//;p;}' "$SCRIPT_DIR/SHA256")
-OUTPUT=${1:-"$PROJECT_DIR/.toolchains/$VERSION-kindle"}
+OUTPUT=${1:-"$PROJECT_DIR/.toolchains/$VERSION-kindle-p2"}
 CACHE=${ZENFM_TOOLCHAIN_CACHE:-"$PROJECT_DIR/.toolchains/cache"}
 SOURCE_ARCHIVE=${ZENFM_GO_SOURCE_ARCHIVE:-"$CACHE/$ARCHIVE"}
 
@@ -18,7 +19,9 @@ case "$EXPECTED" in
     *[!0-9a-f]*|'') echo "Invalid source checksum" >&2; exit 1 ;;
 esac
 
-if [ -x "$OUTPUT/bin/go" ] && [ "$("$OUTPUT/bin/go" version 2>/dev/null | awk '{print $3}')" = "$VERSION" ]; then
+if [ -x "$OUTPUT/bin/go" ] &&
+    [ "$("$OUTPUT/bin/go" version 2>/dev/null | awk '{print $3}')" = "$VERSION" ] &&
+    [ "$(sed -n '1p' "$OUTPUT/ZENFM_PATCH_LEVEL" 2>/dev/null || true)" = "$PATCH_LEVEL" ]; then
     printf '%s\n' "$OUTPUT/bin/go"
     exit 0
 fi
@@ -76,6 +79,6 @@ fi
     cd "$WORK/go/src"
     ./make.bash
 )
-printf '%s\n' 'ZenFM Linux/ARM old-kernel patch 1' > "$WORK/go/ZENFM_PATCH_LEVEL"
+printf '%s\n' "$PATCH_LEVEL" > "$WORK/go/ZENFM_PATCH_LEVEL"
 mv "$WORK/go" "$OUTPUT"
 printf '%s\n' "$OUTPUT/bin/go"

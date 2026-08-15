@@ -3,8 +3,9 @@
 ZenFM's 32-bit ARM packages are built with the supported Go 1.26.6 source
 release, not an unsupported Go 1.19/1.20 runtime. The source archive and SHA-256
 are pinned in this directory. A narrowly scoped patch routes the Linux/ARM
-runtime poller through `epoll_wait`; some supported early Kindle kernels return
-`ENOSYS` for the newer `epoll_pwait` syscall before application code can run.
+runtime poller through `epoll_wait` and falls back to `accept` when `accept4`
+is unavailable. Supported early Kindle kernels can return `ENOSYS` for either
+newer syscall, preventing startup or the first incoming connection.
 
 Build the compiler with:
 

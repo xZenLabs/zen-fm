@@ -1855,7 +1855,7 @@ end)
 test("e-reader menu update prompts before restarting KOReader", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
-        "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "ui/event", "gettext",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "gettext",
         "zenfm_daemon", "zenfm_updater",
     }
     local saved, events, scheduled, shown = {}, {}, {}, {}
@@ -1888,7 +1888,7 @@ test("e-reader menu update prompts before restarting KOReader", function()
             table.insert(events, "restart-scheduled")
             restart_callback = callback
         end,
-        broadcastEvent = function(_, event) table.insert(events, "event:" .. event.name) end,
+        restartKOReader = function() table.insert(events, "restart") end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["ui/trapper"] = {
@@ -1898,7 +1898,6 @@ test("e-reader menu update prompts before restarting KOReader", function()
         end,
         dismissableRunInSubprocess = function(_, task) return true, task() end,
     }
-    package.loaded["ui/event"] = { new = function(_, name) return { name = name } end }
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = {
@@ -1945,7 +1944,7 @@ test("e-reader menu update prompts before restarting KOReader", function()
     equal(#events, 9)
 
     restart_callback()
-    equal(events[10], "event:Restart")
+    equal(events[10], "restart")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)

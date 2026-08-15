@@ -128,13 +128,20 @@ if [ -z "$PACKAGE_ONLY" ]; then
     echo "Building KOReader backends..."
     GOFLAGS='-trimpath -buildvcs=false'
     LDFLAGS="-s -w -buildid= -X main.version=$VERSION"
-    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/go1.26.6-kindle/bin/go}
+    LEGACY_PATCH_LEVEL='ZenFM Linux/ARM old-kernel patch 2'
+    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/go1.26.6-kindle-p2/bin/go}
     if [ ! -x "$LEGACY_GO" ] && [ -z "${ZENFM_LEGACY_GO:-}" ]; then
         "$SCRIPT_DIR/toolchains/legacy/bootstrap.sh"
     fi
     [ -x "$LEGACY_GO" ] || {
         echo "Patched supported legacy ARM compiler is unavailable." >&2
         echo "Bootstrap toolchains/legacy or set ZENFM_LEGACY_GO; unpatched/EOL Go is not accepted." >&2
+        exit 2
+    }
+    LEGACY_ROOT=$(CDPATH= cd -- "$(dirname "$LEGACY_GO")/.." && pwd)
+    ACTUAL_PATCH_LEVEL=$(sed -n '1p' "$LEGACY_ROOT/ZENFM_PATCH_LEVEL" 2>/dev/null || true)
+    [ "$ACTUAL_PATCH_LEVEL" = "$LEGACY_PATCH_LEVEL" ] || {
+        echo "Legacy ARM compiler patch level mismatch: expected $LEGACY_PATCH_LEVEL, found ${ACTUAL_PATCH_LEVEL:-none}." >&2
         exit 2
     }
     GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 GOFLAGS="$GOFLAGS" "$LEGACY_GO" build -ldflags "$LDFLAGS" -o "$BUILD_DIR/bin/zenfm-hf" ./cmd/zenfm
