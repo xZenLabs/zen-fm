@@ -1330,6 +1330,13 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     local main_menu = {}
     owner:addToMainMenu(main_menu)
     local root_menu = main_menu.zenfm.sub_item_table
+    assert(root_menu[1].keep_menu_open)
+    assert(root_menu[2].keep_menu_open)
+    local toggles, menu_updates = 0, 0
+    owner.onToggleZenFM = function() toggles = toggles + 1 end
+    root_menu[1].callback({ updateItems = function() menu_updates = menu_updates + 1 end })
+    equal(toggles, 1)
+    equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
     equal(#settings_menu, 9)
     equal(settings_menu[#settings_menu - 2].text, "Beta updates")

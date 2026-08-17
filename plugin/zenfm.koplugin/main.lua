@@ -612,9 +612,17 @@ function ZenFM:addToMainMenu(menu_items)
                     end
                     return self.daemon:status() and _("Stop ZenFM") or _("Start ZenFM")
                 end,
-                callback = function() self:onToggleZenFM() end,
+                keep_menu_open = true,
+                callback = function(touchmenu_instance)
+                    self:onToggleZenFM()
+                    touchmenu_instance:updateItems()
+                end,
             },
-            { text = _("Status and address"), callback = function() self:onShowZenFMStatus() end },
+            {
+                text = _("Status and address"),
+                keep_menu_open = true,
+                callback = function() self:onShowZenFMStatus() end,
+            },
             { text = _("Settings"), sub_item_table = self:settings_menu() },
         },
     }
