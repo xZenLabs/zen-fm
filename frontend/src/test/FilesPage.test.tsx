@@ -29,6 +29,57 @@ describe('file browser', () => {
     expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
   })
 
+  it('shows full paths for search results in list and grid views', async () => {
+    server.use(http.get('http://localhost/api/v1/search', () => HttpResponse.json({
+      truncated: false,
+      entries: [
+        { name: 'book.epub', path: '/Library/Fiction/book.epub', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'book.epub', path: '/Library/Nonfiction/book.epub', type: 'file', size: 768, modifiedAt: '2026-01-02T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.type(await screen.findByRole('textbox', { name: 'Search this folder' }), 'book{Enter}')
+    expect(await screen.findByText('/Library/Fiction/book.epub')).toBeInTheDocument()
+    expect(screen.getByText('/Library/Nonfiction/book.epub')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Grid view' }))
+    expect(screen.getByText('/Library/Fiction/book.epub')).toBeInTheDocument()
+    expect(screen.getByText('/Library/Nonfiction/book.epub')).toBeInTheDocument()
+  })
+
+  it('refreshes active search results after deleting a file', async () => {
+    let deleted = false
+    let searches = 0
+    server.use(
+      http.get('http://localhost/api/v1/search', () => {
+        searches++
+        return HttpResponse.json({
+          truncated: false,
+          entries: deleted ? [] : [
+            { name: 'book.epub', path: '/Library/book.epub', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' },
+          ],
+        })
+      }),
+      http.delete('http://localhost/api/v1/files', () => {
+        deleted = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.type(await screen.findByRole('textbox', { name: 'Search this folder' }), 'book{Enter}')
+    const row = await screen.findByRole('row', { name: /book\.epub/ })
+    fireEvent.contextMenu(row)
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Delete book.epub?' })).getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument()
+    expect(searches).toBeGreaterThan(1)
+  })
+
   it('uses the saved hidden-file setting without a per-view toggle', async () => {
     const hiddenQueries: string[] = []
     const visibleEntries = [
@@ -452,7 +503,7 @@ describe('file browser', () => {
     expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
   })
 
-  it('uploads host files to the shown folder or a hovered child folder', async () => {
+  it('uploads host files to the shown folder and confirms a hovered child folder', async () => {
     const uploadedPaths: string[] = []
     server.use(
       http.get('http://localhost/api/v1/files', () => HttpResponse.json({
@@ -464,21 +515,41 @@ describe('file browser', () => {
         return new HttpResponse(null, { status: 204 })
       }),
     )
+    const user = userEvent.setup()
     renderApp('/files')
 
     const folder = await screen.findByRole('row', { name: /Books/ })
+    const shell = document.querySelector<HTMLElement>('.app-shell')!
     const rootTransfer = { types: ['Files'], files: [new File(['root'], 'root.txt', { type: 'text/plain' })], dropEffect: 'none' }
-    fireEvent.dragOver(window, { dataTransfer: rootTransfer })
-    expect(document.querySelector('.file-drop-zone')).toHaveClass('drop-active')
-    fireEvent.drop(window, { dataTransfer: rootTransfer })
+    fireEvent.dragOver(shell, { dataTransfer: rootTransfer })
+    expect(document.querySelector('.file-drop-overlay')).toBeInTheDocument()
+    fireEvent.drop(shell, { dataTransfer: rootTransfer })
+    expect(document.querySelector('.file-drop-overlay')).not.toBeInTheDocument()
     await waitFor(() => expect(uploadedPaths).toContain('/root.txt'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     const folderTransfer = { types: ['Files'], files: [new File(['nested'], 'nested.txt', { type: 'text/plain' })], dropEffect: 'none' }
     fireEvent.dragOver(folder, { dataTransfer: folderTransfer })
     expect(folder).toHaveClass('drop-target')
     fireEvent.drop(folder, { dataTransfer: folderTransfer })
+    const dialog = await screen.findByRole('dialog', { name: 'Copy' })
+    expect(dialog).toHaveTextContent('Are you sure you want to copy nested.txt to /Books?')
+    expect(within(dialog).getByText('nested.txt')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(within(dialog).getByText('/Books')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(uploadedPaths).not.toContain('/Books/nested.txt')
+    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(uploadedPaths).toContain('/Books/nested.txt'))
     expect(folder).not.toHaveClass('drop-target')
+
+    const multipleTransfer = { types: ['Files'], files: [new File(['one'], 'one.txt'), new File(['two'], 'two.txt')], dropEffect: 'none' }
+    fireEvent.drop(await screen.findByRole('row', { name: /Books/ }), { dataTransfer: multipleTransfer })
+    const multipleDialog = await screen.findByRole('dialog', { name: 'Copy' })
+    expect(multipleDialog).toHaveTextContent('Are you sure you want to copy the files to /Books?')
+    expect(multipleDialog).not.toHaveTextContent('one.txt')
+    expect(multipleDialog).not.toHaveTextContent('two.txt')
+    await user.click(within(multipleDialog).getByRole('button', { name: 'Cancel' }))
+    expect(uploadedPaths).not.toContain('/Books/one.txt')
+    expect(uploadedPaths).not.toContain('/Books/two.txt')
   })
 
   it('shows total bytes, percentage, and ETA for an upload batch', async () => {

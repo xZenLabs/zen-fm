@@ -90,6 +90,8 @@
     "itemsSelected": "{{count}} items selected",
     "actionItems": "{{action}} {{count}} items",
     "deleteItems": "Delete {{count}} items?",
+    "confirmDropCopySingle": "Are you sure you want to copy <filename>{{name}}</filename> to <path>{{destination}}</path>?",
+    "confirmDropCopyMultiple": "Are you sure you want to copy the files to <path>{{destination}}</path>?",
     "confirmMove": "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
   },
   "shares": {

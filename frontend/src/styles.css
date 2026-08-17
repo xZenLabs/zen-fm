@@ -18,8 +18,8 @@ a { color: inherit; }
 .file-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, currentColor 24%, transparent); }
 .file-card.selected, .file-row.selected { background-color: color-mix(in srgb, var(--zenfm-accent) 26%, transparent); }
 .file-card.selected { border-color: color-mix(in srgb, var(--zenfm-accent) 72%, transparent); }
-.file-drop-zone { border-radius: 16px; transition: outline-color .15s ease, background-color .15s ease; }
-.file-drop-zone.drop-active { outline: 2px dashed color-mix(in srgb, var(--zenfm-accent) 75%, transparent); outline-offset: -2px; background-color: color-mix(in srgb, var(--zenfm-accent) 12%, transparent); }
+.file-drop-zone { border-radius: 16px; }
+.file-drop-overlay { position: fixed; z-index: 1299; inset: 10px; pointer-events: none; border: 2px dashed color-mix(in srgb, var(--zenfm-accent) 75%, transparent); border-radius: 16px; background-color: color-mix(in srgb, var(--zenfm-accent) 12%, transparent); }
 .file-card.drop-target, .file-row.drop-target { background-color: color-mix(in srgb, var(--zenfm-accent) 36%, transparent); box-shadow: inset 0 0 0 2px var(--zenfm-accent); }
 .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-thumbnail { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 6px; object-fit: cover; background: color-mix(in srgb, currentColor 6%, transparent); }
