@@ -42,11 +42,13 @@ type Config struct {
 	MaxActiveUploads   int
 	HeavyConcurrency   int
 	ModeLessFilesystem bool
+	PublicExclusions   []string
 	Now                func() time.Time
 }
 
 type Server struct {
 	cfg          Config
+	publicFiles  *zenfiles.Root
 	mux          *http.ServeMux
 	authSlots    chan struct{}
 	loginLimiter *attemptLimiter
@@ -100,13 +102,13 @@ func New(cfg Config) (*Server, error) {
 	if cfg.HeavyConcurrency > 8 {
 		cfg.HeavyConcurrency = 8
 	}
-	if !cfg.Files.Advanced() {
-		if err := cfg.Files.ExcludeAbsolute(cfg.Store.DataDir()); err != nil {
-			return nil, fmt.Errorf("protect private state: %w", err)
-		}
+	publicExclusions := append([]string{cfg.Store.DataDir()}, cfg.PublicExclusions...)
+	publicFiles, err := cfg.Files.Restricted(publicExclusions...)
+	if err != nil {
+		return nil, fmt.Errorf("protect private state from public shares: %w", err)
 	}
 	s := &Server{
-		cfg: cfg, mux: http.NewServeMux(), authSlots: make(chan struct{}, 2),
+		cfg: cfg, publicFiles: publicFiles, mux: http.NewServeMux(), authSlots: make(chan struct{}, 2),
 		loginLimiter: newAttemptLimiter(5, time.Minute, cfg.Now),
 		shareLimiter: newAttemptLimiter(8, time.Minute, cfg.Now),
 		heavySlots:   make(chan struct{}, cfg.HeavyConcurrency),
@@ -114,6 +116,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	uploads, err := newUploadManager(s, cfg.UploadDir, cfg.MaxUploadBytes, cfg.UploadExpiry, cfg.UploadConcurrency, cfg.MaxActiveUploads)
 	if err != nil {
+		_ = publicFiles.Close()
 		return nil, fmt.Errorf("initialize uploads: %w", err)
 	}
 	s.uploads = uploads
@@ -125,7 +128,10 @@ func New(cfg Config) (*Server, error) {
 
 func (s *Server) Handler() http.Handler { return s.securityHeaders(s.mux) }
 
-func (s *Server) Close() { s.uploads.close() }
+func (s *Server) Close() {
+	s.uploads.close()
+	_ = s.publicFiles.Close()
+}
 
 func (s *Server) LastActivity() time.Time {
 	return time.Unix(0, s.lastActivity.Load())
@@ -239,7 +245,7 @@ func (s *Server) authenticate(r *http.Request, allowToken bool) (principal, erro
 		}
 		return principal{kind: principalToken, token: token}, nil
 	}
-	cookie, err := r.Cookie(sessionCookie)
+	cookie, err := r.Cookie(sessionCookieName(s.cfg.SecureTransport))
 	if err != nil || !strings.HasPrefix(cookie.Value, "zfm_session_") {
 		return principal{}, errors.New("session cookie missing")
 	}
@@ -489,7 +495,7 @@ func (s *Server) newSession(w http.ResponseWriter) (state.Session, error) {
 	if err != nil {
 		return state.Session{}, err
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: raw, Path: "/", HttpOnly: true, Secure: s.cfg.SecureTransport, SameSite: http.SameSiteStrictMode, MaxAge: int(s.cfg.SessionAbsolute.Seconds())})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName(s.cfg.SecureTransport), Value: raw, Path: "/", HttpOnly: true, Secure: s.cfg.SecureTransport, SameSite: http.SameSiteStrictMode, MaxAge: int(s.cfg.SessionAbsolute.Seconds())})
 	return session, nil
 }
 
@@ -497,9 +503,16 @@ func clearCookie(w http.ResponseWriter, name string, secure bool) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode, MaxAge: -1})
 }
 
+func sessionCookieName(secure bool) string {
+	if secure {
+		return sessionCookie
+	}
+	return sessionCookie + "_http"
+}
+
 func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
-		"authenticated": true, "username": state.SetupUsername, "setupRequired": setup,
+		"authenticated": true, "setupRequired": setup,
 		"csrfToken": v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }

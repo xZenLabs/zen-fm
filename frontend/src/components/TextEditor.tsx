@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
-import CodeMirror, { EditorView } from '@uiw/react-codemirror'
+import { useEffect, useMemo, useRef } from 'react'
+import CodeMirror, { Decoration, EditorView, ViewPlugin, type DecorationSet } from '@uiw/react-codemirror'
 import { css } from '@codemirror/lang-css'
 import { html } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { StreamLanguage } from '@codemirror/language'
-import { Prec } from '@codemirror/state'
+import { Prec, RangeSetBuilder } from '@codemirror/state'
 import { go } from '@codemirror/legacy-modes/mode/go'
 import { lua } from '@codemirror/legacy-modes/mode/lua'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
@@ -29,6 +29,45 @@ const legacyLanguages = {
 
 const editorSecurity = cspNonce ? [EditorView.cspNonce.of(cspNonce)] : []
 
+type FindHighlight = { query: string; current?: { from: number; to: number } }
+
+function findHighlightExtension(find: FindHighlight) {
+  const needle = find.query.toLocaleLowerCase()
+  const matchMark = Decoration.mark({ class: 'cm-zen-find-match' })
+  const currentMark = Decoration.mark({ class: 'cm-zen-find-match cm-zen-find-current' })
+  return ViewPlugin.fromClass(class {
+    decorations: DecorationSet
+
+    constructor(view: EditorView) {
+      this.decorations = this.build(view)
+    }
+
+    update(update: { view: EditorView; docChanged: boolean; viewportChanged: boolean }) {
+      if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view)
+    }
+
+    build(view: EditorView) {
+      if (!needle) return Decoration.none
+      const builder = new RangeSetBuilder<Decoration>()
+      let lastAdded = -1
+      for (const visible of view.visibleRanges) {
+        const searchFrom = Math.max(0, visible.from - needle.length + 1)
+        const searchTo = Math.min(view.state.doc.length, visible.to + needle.length - 1)
+        const visibleText = view.state.doc.sliceString(searchFrom, searchTo).toLocaleLowerCase()
+        for (let match = visibleText.indexOf(needle); match !== -1; match = visibleText.indexOf(needle, match + needle.length)) {
+          const from = searchFrom + match
+          const to = from + needle.length
+          if (from <= lastAdded || to <= visible.from || from >= visible.to) continue
+          const current = find.current?.from === from && find.current.to === to
+          builder.add(from, to, current ? currentMark : matchMark)
+          lastAdded = from
+        }
+      }
+      return builder.finish()
+    }
+  }, { decorations: (plugin) => plugin.decorations })
+}
+
 function languageForName(name: string) {
   const filename = name.toLowerCase()
   const extension = filename.split('.').pop() ?? ''
@@ -50,33 +89,52 @@ function languageForName(name: string) {
   return null
 }
 
-export default function TextEditor({ name, value, onChange, readOnly = false }: { name: string; value: string; onChange?: (value: string) => void; readOnly?: boolean }) {
+export default function TextEditor({ name, value, onChange, readOnly = false, fullHeight = false, find }: { name: string; value: string; onChange?: (value: string) => void; readOnly?: boolean; fullHeight?: boolean; find?: FindHighlight }) {
   const theme = useTheme()
+  const viewRef = useRef<EditorView | null>(null)
+  const findQuery = find?.query ?? ''
+  const currentFindFrom = find?.current?.from
+  const currentFindTo = find?.current?.to
+  const hasFind = find !== undefined
   const language = useMemo(() => languageForName(name), [name])
   const surface = theme.palette.background.paper
   const surfaceTheme = useMemo(() => Prec.highest(EditorView.theme({
     '&.cm-editor': { backgroundColor: surface },
     '&.cm-editor .cm-gutters': { backgroundColor: surface },
   })), [surface])
-  const extensions = useMemo(() => language ? [...editorSecurity, language, surfaceTheme] : [...editorSecurity, surfaceTheme], [language, surfaceTheme])
+  const findExtension = useMemo(() => !hasFind ? null : findHighlightExtension({
+    query: findQuery,
+    current: currentFindFrom === undefined || currentFindTo === undefined ? undefined : { from: currentFindFrom, to: currentFindTo },
+  }), [currentFindFrom, currentFindTo, findQuery, hasFind])
+  const extensions = useMemo(() => {
+    const configured = language ? [...editorSecurity, language, surfaceTheme] : [...editorSecurity, surfaceTheme]
+    return findExtension ? [...configured, findExtension] : configured
+  }, [findExtension, language, surfaceTheme])
+  useEffect(() => {
+    if (currentFindFrom === undefined || !viewRef.current) return
+    viewRef.current.dispatch({ effects: EditorView.scrollIntoView(currentFindFrom, { y: 'center' }) })
+  }, [currentFindFrom])
+  const fillsContainer = fullHeight || !readOnly
   return (
     <CodeMirror
       value={value}
-      height={readOnly ? undefined : '100%'}
-      minHeight={readOnly ? '240px' : undefined}
-      maxHeight={readOnly ? '70vh' : undefined}
+      height={fillsContainer ? '100%' : undefined}
+      minHeight={!fillsContainer ? '240px' : undefined}
+      maxHeight={!fillsContainer ? '70vh' : undefined}
       theme={theme.palette.mode}
       extensions={extensions}
       editable={!readOnly}
       readOnly={readOnly}
       onChange={onChange}
+      onCreateEditor={(view) => { viewRef.current = view }}
       basicSetup={{
         lineNumbers: true,
         foldGutter: false,
         highlightActiveLine: !readOnly,
         highlightActiveLineGutter: !readOnly,
+        searchKeymap: !hasFind,
       }}
-      style={{ height: readOnly ? undefined : '100%' }}
+      style={{ height: fillsContainer ? '100%' : undefined }}
     />
   )
 }

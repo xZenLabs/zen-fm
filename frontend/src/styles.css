@@ -18,13 +18,26 @@ a { color: inherit; }
 .file-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, currentColor 24%, transparent); }
 .file-card.selected, .file-row.selected { background-color: color-mix(in srgb, var(--zenfm-accent) 26%, transparent); }
 .file-card.selected { border-color: color-mix(in srgb, var(--zenfm-accent) 72%, transparent); }
-.file-drop-zone { border-radius: 16px; transition: outline-color .15s ease, background-color .15s ease; }
-.file-drop-zone.drop-active { outline: 2px dashed color-mix(in srgb, var(--zenfm-accent) 75%, transparent); outline-offset: -2px; background-color: color-mix(in srgb, var(--zenfm-accent) 12%, transparent); }
+.file-drop-zone { border-radius: 16px; }
+.file-drop-overlay { position: fixed; z-index: 1299; inset: 10px; pointer-events: none; border: 2px dashed color-mix(in srgb, var(--zenfm-accent) 75%, transparent); border-radius: 16px; background-color: color-mix(in srgb, var(--zenfm-accent) 12%, transparent); }
 .file-card.drop-target, .file-row.drop-target { background-color: color-mix(in srgb, var(--zenfm-accent) 36%, transparent); box-shadow: inset 0 0 0 2px var(--zenfm-accent); }
 .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-thumbnail { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 6px; object-fit: cover; background: color-mix(in srgb, currentColor 6%, transparent); }
 .preview-media { display: block; max-width: 100%; max-height: 70vh; margin: auto; object-fit: contain; }
 .preview-frame { width: 100%; height: 70vh; border: 0; }
+.fullscreen-viewer .preview-media { max-height: 100%; }
+.fullscreen-viewer .preview-frame { height: 100%; min-height: 70vh; }
+.file-find-control { flex: 0 1 auto; width: 44px; min-width: 44px; max-width: min(560px, calc(100vw - 112px)); overflow: hidden; transition: width .2s ease; }
+.file-find-control.open { width: min(560px, calc(100vw - 112px)); }
+.file-find-control .MuiOutlinedInput-root { height: 44px; min-width: 44px; padding: 0; overflow: hidden; transition: background-color .2s ease; }
+.file-find-control .MuiInputAdornment-positionStart { margin: 0; }
+.file-find-control .MuiInputAdornment-positionEnd { gap: 2px; margin: 0 8px 0 4px; }
+.file-find-control:not(.open) .MuiOutlinedInput-notchedOutline { border-color: transparent; }
+.file-find-control:not(.open) .MuiOutlinedInput-input { width: 0; min-width: 0; padding: 0; opacity: 0; pointer-events: none; }
+.file-find-control.open .MuiOutlinedInput-input { min-width: 40px; padding-left: 4px; opacity: 1; transition: opacity .15s ease .05s; }
+.fullscreen-viewer .cm-theme-light, .fullscreen-viewer .cm-theme-dark { height: 100%; }
+.cm-zen-find-match { color: inherit; background-color: color-mix(in srgb, var(--zenfm-accent) 38%, transparent); border-radius: 3px; }
+.cm-zen-find-current { background-color: color-mix(in srgb, var(--zenfm-accent) 62%, transparent); outline: 1px solid var(--zenfm-accent); }
 .markdown-preview { max-width: 76ch; line-height: 1.65; }
 .markdown-preview pre { overflow: auto; padding: 12px; border-radius: 8px; background: color-mix(in srgb, currentColor 7%, transparent); }
 .markdown-preview code { overflow-wrap: anywhere; }

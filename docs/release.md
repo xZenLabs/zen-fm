@@ -27,9 +27,11 @@ ZenFM does not use privileged or hidden downgrade APIs.
 Protect `main` and require `CI required checks` before a release tag can be
 created. This aggregate covers Go vet and race tests, the fuzz smoke test, Node
 24 frontend typecheck/lint/Vitest/build and real-binary Playwright tests,
-KOReader Lua/shell/package tests, Android compile and JVM tests, and a real
-build/layout validation of all four KOReader bundles plus both-ABI APK.
-Pull-request packages are development-signed artifacts and are never published.
+KOReader Lua/shell/package tests, and Android compile and JVM tests. Pull
+requests and manually dispatched CI runs also build and validate all four
+KOReader bundles plus the both-ABI APK. Those packages are development-signed
+artifacts and are never published; `main` and `dev` pushes omit this duplicate
+job because their release workflows build and verify the publishable artifacts.
 
 The Security workflow runs `govulncheck`, OSV Scanner, npm audit, and dependency
 review when applicable. CodeQL analyzes Go, JavaScript/TypeScript, and
@@ -41,18 +43,25 @@ result on that same commit. A green result on a later commit does not qualify an
 older release candidate. Beta publication applies the same CI-only gate to its
 `dev` commit.
 
+GitHub loads workflows triggered by `workflow_run` from the default branch.
+Release-workflow changes therefore must land on `main` before either workflow,
+including a beta for `dev`, will use them. The release job still checks out and
+builds the exact source commit that passed CI.
+
 ## Legacy compiler qualification
 
 The e-reader ARM binaries are compiled from the source release pinned in
 `toolchains/legacy/VERSION` and `SHA256`. It must remain `go1.26.6`; the
 bootstrap verifies the official source archive before applying the reviewed
-Linux/ARM `epoll_wait` compatibility patch. Stable builds bootstrap into a
+Linux/ARM old-kernel compatibility patch. Stable builds bootstrap into a
 fresh runner directory and never substitute an unpatched or end-of-life Go
 1.19/1.20 compiler.
 
-The compiler patch is necessary, but it does not prove compatibility with an
-old kernel. Before a stable release, manually run the QEMU harness against both
-ARM float ABIs using a genuine Kindle-era Linux 2.6 image. The helper
+The Linux/ARM patch uses `epoll_wait` in place of unsupported `epoll_pwait` and
+falls back from `accept4` to `accept` on `ENOSYS`. The compiler patch is
+necessary, but it does not prove compatibility with an old kernel. Before a
+stable release, manually run the QEMU harness against both ARM float ABIs using
+a genuine Kindle-era Linux 2.6 image. The helper
 `scripts/run-old-kernel-qemu-smoke.sh` validates the harness result.
 
 ## Physical Kindle qualification
@@ -130,25 +139,29 @@ Then base64-encode `zenfm-release.p12` as above. Use the destination password as
 
 ## Beta promotion
 
-1. Set `VERSION` on `dev` to the intended stable base version. It may also end
+1. Add the noteworthy changes under the intended stable base version in
+   `plugin/zenfm.koplugin/changelog.lua`, then set `VERSION` on `dev` to
+   that version. `VERSION` may also end
    in `-betaN`; the workflow strips that suffix when selecting the next number.
-2. Push to `dev`. CI runs all tests and development builds, then triggers the
-   beta workflow after it succeeds. The beta workflow uses that exact commit.
+2. Push to `dev`. CI runs all tests, then triggers the beta workflow after it
+   succeeds. The beta workflow uses that exact commit.
 3. The workflow selects the next unused `v<version>-betaN`, stamps it into the
    checkout, builds, signs, verifies, and attests all five artifacts, then
-   publishes them as a GitHub prerelease. It does not change `VERSION` in Git.
+   publishes them as a GitHub prerelease with notes rendered from the Lua
+   changelog. It does not change `VERSION` in Git.
 
 Run the beta workflow manually from `dev` to produce another beta for its
 current commit. Include `ci-skip` in a push commit message when that push should
-run CI without publishing a beta. ZenFM's built-in updaters ignore prereleases;
-beta testers install the published assets explicitly.
+run CI without publishing a beta. ZenFM's built-in updaters use stable releases
+by default; testers can enable **Beta updates** to allow prereleases. A stable
+release is still preferred over a beta with the same version base.
 
 ## Stable promotion
 
 1. Set `VERSION` to a new stable `major.minor.patch` and manually run the
    old-kernel QEMU and three physical-device qualifications against that exact
    release candidate.
-2. Merge the candidate to `main`. CI runs every test and development build.
+2. Merge the candidate to `main`. CI runs every test.
 3. After CI succeeds, the stable-release workflow skips publication when
    `v<version>` already exists. Security and CodeQL continue independently.
 4. Approve the `stable-release` environment after reviewing the source commit

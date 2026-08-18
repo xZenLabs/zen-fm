@@ -103,12 +103,12 @@ func responseCookie(t *testing.T, r *httptest.ResponseRecorder, name string) *ht
 
 func (a *testAPI) login(password string) (*http.Cookie, string, bool) {
 	a.t.Helper()
-	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"`+password+`"}`), nil, "", "")
+	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"`+password+`"}`), nil, "", "")
 	if r.Code != http.StatusOK {
 		a.t.Fatalf("login: %d %s", r.Code, r.Body.String())
 	}
 	payload := decodeMap(a.t, r)
-	return responseCookie(a.t, r, sessionCookie), payload["csrfToken"].(string), payload["setupRequired"].(bool)
+	return responseCookie(a.t, r, sessionCookieName(a.server.cfg.SecureTransport)), payload["csrfToken"].(string), payload["setupRequired"].(bool)
 }
 
 func (a *testAPI) finishSetup() (*http.Cookie, string) {
@@ -123,7 +123,7 @@ func (a *testAPI) finishSetup() (*http.Cookie, string) {
 		a.t.Fatalf("password change: %d %s", r.Code, r.Body.String())
 	}
 	payload := decodeMap(a.t, r)
-	return responseCookie(a.t, r, sessionCookie), payload["csrfToken"].(string)
+	return responseCookie(a.t, r, sessionCookieName(a.server.cfg.SecureTransport)), payload["csrfToken"].(string)
 }
 
 func TestHealthIsRedactedAndHardened(t *testing.T) {
@@ -152,6 +152,41 @@ func TestSettingsReportRunningBackendVersion(t *testing.T) {
 			t.Fatalf("settings version = %v, want backend version", version)
 		}
 	}
+}
+
+func TestHTTPLoginUsesCookieDistinctFromHTTPS(t *testing.T) {
+	a := newTestAPI(t)
+	a.server.cfg.SecureTransport = true
+	secureCookie, _, _ := a.login(state.SetupPassword)
+	if secureCookie.Name != sessionCookie || !secureCookie.Secure {
+		t.Fatalf("HTTPS cookie = %#v", secureCookie)
+	}
+
+	a.server.cfg.SecureTransport = false
+	httpCookie, _, _ := a.login(state.SetupPassword)
+	if httpCookie.Name != sessionCookie+"_http" || httpCookie.Secure {
+		t.Fatalf("HTTP cookie = %#v", httpCookie)
+	}
+	if response := a.request(http.MethodGet, "/api/v1/session", nil, httpCookie, "", ""); response.Code != http.StatusOK {
+		t.Fatalf("HTTP session cookie was not accepted: %d %s", response.Code, response.Body.String())
+	}
+	if response := a.request(http.MethodGet, "/api/v1/session", nil, secureCookie, "", ""); response.Code != http.StatusUnauthorized {
+		t.Fatalf("HTTPS cookie was accepted in HTTP mode: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestZenFMStateDirectoryRemainsVisibleUnderFileRoot(t *testing.T) {
+	a := newTestAPI(t)
+	listing, err := a.files.List("", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range listing.Entries {
+		if entry.Name == "state" && entry.Type == "directory" {
+			return
+		}
+	}
+	t.Fatalf("state directory missing from listing: %#v", listing.Entries)
 }
 
 func TestWalkLimitMapsToBoundedResponse(t *testing.T) {
@@ -241,7 +276,7 @@ func TestSetupGatePasswordRotationAndSessionExpiry(t *testing.T) {
 	if r.Code != http.StatusOK {
 		t.Fatalf("established owner could not change password with current credential: %d %s", r.Code, r.Body.String())
 	}
-	cookie = responseCookie(t, r, sessionCookie)
+	cookie = responseCookie(t, r, sessionCookieName(a.server.cfg.SecureTransport))
 	*a.now = a.now.Add(2*time.Hour + time.Second)
 	r = a.request(http.MethodGet, "/api/v1/session", nil, cookie, "", "")
 	if r.Code != http.StatusUnauthorized {
@@ -415,6 +450,9 @@ func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	if _, err := a.files.Write(".hidden.txt", strings.NewReader("hidden"), false); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := a.files.Write("README", strings.NewReader("extensionless text"), false); err != nil {
+		t.Fatal(err)
+	}
 	html := `<p>exact</p><script>sourceMustRemain()</script>`
 	if _, err := a.files.Write("page.html", strings.NewReader(html), false); err != nil {
 		t.Fatal(err)
@@ -433,6 +471,10 @@ func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	response = a.request(http.MethodGet, "/api/v1/search?path=%2F&q=hidden&hidden=true", nil, cookie, "", "")
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), ".hidden.txt") {
 		t.Fatalf("hidden search: %d %s", response.Code, response.Body.String())
+	}
+	response = a.request(http.MethodGet, "/api/v1/files/content?path=%2FREADME", nil, cookie, "", "")
+	if response.Code != http.StatusOK || response.Body.String() != "extensionless text" || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+		t.Fatalf("extensionless text source: %d %q %#v", response.Code, response.Body.String(), response.Header())
 	}
 	response = a.request(http.MethodGet, "/api/v1/files/content?path=%2Fpage.html", nil, cookie, "", "")
 	if response.Code != http.StatusOK || response.Body.String() != html || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
@@ -488,7 +530,7 @@ func TestPublicDirectoryNavigationCannotEscapeThroughSymlink(t *testing.T) {
 	}
 }
 
-func TestNormalModeStateExclusionCannotBeBypassedThroughSymlink(t *testing.T) {
+func TestFileAccessCannotTraverseIntermediateSymlink(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, _ := a.finishSetup()
 	if err := os.Symlink("state", filepath.Join(a.files.Name(), "state-alias")); err != nil {
@@ -496,7 +538,7 @@ func TestNormalModeStateExclusionCannotBeBypassedThroughSymlink(t *testing.T) {
 	}
 	response := a.request(http.MethodGet, "/api/v1/files/raw?path=%2Fstate-alias%2Fzenfm.db", nil, cookie, "", "")
 	if response.Code == http.StatusOK {
-		t.Fatal("private database was exposed through an intermediate symlink")
+		t.Fatal("file access traversed an intermediate symlink")
 	}
 }
 
@@ -603,7 +645,7 @@ func TestSharePasswordThrottleAppliesAcrossClientAddresses(t *testing.T) {
 	}
 }
 
-func TestSetupPasswordMustActuallyChangeAndCountsUnicodeCharacters(t *testing.T) {
+func TestSetupPasswordMustActuallyChangeAndRequiresSevenCharacters(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf, _ := a.login(state.SetupPassword)
 	same := `{"newPassword":"` + state.SetupPassword + `"}`
@@ -611,24 +653,31 @@ func TestSetupPasswordMustActuallyChangeAndCountsUnicodeCharacters(t *testing.T)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("setup credential retained: %d %s", response.Code, response.Body.String())
 	}
-	shortUnicode := `{"newPassword":"` + strings.Repeat("🔒", 11) + `"}`
+	shortUnicode := `{"newPassword":"` + strings.Repeat("🔒", 6) + `"}`
 	response = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(shortUnicode), cookie, csrf, "")
 	if response.Code != http.StatusBadRequest {
-		t.Fatalf("11-character Unicode password accepted: %d", response.Code)
+		t.Fatalf("six-character Unicode password accepted: %d", response.Code)
+	}
+	minimumUnicode := `{"newPassword":"` + strings.Repeat("🔒", 7) + `"}`
+	response = a.request(http.MethodPut, "/api/v1/owner/password", strings.NewReader(minimumUnicode), cookie, csrf, "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("seven-character Unicode password rejected: %d %s", response.Code, response.Body.String())
+	}
+	_, _, setupRequired := a.login(strings.Repeat("🔒", 7))
+	if setupRequired {
+		t.Fatal("setup remained required after accepting the replacement password")
 	}
 }
 
-func TestGHSA_43mmUniformLoginFailureAndDistributedAccountLimit(t *testing.T) {
+func TestPasswordOnlyLoginAndDistributedAccountLimit(t *testing.T) {
 	a := newTestAPI(t)
-	wrongUser := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"someone","password":"koreader123456789"}`), nil, "", "")
-	a.loginLimiterForTestReset()
-	wrongPassword := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"incorrect"}`), nil, "", "")
-	if wrongUser.Code != http.StatusUnauthorized || wrongPassword.Code != http.StatusUnauthorized || wrongUser.Body.String() != wrongPassword.Body.String() {
-		t.Fatalf("non-uniform failures: %d %q / %d %q", wrongUser.Code, wrongUser.Body.String(), wrongPassword.Code, wrongPassword.Body.String())
+	wrongPassword := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"incorrect"}`), nil, "", "")
+	if wrongPassword.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong password: %d %s", wrongPassword.Code, wrongPassword.Body.String())
 	}
 	a = newTestAPI(t)
 	for index := range 5 {
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"wrong"}`))
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"wrong"}`))
 		request.RemoteAddr = fmt.Sprintf("192.0.2.%d:1234", index+1)
 		response := httptest.NewRecorder()
 		a.handler.ServeHTTP(response, request)
@@ -636,7 +685,7 @@ func TestGHSA_43mmUniformLoginFailureAndDistributedAccountLimit(t *testing.T) {
 			t.Fatalf("failure %d = %d", index, response.Code)
 		}
 	}
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"username":"koreader","password":"koreader123456789"}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"koreader123456789"}`))
 	request.RemoteAddr = "198.51.100.8:1234"
 	response := httptest.NewRecorder()
 	a.handler.ServeHTTP(response, request)

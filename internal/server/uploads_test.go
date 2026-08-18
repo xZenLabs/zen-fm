@@ -52,6 +52,16 @@ func tusPatch(t *testing.T, a *testAPI, cookie *http.Cookie, csrf, location stri
 	return serveTestRequest(a, request)
 }
 
+func TestParseUploadMetadataAcceptsEmptyValue(t *testing.T) {
+	metadata, err := parseUploadMetadata("filename bm90ZXMudHh0,filetype ,path L25vdGVzLnR4dA==,overwrite ZmFsc2U=")
+	if err != nil {
+		t.Fatalf("parse empty metadata value: %v", err)
+	}
+	if metadata["filetype"] != "" || metadata["path"] != "/notes.txt" {
+		t.Fatalf("metadata = %#v", metadata)
+	}
+}
+
 func TestGHSA_ffv3DeclaredLengthOffsetAndAtomicTUSFlow(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf := a.finishSetup()
@@ -123,8 +133,20 @@ func TestTUSFinalizationPublishesStagedFileWithoutSecondCopy(t *testing.T) {
 		t.Fatal("completed upload was copied into a second file instead of atomically published")
 	}
 	listing, err := a.files.List("/", true)
-	if err != nil || len(listing.Entries) != 1 || listing.Entries[0].Name != "single-write.bin" {
-		t.Fatalf("internal upload directory leaked into listing: %+v %v", listing, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundUpload := false
+	for _, entry := range listing.Entries {
+		if strings.HasPrefix(entry.Name, ".zenfm-upload") {
+			t.Fatalf("internal upload directory leaked into listing: %+v", listing)
+		}
+		if entry.Name == "single-write.bin" {
+			foundUpload = true
+		}
+	}
+	if !foundUpload {
+		t.Fatalf("completed upload missing from listing: %+v", listing)
 	}
 }
 

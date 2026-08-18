@@ -2,13 +2,14 @@ local root = assert(arg[1], "repository root required")
 package.path = root .. "/plugin/zenfm.koplugin/?.lua;" .. package.path
 
 local generic_modules = {}
-for _, name in ipairs({ "android_intent", "control", "daemon", "settings", "updater", "util" }) do
+for _, name in ipairs({ "android_intent", "control", "daemon", "i18n", "settings", "updater", "util" }) do
     generic_modules[name] = { occupied_by_another_plugin = true }
     package.loaded[name] = generic_modules[name]
 end
 
 local Daemon = require("zenfm_daemon")
 local AndroidIntent = require("zenfm_android_intent")
+local I18n = require("zenfm_i18n")
 local Settings = require("zenfm_settings")
 local Updater = require("zenfm_updater")
 local Util = require("zenfm_util")
@@ -136,30 +137,96 @@ end
 
 local defaults = Settings.defaults()
 
-test("Android defaults auto-stop to 30 minutes and preserves an explicit off setting", function()
+test("translations stay scoped to ZenFM and follow KOReader's language", function()
+    local previous_settings = _G.G_reader_settings
+    local previous_gettext = package.loaded["gettext"]
+    local language = "de_DE"
+    _G.G_reader_settings = { readSetting = function() return language end }
+
+    equal(I18n.translate("Settings"), "Einstellungen")
+    equal(I18n.translate("A message absent from the ZenFM catalog"),
+        "A message absent from the ZenFM catalog")
+    assert(package.loaded["gettext"] == previous_gettext)
+    assert(package.loaded["i18n"] == generic_modules.i18n)
+
+    language = "ja_JP"
+    equal(I18n.translate("Lifetime"), "有効期間")
+    _G.G_reader_settings = previous_settings
+    I18n.refresh()
+end)
+
+test("Android defaults auto-stop to 30 minutes and preserves custom and off settings", function()
     local state = os.tmpname() .. ".android-defaults"
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
         path_exists = function() return false end,
     }
     equal(daemon.settings.values.auto_stop_minutes, 30)
-    assert(daemon.settings:set("auto_stop_minutes", 0))
+    equal(daemon.settings.values.auto_stop_last_minutes, 30)
+    assert(daemon.settings:set("auto_stop_minutes", 45))
+    assert(daemon.settings:set("beta_updates", true))
 
     local reloaded = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
         path_exists = function() return false end,
     }
+    equal(reloaded.settings.values.auto_stop_minutes, 45)
+    equal(reloaded.settings.values.auto_stop_last_minutes, 45)
+    assert(reloaded.settings:set("auto_stop_minutes", 0))
+    reloaded = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android", android = {},
+        path_exists = function() return false end,
+    }
     equal(reloaded.settings.values.auto_stop_minutes, 0)
+    equal(reloaded.settings.values.auto_stop_last_minutes, 45)
+    assert(reloaded.settings.values.beta_updates)
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
 test("non-Android platforms keep auto-stop disabled by default", function()
+    local state = os.tmpname() .. ".host-defaults"
     local daemon = Daemon:new{
-        plugin_dir = "/plugin", state_dir = os.tmpname() .. ".host-defaults", platform = "host",
+        plugin_dir = "/plugin", state_dir = state, platform = "host",
         path_exists = function() return false end,
     }
     equal(daemon.settings.values.auto_stop_minutes, 0)
+    equal(daemon.settings.values.auto_stop_last_minutes, 30)
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("fresh installations use the shared static high port", function()
+    local state = os.tmpname() .. ".static-port"
+    local settings = Settings:new(state)
+    equal(settings.values.port, 53241)
+    equal(Settings:new(state).values.port, 53241)
+
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("legacy transport defaults migrate to the shared static high port", function()
+    local state = os.tmpname() .. ".legacy-port"
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/settings.lua", "return { port = 8080, insecure_http = true }\n", "600"))
+    local settings = Settings:new(state)
+    equal(settings.values.port, 53241)
+    assert(settings.values.insecure_http)
+    equal(Settings:new(state).values.port, 53241)
+
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("legacy custom ports remain unchanged", function()
+    local state = os.tmpname() .. ".custom-port"
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/settings.lua", "return { port = 53000 }\n", "600"))
+    equal(Settings:new(state).values.port, 53000)
+
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
 test("hard-float Kindle backend", function()
@@ -170,6 +237,19 @@ test("hard-float Kindle backend", function()
     }
     equal(daemon:backend_candidates()[1], "/plugin/backend/zenfm-hf")
     equal(daemon:root(), "/mnt/us")
+end)
+
+test("KOReader backend output uses crash.log", function()
+    local previous = package.loaded.datastorage
+    package.loaded.datastorage = {
+        getFullDataDir = function() return "/mnt/us/koreader" end,
+    }
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
+        settings = fake_settings(defaults), path_exists = function() return false end,
+    }
+    equal(daemon:log_path(), "/mnt/us/koreader/crash.log")
+    package.loaded.datastorage = previous
 end)
 
 test("installed backend version prefers the installed marker", function()
@@ -242,6 +322,7 @@ test("PocketBook reset-login uses the bundled backend and mode-less storage", fu
     daemon.status = function() return false end
     local ok = daemon:reset_login()
     assert(ok)
+    contains(command, "sh '/plugin/log-prefix.sh' '/state/zenfm.log'")
     contains(command, "'/plugin/backend/zenfm-sf' reset-login --data-dir '/state' --mode-less-filesystem")
 end)
 
@@ -274,16 +355,24 @@ end)
 
 test("advanced HTTP arguments", function()
     local values = Settings.defaults()
-    values.advanced_root, values.insecure_http, values.auto_stop_minutes = true, true, 30
+    values.advanced_root, values.insecure_http, values.auto_stop_minutes = true, true, 45
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
         settings = fake_settings(values), path_exists = function() return false end,
     }
     local command = table.concat(daemon:serve_arguments(), " ")
     contains(command, "--root / --data-dir /state")
-    contains(command, "--listen 0.0.0.0:8443")
-    contains(command, "--auto-stop 30m")
+    contains(command, "--listen 0.0.0.0:" .. tostring(values.port))
+    contains(command, "--auto-stop 45m")
     contains(command, "--insecure-http")
+end)
+
+test("Kindle supervisor requests firewall setup", function()
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
+        settings = fake_settings(Settings.defaults()), execute = function() return 0 end,
+    }
+    contains(daemon:supervisor_command(), "--port '53241' --kindle --")
 end)
 
 test("runtime control paths stay off user storage and below Unix socket limits", function()
@@ -449,13 +538,45 @@ test("start waits for control-socket health", function()
     local ok = daemon:start()
     assert(ok and attempts >= 3)
     contains(executed, "trap '' HUP")
-    contains(executed, "2>&1 </dev/null")
+    contains(executed, "sh '/plugin/log-prefix.sh' '/state/zenfm.log'")
+    contains(executed, "</dev/null")
+end)
+
+test("restart waits for the old supervisor before starting again", function()
+    local events, pid_checks, lock_checks = {}, 0, 0
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "host",
+        settings = fake_settings(defaults),
+        path_exists = function(path)
+            if path:match("supervisor%.pid$") then
+                pid_checks = pid_checks + 1
+                return pid_checks < 3
+            end
+            if path:match("supervisor%.pid%.lock$") then
+                lock_checks = lock_checks + 1
+                return lock_checks < 3
+            end
+            return false
+        end,
+        sleep = function() table.insert(events, "sleep") end,
+    }
+    daemon.stop = function() table.insert(events, "stop") return true end
+    daemon.status = function() return false end
+    daemon.start = function() table.insert(events, "start") return true, "restarted" end
+
+    local ok, detail = daemon:restart()
+    assert(ok)
+    equal(detail, "restarted")
+    equal(events[1], "stop")
+    equal(events[#events], "start")
+    equal(pid_checks, 5)
+    equal(lock_checks, 3)
 end)
 
 test("Android handoff carries paired token and validated settings", function()
     local state = os.tmpname() .. ".d"
     local values = Settings.defaults()
-    values.port, values.auto_stop_minutes = 9443, 30
+    values.port, values.auto_stop_minutes = 9443, 45
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(values), path_exists = function() return false end,
@@ -467,7 +588,11 @@ test("Android handoff carries paired token and validated settings", function()
     contains(uri, "home=" .. Util.url_encode(state))
     contains(uri, "root=%2Fstorage%2Femulated%2F0")
     contains(uri, "port=9443")
-    contains(uri, "auto_stop=30m")
+    contains(uri, "auto_stop=45m")
+    assert(not uri:find("beta=", 1, true))
+    values.beta_updates = true
+    local update_uri = assert(daemon:android_uri("update"))
+    contains(update_uri, "beta=1")
     os.remove(state .. "/android-control.token")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
@@ -688,15 +813,42 @@ test("Android cached status never launches the companion", function()
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
+test("Android cached status reports an inactivity stop without relaunching", function()
+    local state = os.tmpname() .. ".idle-stopped"
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "idle_stopped request=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "600"))
+    local launches = 0
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = state, platform = "android",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+        android = { getExternalStoragePath = function() return "/storage/emulated/0" end },
+        android_launcher = function() launches = launches + 1 return true end,
+    }
+    local running, detail = daemon:status()
+    assert(not running)
+    contains(detail, "idle_stopped")
+    equal(launches, 0)
+    os.remove(state .. "/android-companion.status")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
 test("settings validation", function()
     local values = Settings.sanitize{
         port = 70000, advanced_root = true, insecure_http = true,
-        custom_root = "relative", auto_stop_minutes = 45, tls_cert = "/cert", tls_key = "relative",
+        custom_root = "relative", auto_stop_minutes = 45, beta_updates = "yes",
+        tls_cert = "/cert", tls_key = "relative",
     }
-    equal(values.port, 8443)
+    equal(values.port, 53241)
     assert(values.advanced_root and values.insecure_http)
     equal(values.custom_root, "")
-    equal(values.auto_stop_minutes, 0)
+    equal(values.auto_stop_minutes, 45)
+    assert(not values.beta_updates)
+    assert(Settings.sanitize{ beta_updates = true }.beta_updates)
+    equal(Settings.sanitize{ auto_stop_minutes = -1 }.auto_stop_minutes, 0)
+    equal(Settings.sanitize{ auto_stop_minutes = 1.5 }.auto_stop_minutes, 0)
+    equal(Settings.sanitize{ auto_stop_minutes = 720 }.auto_stop_minutes, 720)
+    equal(Settings.sanitize{ auto_stop_minutes = 721 }.auto_stop_minutes, 0)
     equal(values.tls_key, "")
     equal(Settings.sanitize{ custom_root = "/" }.custom_root, "")
     equal(Settings.sanitize{ custom_root = "/safe/../" }.custom_root, "")
@@ -757,6 +909,39 @@ test("release selection requires a GitHub digest and bounded size", function()
     assert(not Updater.select_release({ release("", 42) }, daemon, "1.2.2"))
     assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 0) }, daemon, "1.2.2"))
     assert(not Updater.select_release({ release("sha256:" .. string.rep("a", 64), 201 * 1024 * 1024) }, daemon, "1.2.2"))
+end)
+
+test("beta release selection remains stable-first for matching versions", function()
+    local daemon = {
+        is_android = function() return false end,
+        platform = function() return "host" end,
+        kernel = function() return "linux" end,
+    }
+    local function release(version, prerelease)
+        return {
+            tag_name = "v" .. version,
+            prerelease = prerelease,
+            assets = {{
+                name = "ZenFM-koreader-linux-" .. version .. ".zip",
+                browser_download_url = "https://github.com/xZenLabs/zen-fm/releases/download/v"
+                    .. version .. "/ZenFM-koreader-linux-" .. version .. ".zip",
+                digest = "sha256:" .. string.rep("a", 64),
+                size = 42,
+            }},
+        }
+    end
+
+    local releases = {
+        release("1.3.0-beta10", true),
+        release("1.2.0", false),
+    }
+    equal(Updater.select_release(releases, daemon, "1.2.0"), nil)
+    equal(assert(Updater.select_release(releases, daemon, "1.2.0", true)).version, "1.3.0-beta10")
+    equal(assert(Updater.select_release({
+        release("1.3.0-beta10", true),
+        release("1.3.0", false),
+    }, daemon, "1.2.0", true)).version, "1.3.0")
+    assert(Updater.version_greater("1.3.0-beta10", "1.3.0-beta2"))
 end)
 
 test("staged plugin Lua is compiled before activation", function()
@@ -952,6 +1137,44 @@ test("pending-marker failure reports a rollback rename failure", function()
     if parent then Util.remove_tree(base, parent) end
 end)
 
+test("a second update cannot erase rollback state before restart", function()
+    local plugin_dir = os.tmpname() .. ".pending-update"
+    assert(Util.ensure_dir(plugin_dir))
+    assert(Util.write_atomic(plugin_dir .. "/.update-pending", "pending\n", "600"))
+    local prepared, detail = Updater.prepare_latest({
+        plugin_dir = plugin_dir,
+        state_dir = plugin_dir .. "/data",
+    }, false)
+    assert(not prepared)
+    contains(detail, "Restart KOReader")
+    local parent = plugin_dir:match("^(.*)/[^/]+$")
+    if parent then Util.remove_tree(plugin_dir, parent) end
+end)
+
+test("activation waits for supervisor exit and restores a running service on failure", function()
+    local previous_install_stage = Updater.install_stage
+    local events = {}
+    Updater.install_stage = function(_, root, resume_after_update)
+        equal(root, "/prepared/plugin")
+        assert(resume_after_update)
+        table.insert(events, "install")
+        return false, "activation failed"
+    end
+    local called, installed, detail = pcall(Updater.activate_stage, {
+        is_android = function() return false end,
+        status = function() table.insert(events, "status") return true end,
+        stop = function() table.insert(events, "stop") return true end,
+        wait_until_stopped = function() table.insert(events, "wait") return true end,
+        start = function() table.insert(events, "start") return true end,
+    }, "/prepared/plugin")
+    Updater.install_stage = previous_install_stage
+
+    assert(called, tostring(installed))
+    assert(not installed)
+    equal(detail, "activation failed")
+    equal(table.concat(events, ","), "status,stop,wait,install,start")
+end)
+
 test("update health verification restores a stopped service", function()
     local plugin_dir = os.tmpname() .. ".plugin"
     assert(Util.ensure_dir(plugin_dir))
@@ -966,10 +1189,11 @@ test("update health verification restores a stopped service", function()
         start = function() running = true return true end,
         status = function() return running end,
         stop = function() stops = stops + 1 running = false return true end,
+        wait_until_stopped = function() return true end,
     }
     local healthy, err = Updater.finalize_pending(daemon)
     assert(healthy, tostring(err))
-    equal(stops, 1)
+    equal(stops, 2)
     assert(not running)
     assert(not Util.path_exists(plugin_dir .. "/.update-pending"))
     local parent = plugin_dir:match("^(.*)/[^/]+$")
@@ -991,6 +1215,7 @@ test("failed updated backend rolls the plugin directory back", function()
         start = function() error("must not start") end,
         status = function() return false end,
         stop = function() return true end,
+        wait_until_stopped = function() return true end,
     }
     local healthy, err = Updater.finalize_pending(daemon)
     assert(not healthy)
@@ -1070,7 +1295,7 @@ test("opening the Android menu uses cached state and exit stops the service", fu
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("dispatcher exposes the server toggle and settings show its backend version", function()
+test("dispatcher exposes the server toggle and settings end with the version", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1102,18 +1327,303 @@ test("dispatcher exposes the server toggle and settings show its backend version
             installed_backend_version = function() return "9.8.7" end,
         },
     }, { __index = ZenFM })
-    local menu = owner:settings_menu()
-    equal(menu[1].text_func(), "Backend version: 9.8.7")
-    assert(not menu[1].enabled_func())
-    equal(menu[#menu].text, "Update")
+    local main_menu = {}
+    owner:addToMainMenu(main_menu)
+    local root_menu = main_menu.zenfm.sub_item_table
+    assert(root_menu[1].keep_menu_open)
+    assert(root_menu[2].keep_menu_open)
+    local toggles, menu_updates = 0, 0
+    owner.onToggleZenFM = function() toggles = toggles + 1 end
+    root_menu[1].callback({ updateItems = function() menu_updates = menu_updates + 1 end })
+    equal(toggles, 1)
+    equal(menu_updates, 1)
+    local settings_menu = root_menu[3].sub_item_table
+    equal(#settings_menu, 9)
+    equal(settings_menu[#settings_menu - 2].text, "Beta updates")
+    assert(not settings_menu[#settings_menu - 2].checked_func())
+    equal(settings_menu[#settings_menu - 1].text, "Update")
+    equal(settings_menu[#settings_menu].text_func(), "Version: 9.8.7")
+    assert(not settings_menu[#settings_menu].enabled_func())
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("Android toggle polls incrementally only after KOReader resumes", function()
+test("starting waits for KOReader network connection but stopping does not", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+        "ui/network/manager",
+    }
+    local saved = {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function() end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local connected, retry, network_checks = false, nil, 0
+    package.loaded["ui/network/manager"] = {
+        willRerunWhenConnected = function(_, callback)
+            network_checks = network_checks + 1
+            if connected then return false end
+            retry = callback
+            return true
+        end,
+    }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local running, starts, stops = false, 0, 0
+    local owner = setmetatable({
+        daemon = {
+            is_android = function() return false end,
+            status = function() return running end,
+            start = function() starts = starts + 1 running = true return true end,
+            stop = function() stops = stops + 1 running = false return true end,
+        },
+        start_server_monitor = function() end,
+        onShowZenFMStatus = function() end,
+    }, { __index = ZenFM })
+
+    assert(owner:onToggleZenFM())
+    equal(starts, 0)
+    equal(stops, 0)
+    equal(network_checks, 1)
+    assert(type(retry) == "function")
+
+    connected = true
+    retry()
+    equal(starts, 1)
+    equal(network_checks, 2)
+
+    connected = false
+    assert(owner:onToggleZenFM())
+    equal(stops, 1)
+    equal(network_checks, 2)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("inactivity timeout label opens a number wheel and its checkbox only toggles it", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/widget/spinwidget", "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext",
+        "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, shown = {}, {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/spinwidget"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, widget) table.insert(shown, widget) end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local settings = {
+        values = Settings.defaults(),
+        set = function(self, key, value) self.values[key] = value return true end,
+    }
+    local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
+    local menu_updates = 0
+    local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
+    local item = owner:settings_menu()[5]
+    equal(item.text_func(), "Inactivity timeout: 30 min")
+    assert(not item.checked_func())
+    item.callback(touchmenu)
+    local spinner = shown[#shown]
+    equal(spinner.value, 30)
+    equal(spinner.value_min, 1)
+    equal(spinner.value_max, 720)
+    equal(spinner.default_value, 30)
+    assert(spinner.extra_text == nil)
+    spinner.callback{ value = 45 }
+    equal(settings.values.auto_stop_minutes, 0)
+    equal(settings.values.auto_stop_last_minutes, 45)
+    equal(menu_updates, 1)
+    assert(not item.checked_func())
+    equal(item.text_func(), "Inactivity timeout: 45 min")
+
+    local shown_before_toggle = #shown
+    item.checkmark_callback()
+    equal(#shown, shown_before_toggle)
+    equal(settings.values.auto_stop_minutes, 45)
+    assert(item.checked_func())
+    equal(item.text_func(), "Inactivity timeout: 45 min")
+
+    item.checkmark_callback()
+    equal(settings.values.auto_stop_minutes, 0)
+    equal(settings.values.auto_stop_last_minutes, 45)
+    assert(not item.checked_func())
+    equal(item.text_func(), "Inactivity timeout: 45 min")
+
+    item.callback(touchmenu)
+    spinner = shown[#shown]
+    equal(spinner.value, 45)
+    spinner.callback{ value = 60 }
+    equal(settings.values.auto_stop_minutes, 0)
+    equal(settings.values.auto_stop_last_minutes, 60)
+    equal(menu_updates, 2)
+    item.checkmark_callback()
+    equal(settings.values.auto_stop_minutes, 60)
+    assert(item.checked_func())
+    equal(item.text_func(), "Inactivity timeout: 60 min")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("changing server settings while running restarts and refreshes the menu", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, shown, events, settings = {}, {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) table.insert(shown, message) end,
+        forceRePaint = function()
+            table.insert(events, "repaint:" .. tostring(settings.values.insecure_http))
+        end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local port, restarts, menu_refreshes = 54321, 0, 0
+    settings = {
+        values = { port = port, insecure_http = false, advanced_root = false },
+        set = function(self, key, value) self.values[key] = value return true end,
+    }
+    local owner = setmetatable({
+        suspended = true,
+        daemon = {
+            settings = settings,
+            is_android = function() return false end,
+            status = function() return true end,
+            restart = function()
+                restarts = restarts + 1
+                table.insert(events, "restart:" .. tostring(settings.values.insecure_http))
+                local scheme = settings.values.insecure_http and "http" or "https"
+                return true, "ok running " .. scheme .. "://0.0.0.0:" .. port .. " -"
+            end,
+            status_details_from_raw = function(_, raw)
+                local scheme = assert(raw:match("ok running (https?)://"))
+                return { running = true, scheme = scheme, url = scheme .. "://192.168.1.2:" .. port }
+            end,
+        },
+    }, { __index = ZenFM })
+
+    local touchmenu = { updateItems = function()
+        menu_refreshes = menu_refreshes + 1
+        table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
+    end }
+    local http_item = owner:settings_menu()[2]
+    http_item.callback(touchmenu)
+    equal(shown[1].ok_text, "Enable HTTP")
+    shown[1].ok_callback()
+    assert(settings.values.insecure_http)
+    equal(menu_refreshes, 1)
+    equal(settings.values.port, port)
+    equal(restarts, 1)
+    equal(table.concat(events, ","), "menu:true,repaint:true,restart:true")
+    contains(shown[2].text, "http://192.168.1.2:" .. port)
+    contains(shown[2].text, "Warning: unencrypted HTTP is enabled.")
+
+    assert(owner:confirm_http(touchmenu))
+    assert(not settings.values.insecure_http)
+    equal(menu_refreshes, 2)
+    equal(settings.values.port, port)
+    equal(restarts, 2)
+    equal(table.concat(events, ","),
+        "menu:true,repaint:true,restart:true,menu:false,repaint:false,restart:false")
+    contains(shown[3].text, "https://192.168.1.2:" .. port)
+
+    local advanced_item = owner:settings_menu()[3]
+    assert(not advanced_item.checked_func())
+    advanced_item.callback({ updateItems = function() menu_refreshes = menu_refreshes + 1 end })
+    equal(shown[4].ok_text, "Expose entire filesystem")
+    shown[4].ok_callback()
+    assert(advanced_item.checked_func())
+    equal(menu_refreshes, 3)
+    equal(restarts, 3)
+    contains(shown[5].text, "Warning: advanced root mode exposes the entire filesystem")
+
+    assert(owner:confirm_advanced_root())
+    assert(not advanced_item.checked_func())
+    equal(restarts, 4)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("changing HTTP restarts an active Android companion", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved = {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function() end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local action, port = nil, 54321
+    local settings = {
+        values = { port = port, insecure_http = false, advanced_root = false },
+        set = function(self, key, value) self.values[key] = value return true end,
+    }
+    local owner = setmetatable({
+        suspended = true,
+        daemon = {
+            settings = settings,
+            is_android = function() return true end,
+            cached_android_status = function() return true end,
+            status_details_from_raw = function()
+                return { running = true, scheme = "http", url = "http://192.168.1.2:" .. port }
+            end,
+        },
+        begin_android_action = function(_, requested, complete)
+            action = requested
+            complete(true, "ok running http://0.0.0.0:" .. port .. " -")
+            return true
+        end,
+    }, { __index = ZenFM })
+
+    assert(owner:set_http(true))
+    equal(action, "start")
+    equal(settings.values.port, port)
+    assert(settings.values.insecure_http)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("Android toggle restarts the companion after an inactivity stop", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+        "ui/network/manager",
     }
     local saved, scheduled, shown = {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
@@ -1134,6 +1644,7 @@ test("Android toggle polls incrementally only after KOReader resumes", function(
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+    package.loaded["ui/network/manager"] = { willRerunWhenConnected = function() return false end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
     local begin_actions, checks = {}, 0
@@ -1143,7 +1654,7 @@ test("Android toggle polls incrementally only after KOReader resumes", function(
             android_poll_attempts = 3,
             settings = { values = Settings.defaults() },
             is_android = function() return true end,
-            cached_android_status = function() return false, "stopped" end,
+            cached_android_status = function() return false, "idle_stopped" end,
             status = function() error("Android toggle performed a live status preflight") end,
             begin_android = function(_, action)
                 table.insert(begin_actions, action)
@@ -1186,7 +1697,7 @@ test("Android toggle polls incrementally only after KOReader resumes", function(
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("KOReader notices when a running server stops", function()
+test("KOReader notices when inactivity stops a running server", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1209,13 +1720,18 @@ test("KOReader notices when a running server stops", function()
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
-    local statuses = { true, true, false }
+    local statuses = {
+        { true, "ok running" },
+        { true, "ok running" },
+        { false, "idle_stopped request=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    }
     local status_index = 0
     local owner = setmetatable({
         daemon = {
             status = function()
                 status_index = status_index + 1
-                return statuses[status_index]
+                local status = statuses[status_index]
+                return status[1], status[2]
             end,
         },
     }, { __index = ZenFM })
@@ -1226,8 +1742,55 @@ test("KOReader notices when a running server stops", function()
     equal(scheduled[1].delay, 60)
     assert(shown == nil)
     table.remove(scheduled, 1).callback()
-    equal(shown.text, "ZenFM stopped.")
+    equal(shown.text, "ZenFM stopped after inactivity.")
     assert(owner.server_monitor == nil)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("reset keeps setup credentials visible and disarms the stopped notice", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, scheduled, shown = {}, {}, nil
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message) shown = message end,
+        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner
+    owner = setmetatable({
+        daemon = {
+            is_android = function() return false end,
+            status = function() return true end,
+            reset_login = function()
+                assert(owner.server_monitor == nil, "server monitor remained armed during reset")
+                return true
+            end,
+        },
+    }, { __index = ZenFM })
+
+    owner:start_server_monitor()
+    equal(#scheduled, 1)
+    local stale_monitor_callback = scheduled[1]
+    owner:confirm_reset_login()
+    shown.ok_callback()
+    equal(shown.text, "Login reset. Use koreader123456789 and choose a new password.")
+    equal(shown.timeout, false)
+
+    stale_monitor_callback()
+    equal(shown.text, "Login reset. Use koreader123456789 and choose a new password.")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
@@ -1296,7 +1859,180 @@ test("server monitoring pauses in standby and checks immediately on resume", fun
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
+test("e-reader menu update prompts before restarting KOReader", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "gettext",
+        "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, events, scheduled, shown = {}, {}, {}, {}
+    local restart_prompt, restart_callback
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message)
+            shown[message] = true
+            if message.ok_text == "Restart now" then
+                restart_prompt = message
+                table.insert(events, "confirm:" .. message.text)
+            else
+                table.insert(events, "notice:" .. message.text)
+            end
+        end,
+        close = function(_, message) shown[message] = nil end,
+        forceRePaint = function() table.insert(events, "repaint") end,
+        isWidgetShown = function(_, message) return shown[message] == true end,
+        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+        unschedule = function(_, callback)
+            for index = #scheduled, 1, -1 do
+                if scheduled[index] == callback then table.remove(scheduled, index) end
+            end
+        end,
+        tickAfterNext = function(_, callback)
+            table.insert(events, "restart-scheduled")
+            restart_callback = callback
+        end,
+        restartKOReader = function() table.insert(events, "restart") end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["ui/trapper"] = {
+        wrap = function(_, task)
+            local ok, err = coroutine.resume(coroutine.create(task))
+            assert(ok, tostring(err))
+        end,
+        dismissableRunInSubprocess = function(_, task) return true, task() end,
+    }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = {
+        finalize_pending = function() return true end,
+        prepare_latest = function()
+            table.insert(events, "prepare")
+            return true, "/prepared/plugin"
+        end,
+        activate_stage = function(_, root)
+            equal(root, "/prepared/plugin")
+            table.insert(events, "activate")
+            return true, "ZenFM updated. Restart KOReader to finish activation."
+        end,
+    }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner = setmetatable({
+        daemon = {
+            settings = { values = { beta_updates = false } },
+            is_android = function() return false end,
+        },
+    }, { __index = ZenFM })
+
+    assert(owner:update())
+    equal(events[1], "notice:Checking for a ZenFM update…")
+    equal(events[2], "repaint")
+    equal(#scheduled, 1)
+    table.remove(scheduled, 1)()
+    equal(events[3], "prepare")
+    equal(events[4], "notice:Installing ZenFM update…")
+    equal(events[5], "repaint")
+    equal(events[6], "activate")
+    equal(events[7], "confirm:ZenFM updated. Restart KOReader to finish activation.")
+    equal(restart_prompt.ok_text, "Restart now")
+    equal(restart_prompt.cancel_text, "Later")
+    assert(restart_callback == nil)
+    equal(#events, 7)
+    equal(#scheduled, 0)
+
+    restart_prompt.ok_callback()
+    equal(events[8], "notice:Restarting…")
+    equal(events[9], "restart-scheduled")
+    assert(type(restart_callback) == "function")
+    equal(#events, 9)
+
+    restart_callback()
+    equal(events[10], "restart")
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
 test("Android update opens the companion only after plugin update work", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "gettext",
+        "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, events, scheduled, shown = {}, {}, {}, {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = {
+        show = function(_, message)
+            shown[message] = true
+            table.insert(events, "notice:" .. message.text)
+        end,
+        close = function(_, message) shown[message] = nil end,
+        forceRePaint = function() table.insert(events, "repaint") end,
+        isWidgetShown = function(_, message) return shown[message] == true end,
+        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+        unschedule = function(_, callback)
+            for index = #scheduled, 1, -1 do
+                if scheduled[index] == callback then table.remove(scheduled, index) end
+            end
+        end,
+    }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["ui/trapper"] = {
+        wrap = function(_, task)
+            local ok, err = coroutine.resume(coroutine.create(task))
+            assert(ok, tostring(err))
+        end,
+        dismissableRunInSubprocess = function(_, task) return true, task() end,
+    }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = {
+        finalize_pending = function() return true end,
+        prepare_latest = function(_, beta_updates)
+            assert(beta_updates)
+            table.insert(events, "plugin-update")
+            return false, "ZenFM is up to date"
+        end,
+        activate_stage = function() error("up-to-date plugin was activated") end,
+    }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local owner = setmetatable({
+        daemon = {
+            settings = { values = { beta_updates = true } },
+            is_android = function() return true end,
+            cached_android_status = function() return true end,
+            open_android = function(_, action)
+                equal(action, "update")
+                table.insert(events, "companion-update")
+                return true, "request sent"
+            end,
+        },
+    }, { __index = ZenFM })
+    local ok, detail = owner:update()
+    assert(ok, tostring(detail))
+    equal(events[1], "notice:Checking for a ZenFM update…")
+    equal(events[2], "repaint")
+    equal(#scheduled, 1)
+    table.remove(scheduled, 1)()
+    equal(events[3], "plugin-update")
+    contains(events[4], "KOReader plugin bundle: ZenFM is up to date")
+    contains(events[4], "Android companion APK: opening updater")
+    equal(events[5], "companion-update")
+    equal(#events, 5)
+    equal(#scheduled, 0)
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("Android update starts the companion before checking releases", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1309,42 +2045,43 @@ test("Android update opens the companion only after plugin update work", functio
     package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
     package.loaded["ui/uimanager"] = {
         show = function(_, message) table.insert(events, "notice:" .. message.text) end,
+        forceRePaint = function() table.insert(events, "repaint") end,
+        scheduleIn = function() table.insert(events, "update-scheduled") end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
-    package.loaded["zenfm_updater"] = {
-        finalize_pending = function() return true end,
-        install_latest = function()
-            table.insert(events, "plugin-update")
-            return false, "ZenFM is up to date"
-        end,
-    }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local running = false
     local owner = setmetatable({
         daemon = {
+            settings = { values = { beta_updates = false } },
             is_android = function() return true end,
-            open_android = function(_, action)
-                equal(action, "update")
-                table.insert(events, "companion-update")
-                return true, "request sent"
-            end,
+            cached_android_status = function() return running end,
         },
+        start_server_monitor = function() table.insert(events, "monitor") end,
+        begin_android_action = function(_, action, complete)
+            equal(action, "start")
+            table.insert(events, "companion-start")
+            running = true
+            complete(true, "ok running")
+            return true
+        end,
     }, { __index = ZenFM })
-    local ok, detail = owner:update()
-    assert(ok, tostring(detail))
-    equal(events[1], "notice:Checking for a ZenFM update…")
-    equal(events[2], "plugin-update")
-    contains(events[3], "KOReader plugin bundle: ZenFM is up to date")
-    contains(events[3], "Android companion APK: opening updater")
-    equal(events[4], "companion-update")
-    equal(#events, 4)
+
+    assert(owner:update())
+    equal(events[1], "companion-start")
+    equal(events[2], "monitor")
+    equal(events[3], "notice:Checking for a ZenFM update…")
+    equal(events[4], "repaint")
+    equal(events[5], "update-scheduled")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("status notice shows the device address and port without the TLS fingerprint or wildcard listener", function()
+test("status notice reports stopped cleanly and shows the running device address", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1367,10 +2104,17 @@ test("status notice shows the device address and port without the TLS fingerprin
             settings = { values = { advanced_root = false } },
             is_android = function() return false end,
             status_details = function()
-                return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
+                return { running = false, detail = "connect failed" }
             end,
         },
     }, { __index = ZenFM })
+    owner:onShowZenFMStatus()
+    equal(shown.text, "ZenFM is stopped.")
+    assert(shown.icon == nil)
+
+    owner.daemon.status_details = function()
+        return { running = true, scheme = "https", url = "https://192.168.4.12:8443", port = "8443", fingerprint = "sha256:secret" }
+    end
     owner:onShowZenFMStatus()
     equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
     assert(not shown.text:find("sha256:secret", 1, true))

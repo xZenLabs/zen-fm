@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: el\n"
+
+msgid "1 day"
+msgstr "1 ημέρα"
+
+msgid "1 hour"
+msgstr "1 ώρα"
+
+msgid "1 week"
+msgstr "1 εβδομάδα"
+
+msgid "1 year"
+msgstr "1 έτος"
+
+msgid "30 days"
+msgstr "30 ημέρες"
+
+msgid "About {{eta}} remaining"
+msgstr "Απομένει περίπου {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Η προηγμένη λειτουργία root είναι ενεργή. Τα αρχεία συστήματος, οι διαδρομές της συσκευής και τα μυστικά ZenFM είναι ορατά και ενδέχεται να αλλάξουν ή να διαγραφούν."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Η προηγμένη λειτουργία ρίζας εξυπηρετεί /. Εκθέτει τα /proc, /sys, /dev, τη βάση δεδομένων του ZenFM, τα πιστοποιητικά, τα αρχεία καταγραφής και κάθε αρχείο στο οποίο μπορεί να έχει πρόσβαση η διαδικασία. Η επεξεργασία ή η διαγραφή τους μπορεί να βλάψει τη συσκευή ή να σας κλειδώσει."
+
+msgid "Advanced root: expose /"
+msgstr "Προηγμένη ρίζα: έκθεση /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Συνοδευτικό APK Android: άνοιγμα προγράμματος ενημέρωσης…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Το Android Companion δεν ανέφερε νέο %s αποτέλεσμα εντός 30 δευτερολέπτων."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Ένα άλλο αίτημα Android ZenFM είναι ακόμη σε εκκρεμότητα."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Είστε βέβαιοι ότι θέλετε να μετακινήσετε <filename>{{name}}</filename> σε <path>{{destination}}</path>;"
+
+msgid "Beta updates"
+msgstr "Ενημερώσεις beta"
+
+msgid "Calculating total size…"
+msgstr "Υπολογισμός συνολικού μεγέθους…"
+
+msgid "Cancel"
+msgstr "Ακύρωση"
+
+msgid "Change password"
+msgstr "Αλλαγή κωδικού πρόσβασης"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Έλεγχος για ενημέρωση ZenFM…"
+
+msgid "Checksum"
+msgstr "Άθροισμα ελέγχου"
+
+msgid "Clear find"
+msgstr "Καθαρή εύρεση"
+
+msgid "Clear search"
+msgstr "Καθαρισμός"
+
+msgid "Client timeout"
+msgstr "Λήξη χρονικού ορίου πελάτη"
+
+msgid "Close"
+msgstr "Κλείσιμο"
+
+msgid "Close file"
+msgstr "Κλείσιμο αρχείου"
+
+msgid "Confirm"
+msgstr "Εντάξει"
+
+msgid "Confirm password"
+msgstr "Επιβεβαιώστε τον νέο κωδικό πρόσβασης"
+
+msgid "Copied"
+msgstr "Ο σύνδεσμος αντιγράφηκε!"
+
+msgid "Copy"
+msgstr "Αντιγραφή"
+
+msgid "Copy link"
+msgstr "Αντιγραφή συνδέσμου λήψης στο πρόχειρο"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Αντιγράψτε αυτό το διακριτικό τώρα. Δεν θα προβληθεί ξανά."
+
+msgid "Copy token"
+msgstr "Αντιγραφή διακριτικού"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Αντιγραφή {{copied}} από {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Δεν ήταν δυνατή η ανάγνωση του αποτελέσματος του συνοδευτικού Android"
+
+msgid "Create"
+msgstr "Δημιουργία"
+
+msgid "Create share"
+msgstr "Δημιουργία κοινής χρήσης"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Δημιουργήστε προσωρινούς συνδέσμους χωρίς να εκθέσετε την περίοδο λειτουργίας του κατόχου σας."
+
+msgid "Create token"
+msgstr "Δημιουργία διακριτικού"
+
+msgid "Current password"
+msgstr "Τρέχων κωδικός πρόσβασης"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Προσαρμοσμένη ρίζα (το κενό χρησιμοποιεί την προεπιλογή της συσκευής)"
+
+msgid "Dark"
+msgstr "Σκοτεινό"
+
+msgid "Date modified"
+msgstr "Τελευταία τροποποίηση"
+
+msgid "Delete"
+msgstr "Διαγραφή"
+
+msgid "Delete {{count}} items?"
+msgstr "Διαγραφή {{count}} στοιχείων;"
+
+msgid "Destination folder"
+msgstr "Φάκελος προορισμού"
+
+msgid "Destination path"
+msgstr "Διαδρομή προορισμού"
+
+msgid "Discard"
+msgstr "Απορρίπτω"
+
+msgid "Download"
+msgstr "Λήψη"
+
+msgid "Edit"
+msgstr "Εκδίδω"
+
+msgid "Editing {{name}}"
+msgstr "Επεξεργασία {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Ενεργοποίηση HTTP"
+
+msgid "Expires"
+msgstr "Λήγει"
+
+msgid "Expires after"
+msgstr "Λήγει μετά"
+
+msgid "Expose entire filesystem"
+msgstr "Εκθέστε ολόκληρο το σύστημα αρχείων"
+
+msgid "File already exists"
+msgstr "Το αρχείο υπάρχει ήδη"
+
+msgid "File name"
+msgstr "Όνομα αρχείου"
+
+msgid "File or folder path"
+msgstr "Διαδρομή"
+
+msgid "Files"
+msgstr "Αρχεία"
+
+msgid "Find in file"
+msgstr "Βρείτε στο αρχείο"
+
+msgid "Finish setup"
+msgstr "Ολοκληρώστε τη ρύθμιση"
+
+msgid "Folder name"
+msgstr "Όνομα φακέλου"
+
+msgid "General"
+msgstr "Γενικός"
+
+msgid "Grid view"
+msgstr "Προβολή πλέγματος"
+
+msgid "Hide password"
+msgstr "Απόκρυψη κωδικού πρόσβασης"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "Το HTTP στέλνει κωδικούς πρόσβασης, cookies περιόδου λειτουργίας και περιεχόμενα αρχείων χωρίς κρυπτογράφηση. Ενεργοποίηση πάντως;"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Λήξη χρονικού ορίου αδράνειας (λεπτά)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Χρονικό όριο αδράνειας: %d λεπτά"
+
+msgid "Installing ZenFM update…"
+msgstr "Εγκατάσταση ενημέρωσης ZenFM…"
+
+msgid "Invalid value."
+msgstr "Μη έγκυρη τιμή."
+
+msgid "Keep editing"
+msgstr "Συνεχίστε την επεξεργασία"
+
+msgid "KOReader plugin bundle:"
+msgstr "Πακέτο προσθηκών KOREader:"
+
+msgid "Label"
+msgstr "Επιγραφή"
+
+msgid "Language"
+msgstr "Γλώσσα"
+
+msgid "Later"
+msgstr "Αργότερα"
+
+msgid "Lifetime"
+msgstr "Διάρκεια ζωής"
+
+msgid "Light"
+msgstr "Φωτεινό"
+
+msgid "List view"
+msgstr "Προβολή λίστας"
+
+msgid "Listening port:"
+msgstr "Θύρα ακρόασης:"
+
+msgid "Loading…"
+msgstr "Φορτώνει…"
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Επαναφορά σύνδεσης. Χρησιμοποιήστε το koreader123456789 και επιλέξτε νέο κωδικό πρόσβασης."
+
+msgid "Move"
+msgstr "Μετακίνηση"
+
+msgid "Name"
+msgstr "Όνομα"
+
+msgid "Never"
+msgstr "Ποτέ"
+
+msgid "New file"
+msgstr "Νέο αρχείο"
+
+msgid "New folder"
+msgstr "Νέος φάκελος"
+
+msgid "New password"
+msgstr "Νέος κωδικός πρόσβασης"
+
+msgid "New Password"
+msgstr "Νέος κωδικός πρόσβασης"
+
+msgid "Next match"
+msgstr "Επόμενος αγώνας"
+
+msgid "No matches"
+msgstr "Χωρίς αγώνες"
+
+msgid "No shared links"
+msgstr "Δεν υπάρχουν κοινόχρηστοι σύνδεσμοι"
+
+msgid "not configured"
+msgstr "δεν έχει ρυθμιστεί"
+
+msgid "Nothing here yet"
+msgstr "Δεν υπάρχει τίποτα εδώ (ακόμη)…"
+
+msgid "Open"
+msgstr "Ανοιχτό"
+
+msgid "Optional password"
+msgstr "Προαιρετικός κωδικός πρόσβασης"
+
+msgid "Password"
+msgstr "Κωδικός πρόσβασης"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Ο κωδικός άλλαξε. οι περίοδοι σύνδεσης και τα διακριτικά API ανακλήθηκαν."
+
+msgid "Password protected"
+msgstr "Προστατεύεται με κωδικό πρόσβασης"
+
+msgid "Paste"
+msgstr "Πάστα"
+
+msgid "Personal API token"
+msgstr "Προσωπικό διακριτικό API"
+
+msgid "Personal API tokens"
+msgstr "Προσωπικά διακριτικά API"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Η θύρα πρέπει να είναι μεταξύ 1 και 65535."
+
+msgid "Port: "
+msgstr "Λιμάνι:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Η προεπισκόπηση δεν είναι διαθέσιμη για αυτό το αρχείο."
+
+msgid "Previous match"
+msgstr "Προηγούμενο ματς"
+
+msgid "Refresh"
+msgstr "Φρεσκάρω"
+
+msgid "Rename"
+msgstr "Μετονομασία"
+
+msgid "Replace"
+msgstr "Αντικαθιστώ"
+
+msgid "Replace all"
+msgstr "Αντικαταστήστε όλα"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Αντικαταστήστε τον προσωρινό κωδικό πρόσβασης πριν αποκτήσετε πρόσβαση στα αρχεία σας."
+
+msgid "Reset login"
+msgstr "Επαναφορά σύνδεσης"
+
+msgid "Reset owner login"
+msgstr "Επαναφορά σύνδεσης κατόχου"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Επαναφορά της σύνδεσης κατόχου στον κωδικό πρόσβασης μόνο για ρύθμιση και ανάκληση κάθε περιόδου σύνδεσης και διακριτικού API;"
+
+msgid "Restart now"
+msgstr "Κάντε επανεκκίνηση τώρα"
+
+msgid "Restarting…"
+msgstr "Επανεκκίνηση…"
+
+msgid "Revoke"
+msgstr "Ανακαλώ"
+
+msgid "Root"
+msgstr "Ρίζα"
+
+msgid "Root: "
+msgstr "Ρίζα:"
+
+msgid "Save"
+msgstr "Εκτός"
+
+msgid "Save and close"
+msgstr "Αποθήκευση και κλείσιμο"
+
+msgid "Save changes"
+msgstr "Αποθήκευση αλλαγών"
+
+msgid "Save changes before closing?"
+msgstr "Αποθήκευση αλλαγών πριν από το κλείσιμο;"
+
+msgid "Save settings"
+msgstr "Αποθήκευση"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Αποθηκεύτηκε. Επανεκκινήστε το ZenFM για να εφαρμόσετε την αλλαγή."
+
+msgid "Search results"
+msgstr "Αποτελέσματα αναζήτησης"
+
+msgid "Search this folder"
+msgstr "Αναζήτηση…"
+
+msgid "Settings"
+msgstr "Ρυθμίσεις"
+
+msgid "Settings saved"
+msgstr "Οι ρυθμίσεις αποθηκεύτηκαν"
+
+msgid "Share"
+msgstr "Κοινοποίηση"
+
+msgid "Shared files"
+msgstr "Κοινόχρηστα αρχεία"
+
+msgid "Shared links"
+msgstr "Διαχείριση κοινοποίησης"
+
+msgid "Shared with ZenFM"
+msgstr "Κοινή χρήση με το ZenFM"
+
+msgid "Shares"
+msgstr "Μερίδια"
+
+msgid "Show hidden files"
+msgstr "Εμφάνιση κρυφών αρχείων"
+
+msgid "Show password"
+msgstr "Εμφάνιση κωδικού πρόσβασης"
+
+msgid "Sign in"
+msgstr "Είσοδος"
+
+msgid "Sign out"
+msgstr "Αποσύνδεση"
+
+msgid "Signing in…"
+msgstr "Σύνδεση…"
+
+msgid "Size"
+msgstr "Μέγεθος"
+
+msgid "Skip all"
+msgstr "Παράλειψη όλων"
+
+msgid "Something went wrong"
+msgstr "Προέκυψε κάποιο σφάλμα"
+
+msgid "Start ZenFM"
+msgstr "Εκκινήστε το ZenFM"
+
+msgid "Status and address"
+msgstr "Κατάσταση και διεύθυνση"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Σταματήστε να περιμένετε για συνηθισμένα αιτήματα διακομιστή μετά από τόσα πολλά δευτερόλεπτα."
+
+msgid "Stop ZenFM"
+msgstr "Σταματήστε το ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Μετάβαση σε σκοτεινή λειτουργία"
+
+msgid "Switch to light mode"
+msgstr "Μετάβαση σε λειτουργία φωτός"
+
+msgid "System"
+msgstr "Σύστημα"
+
+msgid "Temporary password"
+msgstr "Προσωρινός κωδικός πρόσβασης"
+
+msgid "Text editor"
+msgstr "Επεξεργαστής κειμένου"
+
+msgid "The password is incorrect."
+msgstr "Ο κωδικός πρόσβασης είναι λανθασμένος."
+
+msgid "Theme"
+msgstr "Μοτίβο"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Αυτή η σύνδεση χρησιμοποιεί HTTP. Τα διαπιστευτήρια και τα περιεχόμενα του αρχείου ενδέχεται να είναι ορατά στο δίκτυο."
+
+msgid "This file has unsaved changes."
+msgstr "Αυτό το αρχείο έχει μη αποθηκευμένες αλλαγές."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Αυτό το αρχείο είναι πολύ μεγάλο ή δεν υποστηρίζεται για ασφαλή επεξεργασία."
+
+msgid "This link is unavailable or has expired."
+msgstr "Αυτός ο σύνδεσμος δεν είναι διαθέσιμος ή έχει λήξει."
+
+msgid "Token name"
+msgstr "Συμβολικό όνομα"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Τα διακριτικά εμφανίζονται μία φορά και δεν αποθηκεύονται ποτέ από αυτό το πρόγραμμα περιήγησης."
+
+msgid "Total copy progress"
+msgstr "Συνολική πρόοδος αντιγραφής"
+
+msgid "Total upload progress"
+msgstr "Συνολική πρόοδος μεταφόρτωσης"
+
+msgid "Unlock"
+msgstr "Ξεκλειδώνω"
+
+msgid "Update"
+msgstr "Εκσυγχρονίζω"
+
+msgid "Upload"
+msgstr "Μεταφόρτωση"
+
+msgid "Upload a file or create one."
+msgstr "Ανεβάστε ένα αρχείο ή δημιουργήστε ένα."
+
+msgid "Upload files"
+msgstr "Μεταφόρτωση αρχείων"
+
+msgid "Upload folder"
+msgstr "Μεταφόρτωση φακέλου"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Μεταφόρτωση {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Μεταφόρτωση · {{completed}} από {{count}} αρχεία ολοκληρώθηκε · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Χρησιμοποιήστε τη ρίζα για προχωρημένους για την έκθεση /. Οι προσαρμοσμένες ρίζες δεν μπορούν να περιέχουν . ή .. εξαρτήματα."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Χρησιμοποιήστε μια απόλυτη διαδρομή που αρχίζει με /."
+
+msgid "Use at least 7 characters."
+msgstr "Χρησιμοποιήστε τουλάχιστον 7 χαρακτήρες."
+
+msgid "Use unencrypted HTTP"
+msgstr "Χρησιμοποιήστε μη κρυπτογραφημένο HTTP"
+
+msgid "Version"
+msgstr "Εκδοχή"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Προειδοποίηση: η προηγμένη ριζική λειτουργία εκθέτει ολόκληρο το σύστημα αρχείων, συμπεριλαμβανομένης της κατάστασης ZenFM και των πιστοποιητικών."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Προειδοποίηση: Το μη κρυπτογραφημένο HTTP είναι ενεργοποιημένο."
+
+msgid "Your files, easily accessible."
+msgstr "Τα αρχεία σας, εύκολα προσβάσιμα."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "Το ZenFM εκτελείται."
+
+msgid "ZenFM is stopped."
+msgstr "Το ZenFM έχει σταματήσει."
+
+msgid "ZenFM port"
+msgstr "Θύρα ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Αίτημα ZenFM σε εκκρεμότητα…"
+
+msgid "ZenFM started."
+msgstr "Το ZenFM ξεκίνησε."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "Το ZenFM σταμάτησε μετά από αδράνεια."
+
+msgid "ZenFM stopped."
+msgstr "Το ZenFM σταμάτησε."
+
+msgid "ZenFM update cancelled."
+msgstr "Η ενημέρωση ZenFM ακυρώθηκε."
+
+msgid "ZenFM update timed out."
+msgstr "Το χρονικό όριο ενημέρωσης ZenFM έληξε."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Κατάσταση"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Εναλλαγή διακομιστή"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} στοιχεία"
+
+msgid "{{count}} items selected"
+msgstr "Επιλέχθηκαν {{count}} στοιχεία"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} από {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "Το {{name}} υπάρχει ήδη. Εφαρμόστε αυτήν την επιλογή σε όλες τις διενέξεις σε αυτήν τη μεταφόρτωση."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} από {{total}} — {{progress}}%"

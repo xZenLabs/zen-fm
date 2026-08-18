@@ -103,7 +103,11 @@ local function version_parts(value)
     local core, prerelease = tostring(value or ""):gsub("^v", ""):match("^([0-9]+%.[0-9]+%.[0-9]+)%-?(.*)$")
     if not core then return nil end
     local major, minor, patch = core:match("^(%d+)%.(%d+)%.(%d+)$")
-    return { tonumber(major), tonumber(minor), tonumber(patch), prerelease ~= "", prerelease }
+    local prerelease_name, prerelease_number = prerelease:match("^(.-)(%d+)$")
+    return {
+        tonumber(major), tonumber(minor), tonumber(patch), prerelease ~= "",
+        prerelease_name or prerelease, tonumber(prerelease_number) or 0,
+    }
 end
 
 function Updater.version_greater(left, right)
@@ -113,7 +117,8 @@ function Updater.version_greater(left, right)
         if a[index] ~= b[index] then return a[index] > b[index] end
     end
     if a[4] ~= b[4] then return not a[4] end
-    return a[5] > b[5]
+    if a[5] ~= b[5] then return a[5] > b[5] end
+    return a[6] > b[6]
 end
 
 function Updater.asset_name(daemon, version)
@@ -131,10 +136,10 @@ function Updater.asset_name(daemon, version)
     return nil
 end
 
-function Updater.select_release(releases, daemon, current_version)
+function Updater.select_release(releases, daemon, current_version, allow_prerelease)
     local best
     for _, release in ipairs(releases or {}) do
-        if not release.draft and not release.prerelease then
+        if not release.draft and (allow_prerelease or not release.prerelease) then
             local version = tostring(release.tag_name or ""):gsub("^v", "")
             local expected = Updater.asset_name(daemon, version)
             if expected and Updater.version_greater(version, current_version) then
@@ -285,14 +290,14 @@ function Updater.validate_lua_tree(root)
     return walk(root, 0)
 end
 
-local function latest(daemon)
+local function latest(daemon, allow_prerelease)
     local body, err = request(releases_url, maximum_metadata_bytes)
     if not body then return nil, err end
     local ok_json, JSON = pcall(require, "json")
     if not ok_json then return nil, "JSON support is unavailable" end
     local decoded_ok, releases = pcall(JSON.decode, body)
     if not decoded_ok or type(releases) ~= "table" then return nil, "GitHub returned invalid release metadata" end
-    return Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir))
+    return Updater.select_release(releases, daemon, plugin_version(daemon.plugin_dir), allow_prerelease)
 end
 
 local function validate_stage(daemon, directory, version)
@@ -366,6 +371,12 @@ function Updater.install_stage(daemon, stage_root, resume_after_update)
     return true, "ZenFM updated. Restart KOReader to finish activation."
 end
 
+local function stop_and_wait(daemon)
+    local stopped, err = daemon:stop()
+    if stopped then stopped, err = daemon:wait_until_stopped() end
+    return stopped, err
+end
+
 function Updater.finalize_pending(daemon)
     local plugin_dir = daemon.plugin_dir
     local marker = plugin_dir .. "/.update-pending"
@@ -382,7 +393,11 @@ function Updater.finalize_pending(daemon)
         if parent then Util.remove_tree(backup, parent) end
         return true
     end
-    local ready, err = daemon:ensure_backend()
+    -- A prior KOReader process may have requested shutdown but exited before
+    -- the supervisor finished. Never let that old backend satisfy the health
+    -- check for the newly activated plugin.
+    local ready, err = stop_and_wait(daemon)
+    if ready then ready, err = daemon:ensure_backend() end
     if ready then ready, err = daemon:start() end
     if ready then
         local ok_socket, socket = pcall(require, "socket")
@@ -394,7 +409,7 @@ function Updater.finalize_pending(daemon)
         if not ready then err = "updated backend failed its control-socket health check" end
     end
     if ready and desired_state == "stop" then
-        ready, err = daemon:stop()
+        ready, err = stop_and_wait(daemon)
         if not ready then err = "updated backend passed health verification but could not be stopped" end
     end
     if ready then
@@ -403,7 +418,11 @@ function Updater.finalize_pending(daemon)
         if parent then Util.remove_tree(backup, parent) end
         return true
     end
-    daemon:stop()
+    local rollback_ready, rollback_err = stop_and_wait(daemon)
+    if not rollback_ready then
+        return false, "updated backend failed health check and rollback could not stop it: "
+            .. tostring(rollback_err or err)
+    end
     local parent = plugin_dir:match("^(.*)/[^/]+$")
     local failed = plugin_dir .. ".failed"
     if not parent or not Util.remove_tree(failed, parent)
@@ -414,8 +433,11 @@ function Updater.finalize_pending(daemon)
     return false, "updated backend failed health check; previous plugin restored. Restart KOReader."
 end
 
-function Updater.install_latest(daemon)
-    local release, err = latest(daemon)
+function Updater.prepare_latest(daemon, allow_prerelease)
+    if Util.path_exists(daemon.plugin_dir .. "/.update-pending") then
+        return false, "Restart KOReader to finish the pending ZenFM update."
+    end
+    local release, err = latest(daemon, allow_prerelease)
     if not release then return false, err or "ZenFM is up to date" end
     if release.size and (release.size <= 0 or release.size > maximum_package_bytes) then
         return false, "release package size is invalid"
@@ -440,13 +462,25 @@ function Updater.install_latest(daemon)
     if not unpacked then return false, tostring(unpack_err or "could not extract update") end
     local root, validation_err = validate_stage(daemon, stage, release.version)
     if not root then return false, validation_err end
+    return true, root
+end
+
+function Updater.activate_stage(daemon, root)
     local was_running = false
     if not daemon:is_android() then
         was_running = daemon:status()
-        local stopped, stop_err = daemon:stop()
+        local stopped, stop_err = stop_and_wait(daemon)
         if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
     end
-    return Updater.install_stage(daemon, root, was_running)
+    local installed, result = Updater.install_stage(daemon, root, was_running)
+    if not installed and was_running then daemon:start() end
+    return installed, result
+end
+
+function Updater.install_latest(daemon, allow_prerelease)
+    local prepared, result = Updater.prepare_latest(daemon, allow_prerelease)
+    if not prepared then return false, result end
+    return Updater.activate_stage(daemon, result)
 end
 
 return Updater

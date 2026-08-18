@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: vi\n"
+
+msgid "1 day"
+msgstr "1 ngày"
+
+msgid "1 hour"
+msgstr "1 giờ"
+
+msgid "1 week"
+msgstr "1 tuần"
+
+msgid "1 year"
+msgstr "1 năm"
+
+msgid "30 days"
+msgstr "30 ngày"
+
+msgid "About {{eta}} remaining"
+msgstr "Còn lại khoảng {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Chế độ root nâng cao đang hoạt động. Các tệp hệ thống, đường dẫn thiết bị và bí mật ZenFM đều hiển thị và có thể bị thay đổi hoặc xóa."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Chế độ root nâng cao phục vụ /. Nó hiển thị /proc, /sys, /dev, cơ sở dữ liệu, chứng chỉ, nhật ký của ZenFM và mọi tệp mà quy trình có thể truy cập. Chỉnh sửa hoặc xóa chúng có thể làm hỏng thiết bị hoặc khiến bạn bị khóa."
+
+msgid "Advanced root: expose /"
+msgstr "Root nâng cao: phơi bày /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "APK đồng hành của Android: đang mở trình cập nhật…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Đồng hành Android đã không báo cáo kết quả %s mới trong vòng 30 giây."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Một yêu cầu ZenFM Android khác vẫn đang chờ xử lý."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Bạn có chắc chắn muốn di chuyển <filename>{{name}}</filename> sang <path>{{destination}}</path> không?"
+
+msgid "Beta updates"
+msgstr "Cập nhật thử nghiệm"
+
+msgid "Calculating total size…"
+msgstr "Đang tính tổng kích thước…"
+
+msgid "Cancel"
+msgstr "Hủy"
+
+msgid "Change password"
+msgstr "Đổi mật khẩu"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Đang kiểm tra bản cập nhật ZenFM…"
+
+msgid "Checksum"
+msgstr "Tổng kiểm tra"
+
+msgid "Clear find"
+msgstr "Xóa tìm kiếm"
+
+msgid "Clear search"
+msgstr "Xóa"
+
+msgid "Client timeout"
+msgstr "Thời gian chờ của khách hàng"
+
+msgid "Close"
+msgstr "Đóng"
+
+msgid "Close file"
+msgstr "Đóng tập tin"
+
+msgid "Confirm"
+msgstr "Xác nhận"
+
+msgid "Confirm password"
+msgstr "Xác nhận mật khẩu mới"
+
+msgid "Copied"
+msgstr "Liên kết đã được sao chép!"
+
+msgid "Copy"
+msgstr "Sao chép"
+
+msgid "Copy link"
+msgstr "Sao chép liên kết tải xuống vào clipboard"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Sao chép mã thông báo này ngay bây giờ. Nó sẽ không được hiển thị lại."
+
+msgid "Copy token"
+msgstr "Sao chép mã thông báo"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Đang sao chép {{copied}} của {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Không thể đọc kết quả đồng hành của Android"
+
+msgid "Create"
+msgstr "Tạo"
+
+msgid "Create share"
+msgstr "Tạo chia sẻ"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Tạo liên kết tạm thời mà không làm lộ phiên chủ sở hữu của bạn."
+
+msgid "Create token"
+msgstr "Tạo mã thông báo"
+
+msgid "Current password"
+msgstr "Mật khẩu hiện tại"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Root tùy chỉnh (trống sử dụng mặc định của thiết bị)"
+
+msgid "Dark"
+msgstr "Tối"
+
+msgid "Date modified"
+msgstr "Sửa đổi lần cuối"
+
+msgid "Delete"
+msgstr "Xóa"
+
+msgid "Delete {{count}} items?"
+msgstr "Xóa {{count}} mục?"
+
+msgid "Destination folder"
+msgstr "Thư mục đích"
+
+msgid "Destination path"
+msgstr "Đường dẫn đích"
+
+msgid "Discard"
+msgstr "Loại bỏ"
+
+msgid "Download"
+msgstr "Tải xuống"
+
+msgid "Edit"
+msgstr "Biên tập"
+
+msgid "Editing {{name}}"
+msgstr "Đang chỉnh sửa {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Kích hoạt HTTP"
+
+msgid "Expires"
+msgstr "Hết hạn"
+
+msgid "Expires after"
+msgstr "Hết hạn sau"
+
+msgid "Expose entire filesystem"
+msgstr "Hiển thị toàn bộ hệ thống tập tin"
+
+msgid "File already exists"
+msgstr "Tệp đã tồn tại"
+
+msgid "File name"
+msgstr "Tên tập tin"
+
+msgid "File or folder path"
+msgstr "Đường dẫn"
+
+msgid "Files"
+msgstr "Tập tin"
+
+msgid "Find in file"
+msgstr "Tìm trong tập tin"
+
+msgid "Finish setup"
+msgstr "Hoàn tất thiết lập"
+
+msgid "Folder name"
+msgstr "Tên thư mục"
+
+msgid "General"
+msgstr "Tổng quan"
+
+msgid "Grid view"
+msgstr "Chế độ xem lưới"
+
+msgid "Hide password"
+msgstr "Ẩn mật khẩu"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP gửi mật khẩu, cookie phiên và nội dung tệp mà không cần mã hóa. Vẫn kích hoạt nó?"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Thời gian chờ không hoạt động (phút)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Thời gian chờ không hoạt động: %d phút"
+
+msgid "Installing ZenFM update…"
+msgstr "Đang cài đặt bản cập nhật ZenFM…"
+
+msgid "Invalid value."
+msgstr "Giá trị không hợp lệ."
+
+msgid "Keep editing"
+msgstr "Tiếp tục chỉnh sửa"
+
+msgid "KOReader plugin bundle:"
+msgstr "Gói plugin KOReader:"
+
+msgid "Label"
+msgstr "Nhãn"
+
+msgid "Language"
+msgstr "Ngôn ngữ"
+
+msgid "Later"
+msgstr "Sau đó"
+
+msgid "Lifetime"
+msgstr "Trọn đời"
+
+msgid "Light"
+msgstr "Sáng"
+
+msgid "List view"
+msgstr "Chế độ xem danh sách"
+
+msgid "Listening port:"
+msgstr "Cổng nghe:"
+
+msgid "Loading…"
+msgstr "Đang tải..."
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Đăng nhập lại. Sử dụng koreader123456789 và chọn mật khẩu mới."
+
+msgid "Move"
+msgstr "Di chuyển"
+
+msgid "Name"
+msgstr "Tên"
+
+msgid "Never"
+msgstr "Không bao giờ"
+
+msgid "New file"
+msgstr "Tập tin mới"
+
+msgid "New folder"
+msgstr "Thư mục mới"
+
+msgid "New password"
+msgstr "Mật khẩu mới của bạn"
+
+msgid "New Password"
+msgstr "Mật khẩu mới"
+
+msgid "Next match"
+msgstr "Trận đấu tiếp theo"
+
+msgid "No matches"
+msgstr "Không có kết quả phù hợp"
+
+msgid "No shared links"
+msgstr "Không có liên kết được chia sẻ"
+
+msgid "not configured"
+msgstr "không được cấu hình"
+
+msgid "Nothing here yet"
+msgstr "Không có gì ở đây..."
+
+msgid "Open"
+msgstr "Xem trước"
+
+msgid "Optional password"
+msgstr "Mật khẩu tùy chọn"
+
+msgid "Password"
+msgstr "Mật khẩu"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Mật khẩu đã thay đổi; phiên và mã thông báo API đã bị thu hồi."
+
+msgid "Password protected"
+msgstr "Mật khẩu được bảo vệ"
+
+msgid "Paste"
+msgstr "Dán"
+
+msgid "Personal API token"
+msgstr "Mã thông báo API cá nhân"
+
+msgid "Personal API tokens"
+msgstr "Mã thông báo API cá nhân"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Cổng phải nằm trong khoảng từ 1 đến 65535."
+
+msgid "Port: "
+msgstr "Cảng:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Không có bản xem trước cho tập tin này."
+
+msgid "Previous match"
+msgstr "Trận đấu trước"
+
+msgid "Refresh"
+msgstr "Làm cho khỏe lại"
+
+msgid "Rename"
+msgstr "Đổi tên"
+
+msgid "Replace"
+msgstr "Thay thế"
+
+msgid "Replace all"
+msgstr "Thay thế tất cả"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Thay thế mật khẩu tạm thời trước khi truy cập tập tin của bạn."
+
+msgid "Reset login"
+msgstr "Đặt lại đăng nhập"
+
+msgid "Reset owner login"
+msgstr "Đặt lại thông tin đăng nhập của chủ sở hữu"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Đặt lại thông tin đăng nhập của chủ sở hữu thành mật khẩu chỉ thiết lập và thu hồi mọi phiên và mã thông báo API?"
+
+msgid "Restart now"
+msgstr "Khởi động lại ngay bây giờ"
+
+msgid "Restarting…"
+msgstr "Đang khởi động lại…"
+
+msgid "Revoke"
+msgstr "Thu hồi"
+
+msgid "Root"
+msgstr "Gốc"
+
+msgid "Root: "
+msgstr "Gốc:"
+
+msgid "Save"
+msgstr "Cứu"
+
+msgid "Save and close"
+msgstr "Lưu và đóng"
+
+msgid "Save changes"
+msgstr "Lưu thay đổi"
+
+msgid "Save changes before closing?"
+msgstr "Lưu các thay đổi trước khi đóng?"
+
+msgid "Save settings"
+msgstr "Lưu"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Đã lưu. Khởi động lại ZenFM để áp dụng thay đổi."
+
+msgid "Search results"
+msgstr "Kết quả tìm kiếm"
+
+msgid "Search this folder"
+msgstr "Tìm kiếm..."
+
+msgid "Settings"
+msgstr "Cài đặt"
+
+msgid "Settings saved"
+msgstr "Đã lưu cài đặt"
+
+msgid "Share"
+msgstr "Chia sẻ"
+
+msgid "Shared files"
+msgstr "Tệp được chia sẻ"
+
+msgid "Shared links"
+msgstr "Quản lý chia sẻ"
+
+msgid "Shared with ZenFM"
+msgstr "Đã chia sẻ với ZenFM"
+
+msgid "Shares"
+msgstr "Chia sẻ"
+
+msgid "Show hidden files"
+msgstr "Hiển thị các tập tin ẩn"
+
+msgid "Show password"
+msgstr "Hiển thị mật khẩu"
+
+msgid "Sign in"
+msgstr "Đăng nhập"
+
+msgid "Sign out"
+msgstr "Đăng xuất"
+
+msgid "Signing in…"
+msgstr "Đang đăng nhập…"
+
+msgid "Size"
+msgstr "Kích thước"
+
+msgid "Skip all"
+msgstr "Bỏ qua tất cả"
+
+msgid "Something went wrong"
+msgstr "Đã xảy ra lỗi"
+
+msgid "Start ZenFM"
+msgstr "Bắt đầu ZenFM"
+
+msgid "Status and address"
+msgstr "Tình trạng và địa chỉ"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Dừng chờ đợi các yêu cầu máy chủ thông thường sau nhiều giây này."
+
+msgid "Stop ZenFM"
+msgstr "Dừng ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Chuyển sang chế độ tối"
+
+msgid "Switch to light mode"
+msgstr "Chuyển sang chế độ ánh sáng"
+
+msgid "System"
+msgstr "Mặc định hệ thống"
+
+msgid "Temporary password"
+msgstr "Mật khẩu tạm thời"
+
+msgid "Text editor"
+msgstr "Trình soạn thảo văn bản"
+
+msgid "The password is incorrect."
+msgstr "Mật khẩu không đúng."
+
+msgid "Theme"
+msgstr "Chủ đề"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Kết nối này đang sử dụng HTTP. Thông tin xác thực và nội dung tệp có thể hiển thị trên mạng."
+
+msgid "This file has unsaved changes."
+msgstr "Tập tin này có những thay đổi chưa được lưu."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Tệp này quá lớn hoặc không được hỗ trợ để chỉnh sửa an toàn."
+
+msgid "This link is unavailable or has expired."
+msgstr "Liên kết này không có sẵn hoặc đã hết hạn."
+
+msgid "Token name"
+msgstr "Tên mã thông báo"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Mã thông báo được hiển thị một lần và không bao giờ được trình duyệt này lưu trữ."
+
+msgid "Total copy progress"
+msgstr "Tổng tiến trình sao chép"
+
+msgid "Total upload progress"
+msgstr "Tổng tiến trình tải lên"
+
+msgid "Unlock"
+msgstr "Mở khóa"
+
+msgid "Update"
+msgstr "Cập nhật"
+
+msgid "Upload"
+msgstr "Tải lên"
+
+msgid "Upload a file or create one."
+msgstr "Tải lên một tập tin hoặc tạo một tập tin."
+
+msgid "Upload files"
+msgstr "Tải tập tin lên"
+
+msgid "Upload folder"
+msgstr "Tải lên thư mục"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Đang tải lên {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Đang tải lên · hoàn tất {{completed}} trong tổng số {{count}} tệp · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Sử dụng Advanced root để hiển thị /. Rễ tùy chỉnh không thể chứa . hoặc .. thành phần."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Sử dụng đường dẫn tuyệt đối bắt đầu bằng /."
+
+msgid "Use at least 7 characters."
+msgstr "Sử dụng ít nhất 7 ký tự."
+
+msgid "Use unencrypted HTTP"
+msgstr "Sử dụng HTTP không được mã hóa"
+
+msgid "Version"
+msgstr "Phiên bản"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Cảnh báo: chế độ gốc nâng cao hiển thị toàn bộ hệ thống tệp, bao gồm cả trạng thái và chứng chỉ ZenFM."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Cảnh báo: HTTP không mã hóa đã được bật."
+
+msgid "Your files, easily accessible."
+msgstr "Các tập tin của bạn, có thể truy cập dễ dàng."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM đang chạy."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM đã dừng."
+
+msgid "ZenFM port"
+msgstr "cổng ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Yêu cầu ZenFM đang chờ xử lý…"
+
+msgid "ZenFM started."
+msgstr "ZenFM đã bắt đầu."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM đã dừng sau khi không hoạt động."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM đã dừng."
+
+msgid "ZenFM update cancelled."
+msgstr "Đã hủy cập nhật ZenFM."
+
+msgid "ZenFM update timed out."
+msgstr "Đã hết thời gian cập nhật ZenFM."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Trạng thái"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Chuyển đổi máy chủ"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} mục"
+
+msgid "{{count}} items selected"
+msgstr "Đã chọn {{count}} mục"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} trong tổng số {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} đã tồn tại. Áp dụng lựa chọn này cho tất cả xung đột trong quá trình tải lên này."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} trong tổng số {{total}} — {{progress}}%"

@@ -47,7 +47,7 @@ regression tests must remain in place.
 | GHSA-mr74-928f-rw69 | Control | Public paths are resolved beneath the shared target. |
 | GHSA-hxw8-4h9j-hq2r | Control | Password changes require a browser session and CSRF token. |
 | GHSA-4mh3-h929-w968 | Control | Repeated leading slashes and encoded separators are rejected. |
-| GHSA-43mm-m3h2-3prc | Control | One dummy Argon2id verification and uniform responses prevent username timing distinction. |
+| GHSA-43mm-m3h2-3prc | Removed | Password-only login has no username-existence distinction. |
 | GHSA-6jqf-mv7m-3q7p | Control | Supported Go HTTP stack and dependency vulnerability scanning are release gates. |
 | GHSA-6cqf-cfhv-659g | Control | Share deletion addresses an exact opaque share ID. |
 | GHSA-w5fm-68j4-fpc4 | Control | Login bodies, concurrent hashes, and attempts are bounded. |
@@ -62,6 +62,7 @@ regression tests must remain in place.
 | GHSA-w7qc-6grj-w7r8 | Removed | No command execution. |
 | GHSA-4wx8-5gm2-2j97 | Control | Markdown raw HTML is escaped, unsafe links are stripped, and the sanitized result remains under the application CSP. |
 
-Advanced root mode intentionally permits the owner to read or alter regular
-ZenFM state and certificate files. That behavior is outside these isolation
-controls and is documented as an accepted risk.
+ZenFM intentionally permits the owner to read or alter regular ZenFM state and
+certificate files when its settings directory lies below the configured file
+root. That behavior is outside these isolation controls and is documented as an
+accepted risk.

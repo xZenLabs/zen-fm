@@ -15,10 +15,7 @@ npm run dev:mock
 ```
 
 Open the URL printed by Vite, normally <http://localhost:5173>, and sign in
-with:
-
-- Username: `koreader`
-- Password: `zenfm-demo-password`
+with the password `koreader`.
 
 The mock contains folders, text/Markdown/CSV/image fixtures, a hidden file,
 shares, settings, and token examples. Common file mutations and direct uploads
@@ -63,8 +60,8 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173>. First run uses
-`koreader` / `koreader123456789` and requires an immediate password change.
+Open <http://localhost:5173>. First run uses the password
+`koreader123456789` and requires an immediate password change.
 The explicit HTTP flag is appropriate only for this loopback development
 setup.
 
@@ -196,7 +193,7 @@ and build both float variants:
 ```sh
 sh scripts/verify-legacy-toolchain.sh
 sh toolchains/legacy/bootstrap.sh
-ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.6-kindle/bin/go"
+ZENFM_LEGACY_GO="$PWD/.toolchains/go1.26.6-kindle-p2/bin/go"
 
 (cd "$ZENFM_DEV_DIR/src" && env GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
   "$ZENFM_LEGACY_GO" build -trimpath -buildvcs=false -ldflags "$ZENFM_LDFLAGS" \
@@ -292,18 +289,34 @@ In KOReader, open **ZenFM > Start ZenFM**, followed by
 **ZenFM > Status and address**. The status dialog shows the device's LAN IP and
 the active ZenFM listening port.
 
-The default server is HTTPS on port 8443. Initial login is
-`koreader` / `koreader123456789`; file APIs remain locked until the password is
-changed. The plugin supervisor keeps the server detached and handles the
-Kindle firewall. Prefer the plugin to a hand-started process for device tests.
+The default server is HTTPS on port 53241, shared by every installation and by
+both transport modes unless changed in the plugin settings. While HTTPS is
+enabled, plain HTTP requests to that port redirect to the same URL over HTTPS.
+The initial login password is `koreader123456789`; file APIs remain locked
+until it is changed. The plugin supervisor keeps the server detached and
+handles the Kindle firewall. Prefer the plugin to a hand-started process for
+device tests.
 
 On non-Android devices, runtime files live under
 `<KOReader settings directory>/ZenFM`:
 
-- `zenfm.log` contains backend and supervisor output;
 - `zenfm.db` contains owner, session, share, and upload state;
 - `backend/zenfm` is the installed backend copy;
 - generated TLS material is under `tls/`.
+
+This directory remains visible and mutable in the web Files view when it is
+below the configured root. Editing or deleting its live state can expose
+credentials, corrupt state, or stop ZenFM. Public shares exclude it.
+
+Backend and supervisor output is appended to KOReader's `crash.log` so it is
+included with the device's normal diagnostics. Each line uses KOReader's local
+`MM/DD/YY-HH:MM:SS` timestamp format followed by `ZenFM:` for easy filtering.
+Outside KOReader, ZenFM falls back to `<state directory>/zenfm.log` with the
+same timestamped format. Diagnostics include supervisor and server setup
+phases, accepted connection and HTTP/HTTPS classification, and HTTP response
+status for API calls, redirects, and failures. Successful static asset requests
+are skipped. Request query strings are omitted, and bearer-like URL segments
+are redacted.
 
 On Android, the companion keeps the database, generated certificate, and
 control socket in app-private storage. The KOReader `ZenFM` settings directory

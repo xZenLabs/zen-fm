@@ -87,7 +87,7 @@ async function configureOwner(url, password) {
   const login = await fetch(`${url}/api/v1/session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: url },
-    body: JSON.stringify({ username: 'koreader', password: 'koreader123456789' }),
+    body: JSON.stringify({ password: 'koreader123456789' }),
   })
   if (!login.ok) throw new Error(`Could not create E2E owner session: ${login.status}`)
   const cookie = login.headers.get('set-cookie')?.split(';', 1)[0]

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type MouseEvent } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent,
+  Alert, Box, Breadcrumbs, Button, Card, CardActionArea, CardContent, Checkbox,
   Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment,
   LinearProgress, Link, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TableSortLabel, TextField, Tooltip, Typography, useMediaQuery, useTheme,
@@ -15,24 +15,24 @@ import CreateNewFolderRounded from '@mui/icons-material/CreateNewFolderRounded'
 import GridViewRounded from '@mui/icons-material/GridViewRounded'
 import ViewListRounded from '@mui/icons-material/ViewListRounded'
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded'
-import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import EditRounded from '@mui/icons-material/EditRounded'
 import EditDocumentIcon from '@mui/icons-material/EditDocument'
 import DriveFileMoveRounded from '@mui/icons-material/DriveFileMoveRounded'
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded'
 import ContentPasteRounded from '@mui/icons-material/ContentPasteRounded'
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
-import DownloadRounded from '@mui/icons-material/DownloadRounded'
+import DownloadIcon from '@mui/icons-material/Download'
 import ShareIcon from '@mui/icons-material/Share'
 import FingerprintRounded from '@mui/icons-material/FingerprintRounded'
 import RefreshRounded from '@mui/icons-material/RefreshRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
 import { api, isConflictError, uploadResumable } from '../api/client'
 import type { FileEntry, SortDirection, SortField } from '../api/types'
-import { filesRoute, formatBytes, formatDate, formatDuration, formatShortDate, joinPath, publicShareUrl, TransferEtaEstimator } from '../utils'
+import { fileRoute, filesRoute, formatBytes, formatDate, formatDuration, formatShortDate, joinPath, publicShareUrl, TransferEtaEstimator } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { canEdit, CreateShareDialog, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
 import { PageHeader } from '../components/PageHeader'
@@ -46,6 +46,7 @@ type ConflictPolicy = 'ask' | 'replace' | 'skip'
 type DroppedMove = { entry: FileEntry; destination: string }
 type UploadFile = { file: File; relativePath: string }
 type UploadBatch = { directories: string[]; files: UploadFile[] }
+type DroppedUpload = { upload: UploadBatch; destination: string; names: string[] }
 type UploadProgress = {
   name: string
   completedFiles: number
@@ -83,7 +84,24 @@ function hasDraggedFiles(dataTransfer: DataTransfer | null) {
 }
 
 function fileUploadBatch(files: File[]): UploadBatch {
-  return { directories: [], files: files.map((file) => ({ file, relativePath: file.name })) }
+  const directories = new Set<string>()
+  const uploadFiles = files.map((file) => {
+    const relativePath = file.webkitRelativePath || file.name
+    const parts = relativePath.split('/').filter(Boolean)
+    for (let index = 1; index < parts.length; index++) directories.add(parts.slice(0, index).join('/'))
+    return { file, relativePath }
+  })
+  return { directories: Array.from(directories), files: uploadFiles }
+}
+
+function uploadRootNames(upload: UploadBatch) {
+  const names = new Set<string>()
+  const paths = [...upload.directories, ...upload.files.map((item) => item.relativePath)]
+  for (const path of paths) {
+    const name = path.split('/').find(Boolean)
+    if (name) names.add(name)
+  }
+  return Array.from(names)
 }
 
 function readFileEntry(entry: FileSystemFileEntry) {
@@ -155,19 +173,23 @@ function canPasteInto(destination: string, entry: FileEntry) {
 export function FilesPage() {
   const { t } = useTranslation()
   const params = useParams()
+  const [routeSearch] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const theme = useTheme()
   const mobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const coarseInput = useMediaQuery('(pointer: coarse)')
   const uploadInput = useRef<HTMLInputElement>(null)
   const uploadAbort = useRef<AbortController | null>(null)
   const path = `/${params['*'] ?? ''}`.replaceAll('//', '/')
+  const routeFileName = routeSearch.get('file')
   const [view, setView] = useState<ViewMode>(() => mobile ? 'grid' : 'list')
   const [sortPreference, setSortPreference] = useState(storedSortPreference)
   const { sort, direction } = sortPreference
   const [showHidden, setShowHidden] = useState(false)
   const [searchDraft, setSearchDraft] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [uploadMenuAnchor, setUploadMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const [selected, setSelected] = useState<FileEntry | null>(null)
@@ -185,10 +207,12 @@ export function FilesPage() {
   const [upload, setUpload] = useState<UploadProgress | null>(null)
   const [uploadClock, setUploadClock] = useState(() => Date.now())
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [droppedUpload, setDroppedUpload] = useState<DroppedUpload | null>(null)
   const [droppedMove, setDroppedMove] = useState<DroppedMove | null>(null)
   const [conflict, setConflict] = useState<File | null>(null)
   const conflictResolver = useRef<((choice: ConflictChoice) => void) | null>(null)
   const droppedFilesHandler = useRef<(dataTransfer: DataTransfer, destination: string) => void>(() => undefined)
+  const fileShortcutHandler = useRef<(event: globalThis.KeyboardEvent) => void>(() => undefined)
   const draggedEntry = useRef<FileEntry | null>(null)
   const selectionAnchor = useRef<string | null>(null)
   const selectionPath = useRef(path)
@@ -254,19 +278,26 @@ export function FilesPage() {
     return () => document.removeEventListener('contextmenu', openPageContextMenu)
   }, [])
 
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['files', path] })
+  const refresh = () => void Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['files', path] }),
+    queryClient.invalidateQueries({ queryKey: ['search', path] }),
+  ])
   const entries = useMemo(() => {
     const source = searchTerm ? search.data?.entries ?? [] : listing.data?.entries ?? []
     const visible = source.filter((entry) => showHidden || !entry.hidden && !entry.name.startsWith('.'))
     return [...visible].sort((left, right) => {
       if (left.type === 'directory' && right.type !== 'directory') return -1
       if (left.type !== 'directory' && right.type === 'directory') return 1
+      if (sort === 'size' && left.type === 'directory') return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
       const comparison = sort === 'size' ? left.size - right.size
         : sort === 'modified' ? new Date(left.modifiedAt).valueOf() - new Date(right.modifiedAt).valueOf()
           : left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
       return direction === 'asc' ? comparison : -comparison
     })
   }, [direction, listing.data?.entries, search.data?.entries, searchTerm, showHidden, sort])
+  const routeFile = routeFileName
+    ? listing.data?.entries.find((entry) => entry.type === 'file' && entry.name === routeFileName) ?? null
+    : null
   const selectableEntries = useMemo(() => entries.filter((entry) => entry.type === 'file' || entry.type === 'directory'), [entries])
   const selectedEntries = useMemo(() => selectableEntries.filter((entry) => selectedPaths.has(entry.path)), [selectableEntries, selectedPaths])
   const menuEntries = selected && selected.type !== 'special'
@@ -309,6 +340,11 @@ export function FilesPage() {
     if (entry.type === 'directory') void navigate(filesRoute(entry.path))
     else if (entry.type === 'file') setPreview(entry)
   }
+  const openFullScreen = (entry: FileEntry) => {
+    setPreview(null)
+    void navigate(fileRoute(entry.path))
+  }
+  const closeFullScreen = () => void navigate(filesRoute(path), { replace: true })
   const prepareItemMenu = (entry: FileEntry) => {
     setSelected(entry)
     if (entry.type === 'special') {
@@ -354,6 +390,37 @@ export function FilesPage() {
     closeMenu()
   }
 
+  fileShortcutHandler.current = (event) => {
+    if (event.defaultPrevented || event.repeat || event.isComposing
+      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (event.key !== 'Enter' && event.key !== 'Delete') return
+    if (document.querySelector('[role="dialog"], [role="menu"]')) return
+    const target = event.target
+    if (target instanceof Element) {
+      const control = target.closest('button, a, input, textarea, select, [contenteditable="true"], [role="button"], [role="link"], [role="menuitem"]')
+      if (control && (!control.classList.contains('MuiCardActionArea-root')
+        || event.key === 'Enter' && !control.closest('.file-card.selected'))) return
+    }
+    if (event.key === 'Enter') {
+      const entry = selectedEntries.length === 1 ? selectedEntries[0] : undefined
+      if (!entry) return
+      event.preventDefault()
+      event.stopPropagation()
+      openEntry(entry)
+      return
+    }
+    if (selectedEntries.length === 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    beginDelete(selectedEntries)
+  }
+
+  useEffect(() => {
+    const handleFileShortcut = (event: globalThis.KeyboardEvent) => fileShortcutHandler.current(event)
+    document.addEventListener('keydown', handleFileShortcut, true)
+    return () => document.removeEventListener('keydown', handleFileShortcut, true)
+  }, [])
+
   const askAboutConflict = (file: File, signal: AbortSignal) => new Promise<ConflictChoice>((resolve) => {
     const finish = (choice: ConflictChoice) => {
       signal.removeEventListener('abort', abort)
@@ -373,6 +440,7 @@ export function FilesPage() {
   useCloseOnHistoryNavigation(newFileOpen, () => setNewFileOpen(false))
   useCloseOnHistoryNavigation(newFolderOpen, () => setNewFolderOpen(false))
   useCloseOnHistoryNavigation(deleting.length > 0, () => setDeleting([]))
+  useCloseOnHistoryNavigation(Boolean(droppedUpload), () => setDroppedUpload(null))
   useCloseOnHistoryNavigation(Boolean(droppedMove), () => { setDroppedMove(null); moveDroppedEntry.reset() })
   useCloseOnHistoryNavigation(Boolean(conflict), () => resolveConflict('cancel'))
   const uploadFile = async (file: File, destination: string, overwrite: boolean, onProgress: (sent: number) => void, signal: AbortSignal) => {
@@ -534,15 +602,30 @@ export function FilesPage() {
     if (conflictResolver.current) resolveConflict('cancel')
   }
 
+  const openUploadPicker = (directory: boolean) => {
+    setUploadMenuAnchor(null)
+    if (!uploadInput.current) return
+    uploadInput.current.webkitdirectory = directory
+    uploadInput.current.click()
+  }
+
   const chooseUploadFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
+    event.target.webkitdirectory = false
     await safeUploadFiles(fileUploadBatch(files), path)
   }
 
   droppedFilesHandler.current = (dataTransfer, destination) => {
     void droppedUploadBatch(dataTransfer)
-      .then((upload) => safeUploadFiles(upload, destination))
+      .then((upload) => {
+        if (upload.directories.length === 0 && upload.files.length === 0) return
+        if (destination !== path) {
+          setDroppedUpload({ upload, destination, names: uploadRootNames(upload) })
+          return
+        }
+        return safeUploadFiles(upload, destination)
+      })
       .catch((error: unknown) => setNotice(error instanceof Error ? error.message : t('common.error')))
   }
 
@@ -669,6 +752,21 @@ export function FilesPage() {
     setSelectedPaths(new Set([entry.path]))
   }
 
+  const toggleEntrySelection = (entry: FileEntry) => {
+    setSelected(entry)
+    selectionAnchor.current = entry.path
+    setSelectedPaths((current) => {
+      const next = new Set(current)
+      if (next.has(entry.path)) next.delete(entry.path)
+      else next.add(entry.path)
+      return next
+    })
+  }
+
+  const selectionCheckbox = (entry: FileEntry) => coarseInput && entry.type !== 'special'
+    ? <Checkbox checked={selectedPaths.has(entry.path)} inputProps={{ 'aria-label': entry.name }} onClick={(event) => event.stopPropagation()} onChange={() => toggleEntrySelection(entry)} sx={{ p: 0.5 }} />
+    : null
+
   const startArchiveDownload = async (paths: string[], filename: string) => {
     try {
       const ticket = await api.files.createArchiveTicket(paths)
@@ -711,11 +809,16 @@ export function FilesPage() {
   const uploadEtaSeconds = upload?.estimatedCompletionAt ? Math.max(0, (upload.estimatedCompletionAt - uploadClock) / 1_000) : 0
 
   return (
-    <Box className={`file-drop-zone${dropTarget === path ? ' drop-active' : ''}`} onContextMenu={openFolderMenu} onDragOver={(event) => prepareDrop(event, path)} onDrop={(event) => acceptDrop(event, path)} sx={{ flex: 1, minWidth: 0 }}>
+    <Box className="file-drop-zone" onContextMenu={openFolderMenu} onDragOver={(event) => prepareDrop(event, path)} onDrop={(event) => acceptDrop(event, path)} sx={{ flex: 1, minWidth: 0 }}>
+      {dropTarget === path && <Box className="file-drop-overlay" aria-hidden="true" />}
       <Stack gap={2.5}>
         <PageHeader title={searchTerm ? t('files.searchResults') : t('nav.files')} actions={<Stack direction="row" gap={1} flexWrap="wrap">
             <input ref={uploadInput} type="file" multiple hidden onChange={(event) => void chooseUploadFiles(event)} />
-            <Button variant="contained" startIcon={<UploadRounded />} disabled={uploadActive} onClick={() => uploadInput.current?.click()}>{t('files.upload')}</Button>
+            <Button variant="contained" startIcon={<UploadRounded />} disabled={uploadActive} aria-haspopup="menu" aria-controls={uploadMenuAnchor ? 'upload-menu' : undefined} onClick={(event) => setUploadMenuAnchor(event.currentTarget)}>{t('files.upload')}</Button>
+            <Menu id="upload-menu" anchorEl={uploadMenuAnchor} open={Boolean(uploadMenuAnchor)} onClose={() => setUploadMenuAnchor(null)}>
+              <MenuItem onClick={() => openUploadPicker(false)}><ListItemIcon><InsertDriveFileRounded /></ListItemIcon><ListItemText>{t('files.uploadFiles')}</ListItemText></MenuItem>
+              <MenuItem onClick={() => openUploadPicker(true)}><ListItemIcon><FolderRounded /></ListItemIcon><ListItemText>{t('files.uploadFolder')}</ListItemText></MenuItem>
+            </Menu>
             <Button variant="outlined" startIcon={<NoteAddRounded />} onClick={() => setNewFileOpen(true)}>{t('files.newFile')}</Button>
             <Button variant="outlined" startIcon={<CreateNewFolderRounded />} onClick={() => setNewFolderOpen(true)}>{t('files.newFolder')}</Button>
           </Stack>}>
@@ -734,8 +837,8 @@ export function FilesPage() {
             <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
               <Tooltip title={t('files.refresh')}><IconButton onClick={refresh}><RefreshRounded /></IconButton></Tooltip>
               <Box role="group" aria-label="View" sx={{ display: 'flex', gap: 0.25, p: 0.375, borderRadius: 999, bgcolor: 'action.hover' }}>
-                <IconButton size="small" aria-label={t('files.grid')} aria-pressed={view === 'grid'} onClick={() => setView('grid')} sx={{ borderRadius: 999, bgcolor: view === 'grid' ? 'background.paper' : 'transparent', boxShadow: view === 'grid' ? 1 : 0, '&:hover': { bgcolor: view === 'grid' ? 'background.paper' : 'action.selected' } }}><GridViewRounded /></IconButton>
-                <IconButton size="small" aria-label={t('files.list')} aria-pressed={view === 'list'} onClick={() => setView('list')} sx={{ borderRadius: 999, bgcolor: view === 'list' ? 'background.paper' : 'transparent', boxShadow: view === 'list' ? 1 : 0, '&:hover': { bgcolor: view === 'list' ? 'background.paper' : 'action.selected' } }}><ViewListRounded /></IconButton>
+                <Tooltip title={t('files.grid')}><IconButton size="small" aria-label={t('files.grid')} aria-pressed={view === 'grid'} onClick={() => setView('grid')} sx={{ borderRadius: 999, bgcolor: view === 'grid' ? 'background.paper' : 'transparent', boxShadow: view === 'grid' ? 1 : 0, '&:hover': { bgcolor: view === 'grid' ? 'background.paper' : 'action.selected' } }}><GridViewRounded /></IconButton></Tooltip>
+                <Tooltip title={t('files.list')}><IconButton size="small" aria-label={t('files.list')} aria-pressed={view === 'list'} onClick={() => setView('list')} sx={{ borderRadius: 999, bgcolor: view === 'list' ? 'background.paper' : 'transparent', boxShadow: view === 'list' ? 1 : 0, '&:hover': { bgcolor: view === 'list' ? 'background.paper' : 'action.selected' } }}><ViewListRounded /></IconButton></Tooltip>
               </Box>
             </Stack>
           </Stack>
@@ -755,7 +858,7 @@ export function FilesPage() {
             <Box role="list" display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap={1.5}>
               {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
                 <CardActionArea component="div" onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
-                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}><FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography><Typography variant="caption" color="text.secondary">{formatBytes(entry.size)} · {formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
+                  <CardContent><Stack direction="row" alignItems="center" gap={1.25}>{selectionCheckbox(entry)}<FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography>{searchTerm && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{entry.path}</Typography>}<Typography variant="caption" color="text.secondary">{entry.type !== 'directory' && <>{formatBytes(entry.size)} · </>}{formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
                 </CardActionArea>
               </Card>)}
             </Box>
@@ -768,7 +871,7 @@ export function FilesPage() {
                 <TableCell aria-label="Actions" />
               </TableRow></TableHead>
               <TableBody>{entries.map((entry) => <TableRow key={entry.path} hover draggable={entry.type !== 'special'} selected={selectedPaths.has(entry.path)} className={`file-row${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} onContextMenu={(event) => openContextMenu(event, entry)} onDragStart={(event) => startMoveDrag(event, entry)} onDragEnd={endMoveDrag} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : rejectMoveDrop} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : rejectMoveDrop} sx={{ cursor: entry.type !== 'special' ? 'pointer' : 'default' }}>
-                <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{iconFor(entry)}<Typography fontWeight={600} className="file-name" minWidth={0} flex={1}>{entry.name}</Typography></Stack></TableCell>
+                <TableCell><Stack direction="row" alignItems="center" gap={1.25} minWidth={200}>{selectionCheckbox(entry)}{iconFor(entry)}<Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name">{entry.name}</Typography>{searchTerm && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{entry.path}</Typography>}</Box></Stack></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(entry.modifiedAt)}</TableCell>
                 <TableCell align="right"><IconButton aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></TableCell>
@@ -782,12 +885,12 @@ export function FilesPage() {
         {!selected && <MenuItem onClick={() => { setNewFileOpen(true); closeMenu() }}><ListItemIcon><NoteAddRounded /></ListItemIcon><ListItemText>{t('files.newFile')}</ListItemText></MenuItem>}
         {!selected && <MenuItem onClick={() => { setNewFolderOpen(true); closeMenu() }}><ListItemIcon><CreateNewFolderRounded /></ListItemIcon><ListItemText>{t('files.newFolder')}</ListItemText></MenuItem>}
         {!selected && clipboard.length > 0 && <MenuItem disabled={!clipboard.every((entry) => canPasteInto(path, entry))} onClick={() => pasteClipboard(path)}><ListItemIcon><ContentPasteRounded /></ListItemIcon><ListItemText>{t('files.paste')}</ListItemText></MenuItem>}
-        {menuEntries.length === 1 && selected?.type === 'file' && <MenuItem onClick={() => { setPreview(selected); closeMenu() }}><ListItemIcon><OpenInNewRounded /></ListItemIcon><ListItemText>{t('files.preview')}</ListItemText></MenuItem>}
+        {menuEntries.length === 1 && selected?.type === 'file' && <MenuItem onClick={() => { setPreview(selected); closeMenu() }}><ListItemIcon><OpenInNewIcon /></ListItemIcon><ListItemText>{t('files.preview')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && selected && canEdit(selected) && <MenuItem onClick={() => { setEditor(selected); closeMenu() }}><ListItemIcon><EditDocumentIcon /></ListItemIcon><ListItemText>{t('files.edit')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && <MenuItem onClick={() => beginAction('rename')}><ListItemIcon><EditRounded /></ListItemIcon><ListItemText>{t('files.rename')}</ListItemText></MenuItem>}
         {menuEntries.length > 0 && <MenuItem onClick={() => beginAction('move')}><ListItemIcon><DriveFileMoveRounded /></ListItemIcon><ListItemText>{menuActionLabel('move')}</ListItemText></MenuItem>}
         {menuEntries.length > 0 && <MenuItem onClick={() => copyToClipboard()}><ListItemIcon><ContentCopyRounded /></ListItemIcon><ListItemText>{menuActionLabel('copy')}</ListItemText></MenuItem>}
-        {menuEntries.length > 0 && <MenuItem onClick={() => { const targets = [...menuEntries]; closeMenu(); downloadEntries(targets) }}><ListItemIcon><DownloadRounded /></ListItemIcon><ListItemText>{menuActionLabel('download')}</ListItemText></MenuItem>}
+        {menuEntries.length > 0 && <MenuItem onClick={() => { const targets = [...menuEntries]; closeMenu(); downloadEntries(targets) }}><ListItemIcon><DownloadIcon /></ListItemIcon><ListItemText>{menuActionLabel('download')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && selected && <MenuItem onClick={() => { setSharing(selected); closeMenu() }}><ListItemIcon><ShareIcon /></ListItemIcon><ListItemText>{t('files.share')}</ListItemText></MenuItem>}
         {menuEntries.length === 1 && selected?.type === 'file' && <MenuItem onClick={() => { void api.files.checksum(selected.path).then((result) => setNotice(`${result.algorithm}: ${result.value}`)).catch((error: unknown) => setNotice(error instanceof Error ? error.message : t('common.error'))); closeMenu() }}><ListItemIcon><FingerprintRounded /></ListItemIcon><ListItemText>{t('files.checksum')}</ListItemText></MenuItem>}
         {clipboard.length > 0 && selected?.type === 'directory' && <MenuItem disabled={!clipboard.every((entry) => canPasteInto(selected.path, entry))} onClick={() => pasteClipboard(selected.path)}><ListItemIcon><ContentPasteRounded /></ListItemIcon><ListItemText>{t('files.paste')}</ListItemText></MenuItem>}
@@ -797,9 +900,21 @@ export function FilesPage() {
       <Dialog open={newFileOpen} onClose={() => setNewFileOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFile')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.fileName')} value={fileName} onChange={(event) => setFileName(event.target.value)} error={Boolean(createFile.error)} helperText={createFile.error instanceof Error ? createFile.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFileOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!fileName || fileName.includes('/') || createFile.isPending} onClick={() => createFile.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
       <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} maxWidth="sm"><DialogTitle>{t('files.newFolder')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><TextField fullWidth autoFocus label={t('files.folderName')} value={folderName} onChange={(event) => setFolderName(event.target.value)} error={Boolean(createFolder.error)} helperText={createFolder.error instanceof Error ? createFolder.error.message : ''} sx={{ minWidth: 0 }} /></DialogContent><DialogActions><Button onClick={() => setNewFolderOpen(false)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!folderName || folderName.includes('/') || createFolder.isPending} onClick={() => createFolder.mutate()}>{t('common.create')}</Button></DialogActions></Dialog>
       <Dialog open={deleting.length > 0} onClose={() => setDeleting([])} maxWidth="xs"><DialogTitle>{deleting.length > 1 ? t('files.deleteItems', { count: deleting.length }) : `${t('files.delete')} ${deleting[0]?.name ?? ''}?`}</DialogTitle><DialogContent>{deleting.length > 1 && <Typography color="text.secondary" mb={1}>{t('files.itemsSelected', { count: deleting.length })}</Typography>}<Typography color="text.secondary">This cannot be undone.</Typography>{remove.error && <Box mt={2}><ErrorPane error={remove.error} /></Box>}</DialogContent><DialogActions><Button onClick={() => setDeleting([])}>{t('common.cancel')}</Button><Button color="error" variant="contained" disabled={remove.isPending} onClick={() => deleting.length > 0 && remove.mutate(deleting)}>{t('files.delete')}</Button></DialogActions></Dialog>
+      <Dialog open={Boolean(droppedUpload)} onClose={() => setDroppedUpload(null)} maxWidth="xs"><DialogTitle>{t('files.copy')}</DialogTitle><DialogContent><Typography><Trans i18nKey={droppedUpload?.names.length === 1 ? 'files.confirmDropCopySingle' : 'files.confirmDropCopyMultiple'} values={{ name: droppedUpload?.names[0], destination: droppedUpload?.destination }} components={{ filename: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />, path: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} /> }} /></Typography></DialogContent><DialogActions><Button onClick={() => setDroppedUpload(null)}>{t('common.cancel')}</Button><Button variant="contained" onClick={() => { if (!droppedUpload) return; const pending = droppedUpload; setDroppedUpload(null); void safeUploadFiles(pending.upload, pending.destination) }}>{t('files.copy')}</Button></DialogActions></Dialog>
       <Dialog open={Boolean(droppedMove)} onClose={moveDroppedEntry.isPending ? undefined : () => { setDroppedMove(null); moveDroppedEntry.reset() }} maxWidth="xs"><DialogTitle>{t('files.move')}</DialogTitle><DialogContent><Typography><Trans i18nKey="files.confirmMove" values={{ name: droppedMove?.entry.name, destination: folderLabel(droppedMove?.destination ?? '') }} components={{ filename: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />, path: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} /> }} /></Typography>{moveDroppedEntry.error && <Box mt={2}><ErrorPane error={moveDroppedEntry.error} /></Box>}</DialogContent><DialogActions><Button disabled={moveDroppedEntry.isPending} onClick={() => { setDroppedMove(null); moveDroppedEntry.reset() }}>{t('common.cancel')}</Button>{isConflictError(moveDroppedEntry.error) ? <Button color="warning" variant="contained" disabled={moveDroppedEntry.isPending} onClick={() => droppedMove && moveDroppedEntry.mutate({ ...droppedMove, overwrite: true })}>{t('files.replace')}</Button> : <Button variant="contained" disabled={moveDroppedEntry.isPending} onClick={() => droppedMove && moveDroppedEntry.mutate({ ...droppedMove, overwrite: false })}>{t('files.move')}</Button>}</DialogActions></Dialog>
       <Dialog open={Boolean(conflict)} onClose={() => resolveConflict('cancel')} maxWidth="xs"><DialogTitle>{t('files.conflictTitle')}</DialogTitle><DialogContent><Typography>{t('files.conflictBody', { name: conflict?.name })}</Typography></DialogContent><DialogActions><Button onClick={() => resolveConflict('cancel')}>{t('common.cancel')}</Button><Button onClick={() => resolveConflict('skip-all')}>{t('files.skipAll')}</Button><Button color="warning" variant="contained" onClick={() => resolveConflict('replace-all')}>{t('files.replaceAll')}</Button></DialogActions></Dialog>
-      <FilePreviewDialog entry={preview} onClose={() => setPreview(null)} onEdit={() => { setEditor(preview); setPreview(null) }} />
+      <FilePreviewDialog
+        entry={routeFile ?? preview}
+        fullScreen={routeFileName ? true : undefined}
+        onFullScreen={() => preview && openFullScreen(preview)}
+        onClose={routeFileName ? closeFullScreen : () => setPreview(null)}
+        onEdit={() => {
+          const entry = routeFile ?? preview
+          if (routeFileName) closeFullScreen()
+          setEditor(entry)
+          setPreview(null)
+        }}
+      />
       <FileEditorDialog entry={editor} onClose={() => setEditor(null)} onSaved={refresh} />
       <PathActionDialog action={pathAction?.action ?? null} entries={pathAction?.entries ?? []} copyDestination={pathAction?.copyDestination} onClose={() => setPathAction(null)} onDone={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null; refresh() }} />
       <CreateShareDialog entry={sharing} onClose={() => setSharing(null)} onCreated={(url) => { if (url) void navigator.clipboard.writeText(publicShareUrl(url)); setNotice(url ? t('common.copied') : t('shares.create')) }} />

@@ -117,7 +117,7 @@ it('places preview close in the title bar and download in the footer', () => {
   expect(download.closest('.MuiDialogActions-root')).toBeInTheDocument()
 })
 
-it('shows opened text in a light read-only editor with line numbers and an Edit button', async () => {
+it('shows a text preview with Open as the primary action and keeps Edit explicit', async () => {
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('Readable text', { headers: { 'Content-Type': 'text/plain' } })))
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -136,9 +136,72 @@ it('shows opened text in a light read-only editor with line numbers and an Edit 
   expect(getComputedStyle(dialog.querySelector('.MuiDialogContent-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
   expect(getComputedStyle(dialog.querySelector('.MuiDialogActions-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
   const edit = screen.getByRole('button', { name: 'Edit' })
+  const open = screen.getByRole('button', { name: 'Open' })
   expect(within(edit).getByTestId('EditDocumentIcon')).toBeInTheDocument()
+  expect(edit).not.toHaveClass('MuiButton-contained')
+  expect(open).toHaveClass('MuiButton-contained')
+  fireEvent.click(open)
+  expect(dialog).toHaveClass('MuiDialog-paperFullScreen')
   fireEvent.click(edit)
   expect(onEdit).toHaveBeenCalledOnce()
+})
+
+it('finds and highlights text in the fullscreen viewer while keeping the search input focused', async () => {
+  const source = 'Alpha beta alpha'
+  server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse(source, { headers: { 'Content-Type': 'text/plain' } })))
+  const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+
+  await screen.findByText(source)
+  await user.click(screen.getByRole('button', { name: 'Open' }))
+  await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent(source))
+
+  const closeFile = screen.getByRole('button', { name: 'Close' })
+  await user.hover(closeFile)
+  expect(await screen.findByRole('tooltip', { name: 'Close file' })).toBeInTheDocument()
+  await user.unhover(closeFile)
+  await waitFor(() => expect(screen.queryByRole('tooltip', { name: 'Close file' })).not.toBeInTheDocument())
+
+  fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+  const findInput = await screen.findByRole('textbox', { name: 'Find in file' })
+  expect(findInput.closest('.file-find-control')).toHaveClass('open')
+  expect(findInput.closest('.MuiDialogTitle-root')).toBeInTheDocument()
+  await user.type(findInput, 'alpha')
+  expect(findInput).toHaveFocus()
+  expect(findInput).toHaveValue('alpha')
+  expect(await screen.findByText('1 of 2')).toBeInTheDocument()
+  await waitFor(() => expect(document.querySelectorAll('.cm-zen-find-match')).toHaveLength(2))
+  expect(document.querySelector('.cm-zen-find-current')).toHaveTextContent('Alpha')
+
+  const previous = screen.getByRole('button', { name: 'Previous match' })
+  const next = screen.getByRole('button', { name: 'Next match' })
+  expect(within(previous).getByTestId('KeyboardArrowLeftRoundedIcon')).toBeInTheDocument()
+  expect(within(next).getByTestId('KeyboardArrowRightRoundedIcon')).toBeInTheDocument()
+  await user.hover(previous)
+  expect(await screen.findByRole('tooltip', { name: 'Previous match' })).toBeInTheDocument()
+  await user.unhover(previous)
+  await waitFor(() => expect(screen.queryByRole('tooltip', { name: 'Previous match' })).not.toBeInTheDocument())
+  await user.hover(next)
+  expect(await screen.findByRole('tooltip', { name: 'Next match' })).toBeInTheDocument()
+  await user.unhover(next)
+  await waitFor(() => expect(screen.queryByRole('tooltip', { name: 'Next match' })).not.toBeInTheDocument())
+
+  const clear = screen.getByRole('button', { name: 'Clear find' })
+  expect(clear.closest('.MuiInputAdornment-positionEnd')).toBeInTheDocument()
+  await user.hover(clear)
+  expect(await screen.findByRole('tooltip', { name: 'Clear find' })).toBeInTheDocument()
+  await user.unhover(clear)
+  await user.click(clear)
+  expect(findInput).toHaveValue('')
+  expect(findInput).toHaveFocus()
+  await waitFor(() => expect(document.querySelector('.cm-zen-find-match')).not.toBeInTheDocument())
+
+  await user.type(findInput, 'alpha')
+  await user.click(next)
+  expect(await screen.findByText('2 of 2')).toBeInTheDocument()
+  await waitFor(() => expect(document.querySelector('.cm-zen-find-current')).toHaveTextContent('alpha'))
 })
 
 it('shows JSON source in the viewer when the server labels it application/json', async () => {
@@ -161,6 +224,14 @@ it('uses a full-height dark CodeMirror theme in dark mode', () => {
   expect(editor?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
   expect(getComputedStyle(editor!.querySelector('.cm-editor')!).backgroundColor).toBe('rgb(22, 27, 34)')
   expect(getComputedStyle(editor!.querySelector('.cm-gutters')!).backgroundColor).toBe('rgb(22, 27, 34)')
+})
+
+it('limits find decorations to the visible viewport for long text files', async () => {
+  const lines = Array.from({ length: 5_000 }, (_, index) => `alpha line ${index}`).join('\n')
+  const view = render(<TextEditor name="large.txt" value={lines} readOnly fullHeight find={{ query: 'alpha', current: { from: 0, to: 5 } }} />)
+
+  await waitFor(() => expect(view.container.querySelector('.cm-zen-find-match')).toBeInTheDocument())
+  expect(view.container.querySelectorAll('.cm-zen-find-match').length).toBeLessThan(5_000)
 })
 
 it('syntax-highlights Lua source by filename', () => {
@@ -237,6 +308,11 @@ it('refuses to load oversized files into the text editor', () => {
   render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider>)
 
   expect(screen.getByText('This file is too large or unsupported for safe editing.')).toBeInTheDocument()
+})
+
+it('keeps extensionless text files editable after their directory entry is refreshed', () => {
+  const entry: FileEntry = { name: 'README', path: '/README', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }
+  expect(canEdit(entry)).toBe(true)
 })
 
 it('offers an explicit replacement after a copy destination conflict', async () => {

@@ -295,9 +295,9 @@ async function copyWithProgress(source: string, destination: string, overwrite: 
 export const api = {
   session: {
     get: () => request<Session>(`${API_ROOT}/session`, { skipUnauthorizedEvent: true }),
-    login: (username: string, password: string) => request<Session>(`${API_ROOT}/session`, {
+    login: (password: string) => request<Session>(`${API_ROOT}/session`, {
       method: 'POST',
-      body: { username, password },
+      body: { password },
       skipUnauthorizedEvent: true,
     }),
     logout: async () => {

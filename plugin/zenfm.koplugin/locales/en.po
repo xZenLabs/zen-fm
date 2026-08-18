@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "1 day"
+msgstr "1 day"
+
+msgid "1 hour"
+msgstr "1 hour"
+
+msgid "1 week"
+msgstr "1 week"
+
+msgid "1 year"
+msgstr "1 year"
+
+msgid "30 days"
+msgstr "30 days"
+
+msgid "About {{eta}} remaining"
+msgstr "About {{eta}} remaining"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+
+msgid "Advanced root: expose /"
+msgstr "Advanced root: expose /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Android companion APK: opening updater…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Android companion did not report a fresh %s result within 30 seconds."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Another ZenFM Android request is still pending."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+
+msgid "Beta updates"
+msgstr "Beta updates"
+
+msgid "Calculating total size…"
+msgstr "Calculating total size…"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Change password"
+msgstr "Change password"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Checking for a ZenFM update…"
+
+msgid "Checksum"
+msgstr "Checksum"
+
+msgid "Clear find"
+msgstr "Clear find"
+
+msgid "Clear search"
+msgstr "Clear search"
+
+msgid "Client timeout"
+msgstr "Client timeout"
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Close file"
+msgstr "Close file"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Confirm password"
+msgstr "Confirm password"
+
+msgid "Copied"
+msgstr "Copied"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "Copy link"
+msgstr "Copy link"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Copy this token now. It will not be shown again."
+
+msgid "Copy token"
+msgstr "Copy token"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Copying {{copied}} of {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Could not read the Android companion result"
+
+msgid "Create"
+msgstr "Create"
+
+msgid "Create share"
+msgstr "Create share"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Create temporary links without exposing your owner session."
+
+msgid "Create token"
+msgstr "Create token"
+
+msgid "Current password"
+msgstr "Current password"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Custom root (blank uses device default)"
+
+msgid "Dark"
+msgstr "Dark"
+
+msgid "Date modified"
+msgstr "Date modified"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Delete {{count}} items?"
+msgstr "Delete {{count}} items?"
+
+msgid "Destination folder"
+msgstr "Destination folder"
+
+msgid "Destination path"
+msgstr "Destination path"
+
+msgid "Discard"
+msgstr "Discard"
+
+msgid "Download"
+msgstr "Download"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Editing {{name}}"
+msgstr "Editing {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Enable HTTP"
+
+msgid "Expires"
+msgstr "Expires"
+
+msgid "Expires after"
+msgstr "Expires after"
+
+msgid "Expose entire filesystem"
+msgstr "Expose entire filesystem"
+
+msgid "File already exists"
+msgstr "File already exists"
+
+msgid "File name"
+msgstr "File name"
+
+msgid "File or folder path"
+msgstr "File or folder path"
+
+msgid "Files"
+msgstr "Files"
+
+msgid "Find in file"
+msgstr "Find in file"
+
+msgid "Finish setup"
+msgstr "Finish setup"
+
+msgid "Folder name"
+msgstr "Folder name"
+
+msgid "General"
+msgstr "General"
+
+msgid "Grid view"
+msgstr "Grid view"
+
+msgid "Hide password"
+msgstr "Hide password"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Inactivity timeout (minutes)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Inactivity timeout: %d min"
+
+msgid "Installing ZenFM update…"
+msgstr "Installing ZenFM update…"
+
+msgid "Invalid value."
+msgstr "Invalid value."
+
+msgid "Keep editing"
+msgstr "Keep editing"
+
+msgid "KOReader plugin bundle:"
+msgstr "KOReader plugin bundle:"
+
+msgid "Label"
+msgstr "Label"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Later"
+msgstr "Later"
+
+msgid "Lifetime"
+msgstr "Lifetime"
+
+msgid "Light"
+msgstr "Light"
+
+msgid "List view"
+msgstr "List view"
+
+msgid "Listening port:"
+msgstr "Listening port:"
+
+msgid "Loading…"
+msgstr "Loading…"
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Login reset. Use koreader123456789 and choose a new password."
+
+msgid "Move"
+msgstr "Move"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Never"
+msgstr "Never"
+
+msgid "New file"
+msgstr "New file"
+
+msgid "New folder"
+msgstr "New folder"
+
+msgid "New password"
+msgstr "New password"
+
+msgid "New Password"
+msgstr "New Password"
+
+msgid "Next match"
+msgstr "Next match"
+
+msgid "No matches"
+msgstr "No matches"
+
+msgid "No shared links"
+msgstr "No shared links"
+
+msgid "not configured"
+msgstr "not configured"
+
+msgid "Nothing here yet"
+msgstr "Nothing here yet"
+
+msgid "Open"
+msgstr "Open"
+
+msgid "Optional password"
+msgstr "Optional password"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Password changed; sessions and API tokens were revoked."
+
+msgid "Password protected"
+msgstr "Password protected"
+
+msgid "Paste"
+msgstr "Paste"
+
+msgid "Personal API token"
+msgstr "Personal API token"
+
+msgid "Personal API tokens"
+msgstr "Personal API tokens"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Port must be between 1 and 65535."
+
+msgid "Port: "
+msgstr "Port: "
+
+msgid "Preview is unavailable for this file."
+msgstr "Preview is unavailable for this file."
+
+msgid "Previous match"
+msgstr "Previous match"
+
+msgid "Refresh"
+msgstr "Refresh"
+
+msgid "Rename"
+msgstr "Rename"
+
+msgid "Replace"
+msgstr "Replace"
+
+msgid "Replace all"
+msgstr "Replace all"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Replace the temporary password before accessing your files."
+
+msgid "Reset login"
+msgstr "Reset login"
+
+msgid "Reset owner login"
+msgstr "Reset owner login"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Reset the owner login to the setup-only password and revoke every session and API token?"
+
+msgid "Restart now"
+msgstr "Restart now"
+
+msgid "Restarting…"
+msgstr "Restarting…"
+
+msgid "Revoke"
+msgstr "Revoke"
+
+msgid "Root"
+msgstr "Root"
+
+msgid "Root: "
+msgstr "Root: "
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Save and close"
+msgstr "Save and close"
+
+msgid "Save changes"
+msgstr "Save changes"
+
+msgid "Save changes before closing?"
+msgstr "Save changes before closing?"
+
+msgid "Save settings"
+msgstr "Save settings"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Saved. Restart ZenFM to apply the change."
+
+msgid "Search results"
+msgstr "Search results"
+
+msgid "Search this folder"
+msgstr "Search this folder"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Settings saved"
+msgstr "Settings saved"
+
+msgid "Share"
+msgstr "Share"
+
+msgid "Shared files"
+msgstr "Shared files"
+
+msgid "Shared links"
+msgstr "Shared links"
+
+msgid "Shared with ZenFM"
+msgstr "Shared with ZenFM"
+
+msgid "Shares"
+msgstr "Shares"
+
+msgid "Show hidden files"
+msgstr "Show hidden files"
+
+msgid "Show password"
+msgstr "Show password"
+
+msgid "Sign in"
+msgstr "Sign in"
+
+msgid "Sign out"
+msgstr "Sign out"
+
+msgid "Signing in…"
+msgstr "Signing in…"
+
+msgid "Size"
+msgstr "Size"
+
+msgid "Skip all"
+msgstr "Skip all"
+
+msgid "Something went wrong"
+msgstr "Something went wrong"
+
+msgid "Start ZenFM"
+msgstr "Start ZenFM"
+
+msgid "Status and address"
+msgstr "Status and address"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Stop waiting for ordinary server requests after this many seconds."
+
+msgid "Stop ZenFM"
+msgstr "Stop ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Switch to dark mode"
+
+msgid "Switch to light mode"
+msgstr "Switch to light mode"
+
+msgid "System"
+msgstr "System"
+
+msgid "Temporary password"
+msgstr "Temporary password"
+
+msgid "Text editor"
+msgstr "Text editor"
+
+msgid "The password is incorrect."
+msgstr "The password is incorrect."
+
+msgid "Theme"
+msgstr "Theme"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "This connection is using HTTP. Credentials and file contents may be visible on the network."
+
+msgid "This file has unsaved changes."
+msgstr "This file has unsaved changes."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "This file is too large or unsupported for safe editing."
+
+msgid "This link is unavailable or has expired."
+msgstr "This link is unavailable or has expired."
+
+msgid "Token name"
+msgstr "Token name"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Tokens are shown once and never stored by this browser."
+
+msgid "Total copy progress"
+msgstr "Total copy progress"
+
+msgid "Total upload progress"
+msgstr "Total upload progress"
+
+msgid "Unlock"
+msgstr "Unlock"
+
+msgid "Update"
+msgstr "Update"
+
+msgid "Upload"
+msgstr "Upload"
+
+msgid "Upload a file or create one."
+msgstr "Upload a file or create one."
+
+msgid "Upload files"
+msgstr "Upload files"
+
+msgid "Upload folder"
+msgstr "Upload folder"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Uploading {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Use an absolute path beginning with /."
+
+msgid "Use at least 7 characters."
+msgstr "Use at least 7 characters."
+
+msgid "Use unencrypted HTTP"
+msgstr "Use unencrypted HTTP"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Warning: unencrypted HTTP is enabled."
+
+msgid "Your files, easily accessible."
+msgstr "Your files, easily accessible."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM is running."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM is stopped."
+
+msgid "ZenFM port"
+msgstr "ZenFM port"
+
+msgid "ZenFM request pending…"
+msgstr "ZenFM request pending…"
+
+msgid "ZenFM started."
+msgstr "ZenFM started."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM stopped after inactivity."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM stopped."
+
+msgid "ZenFM update cancelled."
+msgstr "ZenFM update cancelled."
+
+msgid "ZenFM update timed out."
+msgstr "ZenFM update timed out."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Status"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Toggle server"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} items"
+
+msgid "{{count}} items selected"
+msgstr "{{count}} items selected"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} of {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} already exists. Apply this choice to all conflicts in this upload."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} of {{total}} — {{progress}}%"

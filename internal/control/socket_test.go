@@ -2,8 +2,10 @@ package control
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,7 +26,8 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var once sync.Once
-	server := &Server{Path: path, URL: "https://127.0.0.1:8443", Fingerprint: "AABB", Stop: func() { once.Do(cancel) }}
+	var logs bytes.Buffer
+	server := &Server{Path: path, URL: "https://127.0.0.1:8443", Fingerprint: "AABB", Stop: func() { once.Do(cancel) }, Logger: log.New(&logs, "", 0)}
 	done := make(chan error, 1)
 	go func() { done <- server.Run(ctx) }()
 	for deadline := time.Now().Add(time.Second); ; {
@@ -73,6 +76,14 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	}
 	if _, err := os.Lstat(path); !os.IsNotExist(err) {
 		t.Fatalf("socket was not cleaned: %v", err)
+	}
+	for _, expected := range []string{"control socket setup started", "control socket ready", "command=status", "invalid command", "command=stop"} {
+		if !strings.Contains(logs.String(), expected) {
+			t.Errorf("control diagnostics %q missing %q", logs.String(), expected)
+		}
+	}
+	if strings.Contains(logs.String(), "unknown") {
+		t.Fatalf("control diagnostics included untrusted command text: %q", logs.String())
 	}
 }
 

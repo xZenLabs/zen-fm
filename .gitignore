@@ -202,3 +202,4 @@ vite.config.ts.timestamp-*
 .vite/
 .DS_Store
 *.p12
+__pycache__

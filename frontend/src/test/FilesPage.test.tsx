@@ -1,10 +1,18 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { server } from './server'
-import { renderApp } from './renderApp'
+import { renderApp, TestProviders } from './renderApp'
 import { api } from '../api/client'
 import { formatShortDate } from '../utils'
+import App from '../App'
+
+function RouterProbe() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  return <><output data-testid="route-location">{`${location.pathname}${location.search}`}</output><button onClick={() => void navigate(-1)}>Browser back</button></>
+}
 
 describe('file browser', () => {
   it('shows an icon-only clear action only while the search field has text', async () => {
@@ -19,6 +27,57 @@ describe('file browser', () => {
     await user.click(clear)
     expect(search).toHaveValue('')
     expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+  })
+
+  it('shows full paths for search results in list and grid views', async () => {
+    server.use(http.get('http://localhost/api/v1/search', () => HttpResponse.json({
+      truncated: false,
+      entries: [
+        { name: 'book.epub', path: '/Library/Fiction/book.epub', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'book.epub', path: '/Library/Nonfiction/book.epub', type: 'file', size: 768, modifiedAt: '2026-01-02T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.type(await screen.findByRole('textbox', { name: 'Search this folder' }), 'book{Enter}')
+    expect(await screen.findByText('/Library/Fiction/book.epub')).toBeInTheDocument()
+    expect(screen.getByText('/Library/Nonfiction/book.epub')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Grid view' }))
+    expect(screen.getByText('/Library/Fiction/book.epub')).toBeInTheDocument()
+    expect(screen.getByText('/Library/Nonfiction/book.epub')).toBeInTheDocument()
+  })
+
+  it('refreshes active search results after deleting a file', async () => {
+    let deleted = false
+    let searches = 0
+    server.use(
+      http.get('http://localhost/api/v1/search', () => {
+        searches++
+        return HttpResponse.json({
+          truncated: false,
+          entries: deleted ? [] : [
+            { name: 'book.epub', path: '/Library/book.epub', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' },
+          ],
+        })
+      }),
+      http.delete('http://localhost/api/v1/files', () => {
+        deleted = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.type(await screen.findByRole('textbox', { name: 'Search this folder' }), 'book{Enter}')
+    const row = await screen.findByRole('row', { name: /book\.epub/ })
+    fireEvent.contextMenu(row)
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Delete book.epub?' })).getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument()
+    expect(searches).toBeGreaterThan(1)
   })
 
   it('uses the saved hidden-file setting without a per-view toggle', async () => {
@@ -85,7 +144,15 @@ describe('file browser', () => {
     renderApp('/files')
 
     const item = await screen.findByRole('row', { name: /manual\.bin/ })
-    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+    const listView = screen.getByRole('button', { name: 'List view' })
+    const gridView = screen.getByRole('button', { name: 'Grid view' })
+    expect(listView).toHaveAttribute('aria-pressed', 'true')
+    await user.hover(listView)
+    expect(await screen.findByRole('tooltip', { name: 'List view' })).toBeInTheDocument()
+    await user.unhover(listView)
+    await user.hover(gridView)
+    expect(await screen.findByRole('tooltip', { name: 'Grid view' })).toBeInTheDocument()
+    await user.unhover(gridView)
     await user.click(item)
     expect(item).toHaveClass('selected')
     const otherItem = screen.getByRole('row', { name: /notes\.bin/ })
@@ -110,6 +177,101 @@ describe('file browser', () => {
 
     await user.dblClick(item)
     expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
+  })
+
+  it('opens a highlighted file preview with Enter', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'manual.bin', path: '/manual.bin', type: 'file', size: 512, modifiedAt: '2026-01-01T00:00:00Z' }],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const item = await screen.findByRole('listitem', { name: 'manual.bin' })
+    const actionArea = item.querySelector<HTMLElement>('.MuiCardActionArea-root')!
+    await user.click(actionArea)
+    expect(item).toHaveClass('selected')
+    expect(actionArea).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByRole('dialog', { name: 'manual.bin' })).toBeInTheDocument()
+  })
+
+  it('selects a focused grid item before Enter opens it', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'alpha.bin', path: '/alpha.bin', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'bravo.bin', path: '/bravo.bin', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('button', { name: 'Grid view' }))
+    const alpha = await screen.findByRole('listitem', { name: 'alpha.bin' })
+    const bravo = screen.getByRole('listitem', { name: 'bravo.bin' })
+    await user.click(alpha.querySelector<HTMLElement>('.MuiCardActionArea-root')!)
+    bravo.querySelector<HTMLElement>('.MuiCardActionArea-root')!.focus()
+
+    await user.keyboard('{Enter}')
+
+    expect(alpha).not.toHaveClass('selected')
+    expect(bravo).toHaveClass('selected')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('dialog', { name: 'bravo.bin' })).toBeInTheDocument()
+  })
+
+  it('enters a highlighted folder with Enter', async () => {
+    server.use(http.get('http://localhost/api/v1/files', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path')
+      return HttpResponse.json(path === '/Books'
+        ? { path, advancedMode: false, entries: [{ name: 'chapter.txt', path: '/Books/chapter.txt', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }] }
+        : { path: '/', advancedMode: false, entries: [{ name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' }] })
+    }))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const folder = await screen.findByRole('row', { name: /Books/ })
+    await user.click(folder)
+    expect(folder).toHaveClass('selected')
+
+    await user.keyboard('{Enter}')
+
+    expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
+  })
+
+  it('prompts to delete all highlighted files and folders with Delete', async () => {
+    let deletions = 0
+    server.use(
+      http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+        path: '/', advancedMode: false,
+        entries: [
+          { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })),
+      http.delete('http://localhost/api/v1/files', () => {
+        deletions++
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const books = await screen.findByRole('row', { name: /Books/ })
+    const notes = screen.getByRole('row', { name: /notes\.txt/ })
+    fireEvent.click(books)
+    fireEvent.click(notes, { ctrlKey: true })
+    await user.keyboard('{Delete}')
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete 2 items?' })
+    expect(dialog).toHaveTextContent('2 items selected')
+    expect(deletions).toBe(0)
   })
 
   it('selects ranges with shift-click and toggles items with ctrl/cmd-click', async () => {
@@ -139,6 +301,43 @@ describe('file browser', () => {
     fireEvent.click(delta, { metaKey: true })
     expect(bravo).not.toHaveClass('selected')
     expect(delta).toHaveClass('selected')
+  })
+
+  it('shows coarse-input checkboxes before file and folder icons for multi-selection', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(pointer: coarse)', media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: true,
+      entries: [
+        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'socket', path: '/run/socket', type: 'special', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const books = await screen.findByRole('row', { name: /Books/ })
+    const notes = screen.getByRole('row', { name: /notes\.txt/ })
+    const booksCheckbox = within(books).getByRole('checkbox', { name: 'Books' })
+    const notesCheckbox = within(notes).getByRole('checkbox', { name: 'notes.txt' })
+    expect(books.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(books).getByTestId('FolderRoundedIcon'))
+    expect(notes.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(notes).getByTestId('InsertDriveFileRoundedIcon'))
+    expect(within(screen.getByRole('row', { name: /socket/ })).queryByRole('checkbox')).not.toBeInTheDocument()
+
+    await user.click(booksCheckbox)
+    await user.click(notesCheckbox)
+    expect(booksCheckbox).toBeChecked()
+    expect(notesCheckbox).toBeChecked()
+    expect(books).toHaveClass('selected')
+    expect(notes).toHaveClass('selected')
+
+    await user.click(screen.getByRole('button', { name: 'Grid view' }))
+    const booksCard = screen.getByRole('listitem', { name: 'Books' })
+    expect(booksCard.querySelector('.MuiCheckbox-root')?.nextElementSibling).toBe(within(booksCard).getByTestId('FolderRoundedIcon'))
+    expect(within(booksCard).getByRole('checkbox', { name: 'Books' })).toBeChecked()
   })
 
   it('moves and deletes every selected item and shows the selection count in each dialog', async () => {
@@ -304,7 +503,7 @@ describe('file browser', () => {
     expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
   })
 
-  it('uploads host files to the shown folder or a hovered child folder', async () => {
+  it('uploads host files to the shown folder and confirms a hovered child folder', async () => {
     const uploadedPaths: string[] = []
     server.use(
       http.get('http://localhost/api/v1/files', () => HttpResponse.json({
@@ -316,21 +515,41 @@ describe('file browser', () => {
         return new HttpResponse(null, { status: 204 })
       }),
     )
+    const user = userEvent.setup()
     renderApp('/files')
 
     const folder = await screen.findByRole('row', { name: /Books/ })
+    const shell = document.querySelector<HTMLElement>('.app-shell')!
     const rootTransfer = { types: ['Files'], files: [new File(['root'], 'root.txt', { type: 'text/plain' })], dropEffect: 'none' }
-    fireEvent.dragOver(window, { dataTransfer: rootTransfer })
-    expect(document.querySelector('.file-drop-zone')).toHaveClass('drop-active')
-    fireEvent.drop(window, { dataTransfer: rootTransfer })
+    fireEvent.dragOver(shell, { dataTransfer: rootTransfer })
+    expect(document.querySelector('.file-drop-overlay')).toBeInTheDocument()
+    fireEvent.drop(shell, { dataTransfer: rootTransfer })
+    expect(document.querySelector('.file-drop-overlay')).not.toBeInTheDocument()
     await waitFor(() => expect(uploadedPaths).toContain('/root.txt'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     const folderTransfer = { types: ['Files'], files: [new File(['nested'], 'nested.txt', { type: 'text/plain' })], dropEffect: 'none' }
     fireEvent.dragOver(folder, { dataTransfer: folderTransfer })
     expect(folder).toHaveClass('drop-target')
     fireEvent.drop(folder, { dataTransfer: folderTransfer })
+    const dialog = await screen.findByRole('dialog', { name: 'Copy' })
+    expect(dialog).toHaveTextContent('Are you sure you want to copy nested.txt to /Books?')
+    expect(within(dialog).getByText('nested.txt')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(within(dialog).getByText('/Books')).toHaveStyle({ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' })
+    expect(uploadedPaths).not.toContain('/Books/nested.txt')
+    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(uploadedPaths).toContain('/Books/nested.txt'))
     expect(folder).not.toHaveClass('drop-target')
+
+    const multipleTransfer = { types: ['Files'], files: [new File(['one'], 'one.txt'), new File(['two'], 'two.txt')], dropEffect: 'none' }
+    fireEvent.drop(await screen.findByRole('row', { name: /Books/ }), { dataTransfer: multipleTransfer })
+    const multipleDialog = await screen.findByRole('dialog', { name: 'Copy' })
+    expect(multipleDialog).toHaveTextContent('Are you sure you want to copy the files to /Books?')
+    expect(multipleDialog).not.toHaveTextContent('one.txt')
+    expect(multipleDialog).not.toHaveTextContent('two.txt')
+    await user.click(within(multipleDialog).getByRole('button', { name: 'Cancel' }))
+    expect(uploadedPaths).not.toContain('/Books/one.txt')
+    expect(uploadedPaths).not.toContain('/Books/two.txt')
   })
 
   it('shows total bytes, percentage, and ETA for an upload batch', async () => {
@@ -454,6 +673,44 @@ describe('file browser', () => {
     ])
   })
 
+  it('offers file and folder pickers and preserves paths from a selected folder', async () => {
+    const createdDirectories: string[] = []
+    const uploadedPaths: string[] = []
+    server.use(
+      http.post('http://localhost/api/v1/files/directory', async ({ request }) => {
+        createdDirectories.push(((await request.json()) as { path: string }).path)
+        return new HttpResponse(null, { status: 201 })
+      }),
+      http.put('*/api/v1/files/content', ({ request }) => {
+        uploadedPaths.push(new URL(request.url).searchParams.get('path') ?? '')
+        return new HttpResponse(null, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+    await user.click(screen.getByRole('button', { name: 'Upload' }))
+    expect(screen.getByRole('menuitem', { name: 'Upload files' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Upload files' }))
+    expect(input.webkitdirectory).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Upload' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Upload folder' }))
+
+    expect(input.webkitdirectory).toBe(true)
+    const chapter = new File(['chapter'], 'chapter.txt', { type: 'text/plain' })
+    const cover = new File(['cover'], 'cover.png', { type: 'image/png' })
+    Object.defineProperty(chapter, 'webkitRelativePath', { value: 'Books/chapter.txt' })
+    Object.defineProperty(cover, 'webkitRelativePath', { value: 'Books/images/cover.png' })
+    fireEvent.change(input, { target: { files: [chapter, cover] } })
+
+    await waitFor(() => expect(uploadedPaths).toHaveLength(2))
+    expect(input.webkitdirectory).toBe(false)
+    expect(createdDirectories).toEqual(['/Books', '/Books/images'])
+    expect(uploadedPaths.sort()).toEqual(['/Books/chapter.txt', '/Books/images/cover.png'])
+  })
+
   it('confirms a table drag before moving a file into a folder', async () => {
     const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
     server.use(
@@ -495,6 +752,8 @@ describe('file browser', () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
       entries: [
+        { name: 'Zulu', path: '/Zulu', type: 'directory', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'Archive', path: '/Archive', type: 'directory', size: 8192, modifiedAt: '2026-01-01T00:00:00Z' },
         { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 100, modifiedAt: '2026-01-03T00:00:00Z' },
         { name: 'zebra.txt', path: '/zebra.txt', type: 'file', size: 10, modifiedAt: '2026-01-04T00:00:00Z' },
       ],
@@ -507,6 +766,8 @@ describe('file browser', () => {
     expect(screen.getByRole('button', { name: 'Date modified' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Size' }))
     expect(screen.getAllByRole('row').slice(1).map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Archive'),
+      expect.stringContaining('Zulu'),
       expect.stringContaining('zebra.txt'),
       expect.stringContaining('alpha.txt'),
     ])
@@ -566,7 +827,7 @@ describe('file browser', () => {
     expect(body).toBe('')
   })
 
-  it('opens the editor with Enter from a text preview', async () => {
+  it('opens the fullscreen viewer with Enter from a text preview', async () => {
     server.use(
       http.get('http://localhost/api/v1/files', () => HttpResponse.json({
         path: '/', advancedMode: false,
@@ -576,13 +837,40 @@ describe('file browser', () => {
       http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('Preview text')),
     )
     const user = userEvent.setup()
-    renderApp('/files')
+    render(<TestProviders initialPath="/files"><App /><RouterProbe /></TestProviders>)
 
     await user.dblClick(await screen.findByRole('row', { name: /notes\.txt/ }))
     await screen.findByText('Preview text')
     await user.keyboard('{Enter}')
 
-    expect(await screen.findByText('Editing notes.txt')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'notes.txt' })
+    expect(dialog).toHaveClass('MuiDialog-paperFullScreen')
+    expect(within(dialog).getByRole('button', { name: 'Find in file' })).toBeInTheDocument()
+    expect(screen.queryByText('Editing notes.txt')).not.toBeInTheDocument()
+    expect(screen.getByTestId('route-location')).toHaveTextContent('/files?file=notes.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Browser back', hidden: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'notes.txt' })).not.toBeInTheDocument())
+    expect(screen.getByTestId('route-location')).toHaveTextContent('/files')
+  })
+
+  it('opens a manually entered file URL fullscreen over its parent folder', async () => {
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path')
+        return HttpResponse.json({
+          path: '/Books', advancedMode: false,
+          entries: path === '/Books' ? [{ name: 'chapter.txt', path: '/Books/chapter.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }] : [],
+        })
+      }),
+      http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text('Chapter text')),
+    )
+
+    renderApp('/files/Books?file=chapter.txt')
+
+    expect(await screen.findByText('Chapter text')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'chapter.txt' })).toHaveClass('MuiDialog-paperFullScreen')
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb', hidden: true })).toHaveTextContent('Books')
   })
 
   it('applies replace all to the current conflict and every remaining upload', async () => {
@@ -707,11 +995,11 @@ describe('file browser', () => {
     expect(screen.queryByRole('img', { name: 'vector.svg' })).not.toBeInTheDocument()
   })
 
-  it('shows size and modified date for files and folders in grid view', async () => {
+  it('does not present filesystem metadata as a folder size in grid view', async () => {
     server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
       path: '/', advancedMode: false,
       entries: [
-        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T12:00:00Z' },
+        { name: 'Books', path: '/Books', type: 'directory', size: 4096, modifiedAt: '2026-01-01T12:00:00Z' },
         { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 512, modifiedAt: '2026-01-02T12:00:00Z' },
       ],
     })))
@@ -721,8 +1009,8 @@ describe('file browser', () => {
     await user.click(await screen.findByRole('button', { name: 'Grid view' }))
     const folder = screen.getByRole('listitem', { name: 'Books' })
     const file = screen.getByRole('listitem', { name: 'notes.txt' })
-    expect(within(folder).getByText(`0 B · ${formatShortDate('2026-01-01T12:00:00Z')}`)).toBeInTheDocument()
-    expect(folder).not.toHaveTextContent('Folder')
+    expect(within(folder).getByText(formatShortDate('2026-01-01T12:00:00Z'))).toBeInTheDocument()
+    expect(folder).not.toHaveTextContent('4 KB')
     expect(within(file).getByText(`512 B · ${formatShortDate('2026-01-02T12:00:00Z')}`)).toBeInTheDocument()
     expect(getComputedStyle(within(folder).getByTestId('FolderRoundedIcon').parentElement!).alignItems).toBe('center')
   })

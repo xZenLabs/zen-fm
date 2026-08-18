@@ -654,13 +654,17 @@ func parseUploadMetadata(header string) (map[string]string, error) {
 	}
 	for _, field := range strings.Split(header, ",") {
 		parts := strings.Fields(strings.TrimSpace(field))
-		if len(parts) != 2 || !validMetadataKey(parts[0]) {
+		if len(parts) < 1 || len(parts) > 2 || !validMetadataKey(parts[0]) {
 			return nil, errors.New("Upload-Metadata is invalid")
 		}
 		if _, duplicate := values[parts[0]]; duplicate {
 			return nil, errors.New("Upload-Metadata contains a duplicate key")
 		}
-		decoded, err := base64.StdEncoding.DecodeString(parts[1])
+		encoded := ""
+		if len(parts) == 2 {
+			encoded = parts[1]
+		}
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil || len(decoded) > 4096 || strings.ContainsRune(string(decoded), 0) {
 			return nil, errors.New("Upload-Metadata value is invalid")
 		}

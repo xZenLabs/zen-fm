@@ -61,6 +61,13 @@ export function filesRoute(path: string) {
   return `/files${path.split('/').map((part) => encodeURIComponent(part)).join('/')}`
 }
 
+export function fileRoute(path: string) {
+  const separator = path.lastIndexOf('/')
+  const parent = path.slice(0, separator) || '/'
+  const query = new URLSearchParams({ file: path.slice(separator + 1) })
+  return `${filesRoute(parent)}?${query}`
+}
+
 export function publicShareUrl(value: string) {
   const url = new URL(value, window.location.origin)
   if (url.pathname.startsWith('/share/')) {

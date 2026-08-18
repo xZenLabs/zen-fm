@@ -139,7 +139,7 @@ public final class ZenFMActivity extends Activity {
         }
     }
 
-    private void beginUpdate(String home) {
+    private void beginUpdate(String home, boolean allowPrerelease) {
         UpdateState.Outcome pending = ZenFMUpdater.inspect(this);
         if (pending == UpdateState.Outcome.INSTALL_PENDING
             || pending == UpdateState.Outcome.VERIFY_PENDING) {
@@ -150,7 +150,7 @@ public final class ZenFMActivity extends Activity {
             .setMessage("Downloading and verifying release metadata. Keep this window open to continue directly to Android's installer.")
             .setCancelable(false).create();
         updateProgress.show();
-        ZenFMUpdater.start(this, home);
+        ZenFMUpdater.start(this, home, allowPrerelease);
     }
 
     void onUpdateReady() {
@@ -310,7 +310,7 @@ public final class ZenFMActivity extends Activity {
             else if ("status".equals(action)) sendAction(ZenFMService.ACTION_STATUS);
             else if ("reset".equals(action)) sendAction(ZenFMService.ACTION_RESET);
             else if ("update".equals(action)) {
-                beginUpdate(validatedHome(uri));
+                beginUpdate(validatedHome(uri), "1".equals(uri.getQueryParameter("beta")));
                 return;
             }
             else {
@@ -359,8 +359,7 @@ public final class ZenFMActivity extends Activity {
         String root = absolute(uri.getQueryParameter("root"), true, "root");
         int port = integer(uri.getQueryParameter("port"), 1, 65535, "port");
         boolean insecure = "1".equals(uri.getQueryParameter("insecure"));
-        String autoStop = uri.getQueryParameter("auto_stop");
-        if (!"0".equals(autoStop) && !"30m".equals(autoStop)) throw new IllegalArgumentException("auto_stop");
+        String autoStop = CommandRequest.requireAutoStop(uri.getQueryParameter("auto_stop"));
         String certificate = optionalAbsolute(uri.getQueryParameter("tls_cert"), "certificate");
         String key = optionalAbsolute(uri.getQueryParameter("tls_key"), "private key");
         if ((certificate.isEmpty()) != (key.isEmpty())) throw new IllegalArgumentException("both TLS paths are required");

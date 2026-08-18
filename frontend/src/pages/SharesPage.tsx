@@ -13,6 +13,7 @@ import { api } from '../api/client'
 import { formatDate, publicShareUrl } from '../utils'
 import { ErrorPane, LoadingPane } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
+import { PasswordField } from '../components/PasswordField'
 import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 export function SharesPage() {
@@ -68,7 +69,7 @@ export function SharesPage() {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs"><Stack component="form" onSubmit={submit}><DialogTitle>{t('shares.create')}</DialogTitle><DialogContent sx={{ pt: 2, overflow: 'visible' }}><Stack gap={2} pt={0.5}>
         <TextField required autoFocus label={t('shares.path')} placeholder="/Books" value={path} onChange={(event) => setPath(event.target.value)} />
         <TextField label={t('shares.name')} value={name} onChange={(event) => setName(event.target.value)} />
-        <TextField label={t('shares.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <PasswordField label={t('shares.password')} value={password} onChange={(event) => setPassword(event.target.value)} />
         <TextField select label={t('shares.expiry')} value={expiry} onChange={(event) => setExpiry(Number(event.target.value))}><MenuItem value={3600}>{t('shares.oneHour')}</MenuItem><MenuItem value={86400}>{t('shares.oneDay')}</MenuItem><MenuItem value={604800}>{t('shares.oneWeek')}</MenuItem><MenuItem value={0}>{t('shares.never')}</MenuItem></TextField>
         {create.error && <ErrorPane error={create.error} />}
       </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button type="submit" variant="contained" disabled={!path.startsWith('/') || create.isPending}>{t('common.create')}</Button></DialogActions></Stack></Dialog>

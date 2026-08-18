@@ -114,6 +114,19 @@ func TestPreviewContentTypesForCSVPDFAndMedia(t *testing.T) {
 	}
 }
 
+func TestTextPreviewAllowsEightMiBLog(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, _ := a.finishSetup()
+	const size = int64(8 << 20)
+	writeSparsePreviewFile(t, a, "crash.log", size, "panic: crash\n")
+
+	response := a.request(http.MethodGet, "/api/v1/files/preview?"+url.Values{"path": {"/crash.log"}}.Encode(), nil, cookie, "", "")
+	contentType := response.Header().Get("Content-Type")
+	if response.Code != http.StatusOK || !strings.HasPrefix(contentType, "text/") || !strings.Contains(contentType, "charset=utf-8") || int64(response.Body.Len()) != size {
+		t.Fatalf("large text preview: status=%d content-type=%q size=%d", response.Code, contentType, response.Body.Len())
+	}
+}
+
 func TestGHSA_7xqmPreviewInputsAndDimensionsAreBounded(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, _ := a.finishSetup()

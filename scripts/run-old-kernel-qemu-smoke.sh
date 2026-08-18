@@ -36,7 +36,7 @@ jq -e --arg commit "$COMMIT" '
   .commit == $commit and
   .result == "pass" and
   .toolchain == "go1.26.6-kindle" and
-  .patchLevel == "ZenFM Linux/ARM old-kernel patch 1" and
+  .patchLevel == "ZenFM Linux/ARM old-kernel patch 2" and
   (.kernelRelease | type == "string" and test("^2\\.6\\.")) and
   .checks.hardFloat == "pass" and
   .checks.softFloat == "pass" and

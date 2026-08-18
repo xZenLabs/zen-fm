@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+
+msgid "1 day"
+msgstr "1 dag"
+
+msgid "1 hour"
+msgstr "1 uur"
+
+msgid "1 week"
+msgstr "1 week"
+
+msgid "1 year"
+msgstr "1 jaar"
+
+msgid "30 days"
+msgstr "30 dagen"
+
+msgid "About {{eta}} remaining"
+msgstr "Er zijn nog ongeveer {{eta}} over"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Geavanceerde rootmodus is actief. Systeembestanden, apparaatpaden en ZenFM-geheimen zijn zichtbaar en kunnen worden gewijzigd of verwijderd."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Geavanceerde rootmodus bedient /. Het onthult /proc, /sys, /dev, de database van ZenFM, certificaten, logs en elk bestand waartoe het proces toegang heeft. Als u ze bewerkt of verwijdert, kan het apparaat beschadigd raken of kunt u worden buitengesloten."
+
+msgid "Advanced root: expose /"
+msgstr "Geavanceerde root: blootleggen /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Android begeleidende APK: updater openen…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Android Companion heeft niet binnen 30 seconden een nieuw %s resultaat gerapporteerd."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Een ander ZenFM Android-verzoek is nog in behandeling."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Weet u zeker dat u <filename>{{name}}</filename> wilt verplaatsen naar <path>{{destination}}</path>?"
+
+msgid "Beta updates"
+msgstr "Bèta-updates"
+
+msgid "Calculating total size…"
+msgstr "Totale grootte berekenen…"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "Change password"
+msgstr "Wachtwoord wijzigen"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Controleren op een ZenFM-update..."
+
+msgid "Checksum"
+msgstr "Controlesom"
+
+msgid "Clear find"
+msgstr "Duidelijke vondst"
+
+msgid "Clear search"
+msgstr "Wissen"
+
+msgid "Client timeout"
+msgstr "Time-out van client"
+
+msgid "Close"
+msgstr "Sluiten"
+
+msgid "Close file"
+msgstr "Bestand sluiten"
+
+msgid "Confirm"
+msgstr "Bevestigen"
+
+msgid "Confirm password"
+msgstr "Uw nieuwe wachtwoord bevestigen"
+
+msgid "Copied"
+msgstr "Link gekopieerd!"
+
+msgid "Copy"
+msgstr "Kopiëren"
+
+msgid "Copy link"
+msgstr "Download-link kopiëren naar klembord"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Kopieer dit token nu. Het zal niet meer worden getoond."
+
+msgid "Copy token"
+msgstr "Kopieer token"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Kopiëren van {{copied}} van {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Kan het Android-begeleidende resultaat niet lezen"
+
+msgid "Create"
+msgstr "Aanmaken"
+
+msgid "Create share"
+msgstr "Deel maken"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Creëer tijdelijke links zonder uw eigenaarsessie bloot te leggen."
+
+msgid "Create token"
+msgstr "Token maken"
+
+msgid "Current password"
+msgstr "Uw huidige wachtwoord"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Aangepaste root (leeg gebruikt apparaatstandaard)"
+
+msgid "Dark"
+msgstr "Donker"
+
+msgid "Date modified"
+msgstr "Laatst aangepast"
+
+msgid "Delete"
+msgstr "Verwijderen"
+
+msgid "Delete {{count}} items?"
+msgstr "{{count}} items verwijderen?"
+
+msgid "Destination folder"
+msgstr "Bestemmingsmap"
+
+msgid "Destination path"
+msgstr "Bestemmingspad"
+
+msgid "Discard"
+msgstr "Weggooien"
+
+msgid "Download"
+msgstr "Downloaden"
+
+msgid "Edit"
+msgstr "Als tekst bewerken"
+
+msgid "Editing {{name}}"
+msgstr "Bewerken {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Schakel HTTP in"
+
+msgid "Expires"
+msgstr "Verloopt"
+
+msgid "Expires after"
+msgstr "Verloopt na"
+
+msgid "Expose entire filesystem"
+msgstr "Stel het volledige bestandssysteem bloot"
+
+msgid "File already exists"
+msgstr "Bestand bestaat al"
+
+msgid "File name"
+msgstr "Bestandsnaam"
+
+msgid "File or folder path"
+msgstr "Pad"
+
+msgid "Files"
+msgstr "Bestanden"
+
+msgid "Find in file"
+msgstr "Zoek in bestand"
+
+msgid "Finish setup"
+msgstr "Voltooi de installatie"
+
+msgid "Folder name"
+msgstr "Mapnaam"
+
+msgid "General"
+msgstr "Algemeen"
+
+msgid "Grid view"
+msgstr "Rasterweergave"
+
+msgid "Hide password"
+msgstr "Wachtwoord verbergen"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP verzendt wachtwoorden, sessiecookies en bestandsinhoud zonder codering. Toch inschakelen?"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Time-out bij inactiviteit (minuten)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Time-out bij inactiviteit: %d min"
+
+msgid "Installing ZenFM update…"
+msgstr "ZenFM-update installeren…"
+
+msgid "Invalid value."
+msgstr "Ongeldige waarde."
+
+msgid "Keep editing"
+msgstr "Blijf bewerken"
+
+msgid "KOReader plugin bundle:"
+msgstr "KOReader-plug-inbundel:"
+
+msgid "Label"
+msgstr "Label"
+
+msgid "Language"
+msgstr "Taal"
+
+msgid "Later"
+msgstr "Later"
+
+msgid "Lifetime"
+msgstr "Levensduur"
+
+msgid "Light"
+msgstr "Licht"
+
+msgid "List view"
+msgstr "Lijstweergave"
+
+msgid "Listening port:"
+msgstr "Luisterpoort:"
+
+msgid "Loading…"
+msgstr "Laden..."
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Inloggen opnieuw instellen. Gebruik koreader123456789 en kies een nieuw wachtwoord."
+
+msgid "Move"
+msgstr "Verplaatsen"
+
+msgid "Name"
+msgstr "Naam"
+
+msgid "Never"
+msgstr "Nooit"
+
+msgid "New file"
+msgstr "Nieuw bestand"
+
+msgid "New folder"
+msgstr "Nieuwe map"
+
+msgid "New password"
+msgstr "Uw nieuwe wachtwoord"
+
+msgid "New Password"
+msgstr "Nieuw wachtwoord"
+
+msgid "Next match"
+msgstr "Volgende wedstrijd"
+
+msgid "No matches"
+msgstr "Geen overeenkomsten"
+
+msgid "No shared links"
+msgstr "Geen gedeelde links"
+
+msgid "not configured"
+msgstr "niet geconfigureerd"
+
+msgid "Nothing here yet"
+msgstr "Het is hier wat leeg..."
+
+msgid "Open"
+msgstr "Voorbeeld"
+
+msgid "Optional password"
+msgstr "Optioneel wachtwoord"
+
+msgid "Password"
+msgstr "Wachtwoord"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Wachtwoord gewijzigd; sessies en API-tokens zijn ingetrokken."
+
+msgid "Password protected"
+msgstr "Wachtwoord beveiligd"
+
+msgid "Paste"
+msgstr "Plakken"
+
+msgid "Personal API token"
+msgstr "Persoonlijk API-token"
+
+msgid "Personal API tokens"
+msgstr "Persoonlijke API-tokens"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Poort moet tussen 1 en 65535 liggen."
+
+msgid "Port: "
+msgstr "Haven:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Geen voorbeeld beschikbaar voor dit bestand."
+
+msgid "Previous match"
+msgstr "Vorige wedstrijd"
+
+msgid "Refresh"
+msgstr "Vernieuwen"
+
+msgid "Rename"
+msgstr "Hernoemen"
+
+msgid "Replace"
+msgstr "Vervangen"
+
+msgid "Replace all"
+msgstr "Vervang alles"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Vervang het tijdelijke wachtwoord voordat u toegang krijgt tot uw bestanden."
+
+msgid "Reset login"
+msgstr "Inloggen opnieuw instellen"
+
+msgid "Reset owner login"
+msgstr "Eigenaar-login opnieuw instellen"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "De login van de eigenaar resetten naar het alleen-installatiewachtwoord en elke sessie en API-token intrekken?"
+
+msgid "Restart now"
+msgstr "Start nu opnieuw op"
+
+msgid "Restarting…"
+msgstr "Opnieuw opstarten…"
+
+msgid "Revoke"
+msgstr "Herroepen"
+
+msgid "Root"
+msgstr "Wortel"
+
+msgid "Root: "
+msgstr "Wortel:"
+
+msgid "Save"
+msgstr "Redden"
+
+msgid "Save and close"
+msgstr "Opslaan en sluiten"
+
+msgid "Save changes"
+msgstr "Wijzigingen opslaan"
+
+msgid "Save changes before closing?"
+msgstr "Wijzigingen opslaan voordat u sluit?"
+
+msgid "Save settings"
+msgstr "Opslaan"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Opgeslagen. Start ZenFM opnieuw om de wijziging toe te passen."
+
+msgid "Search results"
+msgstr "Zoekresultaten"
+
+msgid "Search this folder"
+msgstr "Zoeken..."
+
+msgid "Settings"
+msgstr "Instellingen"
+
+msgid "Settings saved"
+msgstr "Instellingen opgeslagen"
+
+msgid "Share"
+msgstr "Delen"
+
+msgid "Shared files"
+msgstr "Gedeelde bestanden"
+
+msgid "Shared links"
+msgstr "Beheer van gedeelde mappen en bestanden"
+
+msgid "Shared with ZenFM"
+msgstr "Gedeeld met ZenFM"
+
+msgid "Shares"
+msgstr "Aandelen"
+
+msgid "Show hidden files"
+msgstr "Toon verborgen bestanden"
+
+msgid "Show password"
+msgstr "Wachtwoord tonen"
+
+msgid "Sign in"
+msgstr "Inloggen"
+
+msgid "Sign out"
+msgstr "Uitloggen"
+
+msgid "Signing in…"
+msgstr "Inloggen…"
+
+msgid "Size"
+msgstr "Grootte"
+
+msgid "Skip all"
+msgstr "Alles overslaan"
+
+msgid "Something went wrong"
+msgstr "Er ging iets fout"
+
+msgid "Start ZenFM"
+msgstr "Start ZenFM"
+
+msgid "Status and address"
+msgstr "Status en adres"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Wacht niet langer op gewone serververzoeken na zoveel seconden."
+
+msgid "Stop ZenFM"
+msgstr "Stop ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Schakel over naar de donkere modus"
+
+msgid "Switch to light mode"
+msgstr "Schakel over naar de lichtmodus"
+
+msgid "System"
+msgstr "Systeem standaard"
+
+msgid "Temporary password"
+msgstr "Tijdelijk wachtwoord"
+
+msgid "Text editor"
+msgstr "Als tekst bewerken"
+
+msgid "The password is incorrect."
+msgstr "Het wachtwoord is onjuist."
+
+msgid "Theme"
+msgstr "Thema"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Deze verbinding maakt gebruik van HTTP. Referenties en bestandsinhoud kunnen zichtbaar zijn op het netwerk."
+
+msgid "This file has unsaved changes."
+msgstr "Dit bestand bevat niet-opgeslagen wijzigingen."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Dit bestand is te groot of wordt niet ondersteund voor veilige bewerking."
+
+msgid "This link is unavailable or has expired."
+msgstr "Deze link is niet beschikbaar of is verlopen."
+
+msgid "Token name"
+msgstr "Tokennaam"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Tokens worden één keer getoond en nooit opgeslagen door deze browser."
+
+msgid "Total copy progress"
+msgstr "Totale kopieervoortgang"
+
+msgid "Total upload progress"
+msgstr "Totale uploadvoortgang"
+
+msgid "Unlock"
+msgstr "Ontgrendelen"
+
+msgid "Update"
+msgstr "Update"
+
+msgid "Upload"
+msgstr "Uploaden"
+
+msgid "Upload a file or create one."
+msgstr "Upload een bestand of maak er een."
+
+msgid "Upload files"
+msgstr "Bestanden uploaden"
+
+msgid "Upload folder"
+msgstr "Map uploaden"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Uploaden {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Uploaden · {{completed}} van {{count}} bestanden voltooid · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Gebruik Geavanceerde root om / bloot te leggen. Aangepaste wortels kunnen geen . of .. componenten."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Gebruik een absoluut pad dat begint met /."
+
+msgid "Use at least 7 characters."
+msgstr "Gebruik minimaal 7 tekens."
+
+msgid "Use unencrypted HTTP"
+msgstr "Gebruik niet-versleutelde HTTP"
+
+msgid "Version"
+msgstr "Versie"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Waarschuwing: de geavanceerde rootmodus stelt het volledige bestandssysteem bloot, inclusief de ZenFM-status en certificaten."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Waarschuwing: niet-versleutelde HTTP is ingeschakeld."
+
+msgid "Your files, easily accessible."
+msgstr "Uw bestanden, gemakkelijk toegankelijk."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM is actief."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM is gestopt."
+
+msgid "ZenFM port"
+msgstr "ZenFM-poort"
+
+msgid "ZenFM request pending…"
+msgstr "ZenFM-verzoek in behandeling…"
+
+msgid "ZenFM started."
+msgstr "ZenFM is gestart."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM stopte na inactiviteit."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM is gestopt."
+
+msgid "ZenFM update cancelled."
+msgstr "ZenFM-update geannuleerd."
+
+msgid "ZenFM update timed out."
+msgstr "Er is een time-out opgetreden bij de ZenFM-update."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Status"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Schakelserver"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} artikelen"
+
+msgid "{{count}} items selected"
+msgstr "{{count}} items geselecteerd"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} van {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} bestaat al. Pas deze keuze toe op alle conflicten in deze upload."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} van {{total}} — {{progress}}%"

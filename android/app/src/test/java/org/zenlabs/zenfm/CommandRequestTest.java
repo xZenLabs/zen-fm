@@ -30,4 +30,17 @@ public final class CommandRequestTest {
     public void nonHexRequestIdsAreRejected() {
         CommandRequest.require("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
     }
+
+    @Test public void customAutoStopMinutesAreAccepted() {
+        assertEquals("0", CommandRequest.requireAutoStop("0"));
+        assertEquals("30m", CommandRequest.requireAutoStop("30m"));
+        assertEquals("45m", CommandRequest.requireAutoStop("45m"));
+        assertEquals("720m", CommandRequest.requireAutoStop("720m"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void fractionalAutoStopIsRejected() { CommandRequest.requireAutoStop("1.5m"); }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void oversizedAutoStopIsRejected() { CommandRequest.requireAutoStop("721m"); }
 }

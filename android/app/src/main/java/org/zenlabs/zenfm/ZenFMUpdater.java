@@ -39,7 +39,7 @@ final class ZenFMUpdater {
     private static final AtomicBoolean RUNNING = new AtomicBoolean();
     private ZenFMUpdater() {}
 
-    static void start(ZenFMActivity activity, final String home) {
+    static void start(ZenFMActivity activity, final String home, final boolean allowPrerelease) {
         if (!RUNNING.compareAndSet(false, true)) {
             activity.onUpdateFailed("an update check is already running");
             return;
@@ -51,7 +51,7 @@ final class ZenFMUpdater {
             @Override public void run() {
                 File destination = null;
                 try {
-                    Release release = latest(application);
+                    Release release = latest(application, allowPrerelease);
                     destination = File.createTempFile("zenfm-update-", ".apk", application.getCacheDir());
                     download(release, destination);
                     PackageIdentity source = installedIdentity(application);
@@ -235,16 +235,19 @@ final class ZenFMUpdater {
         });
     }
 
-    private static Release latest(Context context) throws Exception {
+    private static Release latest(Context context, boolean allowPrerelease) throws Exception {
         HttpURLConnection connection = open(new URL(RELEASES));
         if (connection.getResponseCode() != 200) throw new IOException("release metadata HTTP " + connection.getResponseCode());
         JSONArray releases = new JSONArray(new String(read(connection.getInputStream(), 1024 * 1024), "UTF-8"));
         String installed = installedIdentity(context).version;
+        if (Version.parse(installed) == null) throw new IOException("installed companion version is invalid");
+        Release best = null;
         for (int index = 0; index < releases.length(); index++) {
             JSONObject release = releases.getJSONObject(index);
-            if (release.optBoolean("draft") || release.optBoolean("prerelease")) continue;
+            if (release.optBoolean("draft")
+                || (release.optBoolean("prerelease") && !allowPrerelease)) continue;
             String version = release.optString("tag_name").replaceFirst("^v", "");
-            if (compare(version, installed) <= 0) continue;
+            if (Version.parse(version) == null || compareVersions(version, installed) <= 0) continue;
             String name = "ZenFM-android-" + version + ".apk";
             JSONArray assets = release.optJSONArray("assets");
             if (assets == null) continue;
@@ -255,11 +258,13 @@ final class ZenFMUpdater {
                 long size = asset.optLong("size", -1);
                 if (name.equals(asset.optString("name")) && digest.matches("sha256:[0-9a-fA-F]{64}")
                     && size > 0 && size <= MAXIMUM_APK && trusted(new URL(url))) {
-                    return new Release(version, url,
+                    Release candidate = new Release(version, url,
                         digest.substring("sha256:".length()).toLowerCase(Locale.US), size);
+                    if (best == null || compareVersions(candidate.version, best.version) > 0) best = candidate;
                 }
             }
         }
+        if (best != null) return best;
         throw new IOException("no newer compatible companion release");
     }
 
@@ -393,14 +398,10 @@ final class ZenFMUpdater {
         return result.toString();
     }
 
-    private static int compare(String left, String right) {
-        String[] a = left.split("[-+]", 2)[0].split("\\."), b = right.split("[-+]", 2)[0].split("\\.");
-        for (int index = 0; index < 3; index++) {
-            int x = index < a.length ? Integer.parseInt(a[index]) : 0;
-            int y = index < b.length ? Integer.parseInt(b[index]) : 0;
-            if (x != y) return x < y ? -1 : 1;
-        }
-        return 0;
+    static int compareVersions(String left, String right) {
+        Version a = Version.parse(left), b = Version.parse(right);
+        if (a == null || b == null) throw new IllegalArgumentException("invalid version");
+        return a.compareTo(b);
     }
 
     private static String clean(String message) {
@@ -418,6 +419,50 @@ final class ZenFMUpdater {
         final String version, url, sha256; final long size;
         Release(String version, String url, String sha256, long size) {
             this.version = version; this.url = url; this.sha256 = sha256; this.size = size;
+        }
+    }
+
+    private static final class Version implements Comparable<Version> {
+        final int major, minor, patch, prereleaseNumber;
+        final boolean isPrerelease;
+        final String prereleaseLabel;
+
+        Version(int major, int minor, int patch, boolean isPrerelease,
+            String prereleaseLabel, int prereleaseNumber) {
+            this.major = major; this.minor = minor; this.patch = patch;
+            this.isPrerelease = isPrerelease;
+            this.prereleaseLabel = prereleaseLabel; this.prereleaseNumber = prereleaseNumber;
+        }
+
+        static Version parse(String raw) {
+            String value = raw == null ? "" : raw.replaceFirst("^v", "").split("\\+", 2)[0];
+            String[] version = value.split("-", 2);
+            String[] core = version[0].split("\\.", -1);
+            if (core.length != 3) return null;
+            try {
+                int major = Integer.parseInt(core[0]);
+                int minor = Integer.parseInt(core[1]);
+                int patch = Integer.parseInt(core[2]);
+                String suffix = version.length == 2 ? version[1] : "";
+                if (version.length == 2 && suffix.isEmpty()) return null;
+                int digit = suffix.length();
+                while (digit > 0 && Character.isDigit(suffix.charAt(digit - 1))) digit--;
+                int number = digit < suffix.length() ? Integer.parseInt(suffix.substring(digit)) : 0;
+                return new Version(major, minor, patch, version.length == 2,
+                    suffix.substring(0, digit), number);
+            } catch (NumberFormatException error) {
+                return null;
+            }
+        }
+
+        @Override public int compareTo(Version other) {
+            if (major != other.major) return major < other.major ? -1 : 1;
+            if (minor != other.minor) return minor < other.minor ? -1 : 1;
+            if (patch != other.patch) return patch < other.patch ? -1 : 1;
+            if (isPrerelease != other.isPrerelease) return isPrerelease ? -1 : 1;
+            int label = prereleaseLabel.compareTo(other.prereleaseLabel);
+            if (label != 0) return label;
+            return Integer.compare(prereleaseNumber, other.prereleaseNumber);
         }
     }
 }

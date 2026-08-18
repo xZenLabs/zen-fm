@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ro\n"
+
+msgid "1 day"
+msgstr "1 zi"
+
+msgid "1 hour"
+msgstr "1 oră"
+
+msgid "1 week"
+msgstr "1 saptamana"
+
+msgid "1 year"
+msgstr "1 an"
+
+msgid "30 days"
+msgstr "30 de zile"
+
+msgid "About {{eta}} remaining"
+msgstr "Aproximativ {{eta}} rămas"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Modul rădăcină avansat este activ. Fișierele de sistem, căile dispozitivului și secretele ZenFM sunt vizibile și pot fi modificate sau șterse."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Modul rădăcină avansat servește /. Acesta expune /proc, /sys, /dev, baza de date ZenFM, certificate, jurnale și fiecare fișier pe care procesul îl poate accesa. Editarea sau ștergerea acestora poate deteriora dispozitivul sau vă poate bloca."
+
+msgid "Advanced root: expose /"
+msgstr "Rădăcină avansată: expune /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "APK însoțitor Android: deschiderea programului de actualizare..."
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Companionul Android nu a raportat un rezultat nou %s în 30 de secunde."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "O altă solicitare ZenFM Android este încă în așteptare."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Sigur doriți să mutați <filename>{{name}}</filename> în <path>{{destination}}</path>?"
+
+msgid "Beta updates"
+msgstr "Actualizări beta"
+
+msgid "Calculating total size…"
+msgstr "Se calculează dimensiunea totală..."
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "Change password"
+msgstr "Schimbă parola"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Se verifică o actualizare ZenFM..."
+
+msgid "Checksum"
+msgstr "Sumă de control"
+
+msgid "Clear find"
+msgstr "Găsire clară"
+
+msgid "Clear search"
+msgstr "Curăță"
+
+msgid "Client timeout"
+msgstr "Timeout client"
+
+msgid "Close"
+msgstr "Închide"
+
+msgid "Close file"
+msgstr "Închideți fișierul"
+
+msgid "Confirm"
+msgstr "Confirma"
+
+msgid "Confirm password"
+msgstr "Confirmă noua parolă"
+
+msgid "Copied"
+msgstr "Legătură copiată!"
+
+msgid "Copy"
+msgstr "Copiază"
+
+msgid "Copy link"
+msgstr "Copiați linkul"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Copiați acest token acum. Nu va fi afișat din nou."
+
+msgid "Copy token"
+msgstr "Token de copiere"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Se copiează {{copied}} din {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Nu s-a putut citi rezultatul însoțitor Android"
+
+msgid "Create"
+msgstr "Crează"
+
+msgid "Create share"
+msgstr "Creați share"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Creați linkuri temporare fără a vă expune sesiunea proprietarului."
+
+msgid "Create token"
+msgstr "Creați token"
+
+msgid "Current password"
+msgstr "Parola actuală"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Rădăcină personalizată (blank folosește dispozitivul prestabilit)"
+
+msgid "Dark"
+msgstr "Întuneric"
+
+msgid "Date modified"
+msgstr "Ultima modificare"
+
+msgid "Delete"
+msgstr "Șterge"
+
+msgid "Delete {{count}} items?"
+msgstr "Ștergeți {{count}} articole?"
+
+msgid "Destination folder"
+msgstr "Dosarul de destinație"
+
+msgid "Destination path"
+msgstr "Calea de destinație"
+
+msgid "Discard"
+msgstr "Aruncă"
+
+msgid "Download"
+msgstr "Descarcă"
+
+msgid "Edit"
+msgstr "Edita"
+
+msgid "Editing {{name}}"
+msgstr "Editarea {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Activați HTTP"
+
+msgid "Expires"
+msgstr "Expiră"
+
+msgid "Expires after"
+msgstr "Expiră după"
+
+msgid "Expose entire filesystem"
+msgstr "Expune întregul sistem de fișiere"
+
+msgid "File already exists"
+msgstr "Fișierul există deja"
+
+msgid "File name"
+msgstr "Nume de fișier"
+
+msgid "File or folder path"
+msgstr "Calea fișierului sau a folderului"
+
+msgid "Files"
+msgstr "Fișiere"
+
+msgid "Find in file"
+msgstr "Găsiți în fișier"
+
+msgid "Finish setup"
+msgstr "Finalizați configurarea"
+
+msgid "Folder name"
+msgstr "Numele dosarului"
+
+msgid "General"
+msgstr "General"
+
+msgid "Grid view"
+msgstr "Vizualizare grilă"
+
+msgid "Hide password"
+msgstr "Ascunde parola"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP trimite parole, module cookie de sesiune și conținut de fișiere fără criptare. Activați-l oricum?"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Timeout inactivitate (minute)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Timeout inactivitate: %d min"
+
+msgid "Installing ZenFM update…"
+msgstr "Se instalează actualizarea ZenFM..."
+
+msgid "Invalid value."
+msgstr "Valoare nevalidă."
+
+msgid "Keep editing"
+msgstr "Continuați să editați"
+
+msgid "KOReader plugin bundle:"
+msgstr "Pachetul de plugin KOReader:"
+
+msgid "Label"
+msgstr "Eticheta"
+
+msgid "Language"
+msgstr "Limba"
+
+msgid "Later"
+msgstr "Mai târziu"
+
+msgid "Lifetime"
+msgstr "Durata de viață"
+
+msgid "Light"
+msgstr "Aprinde"
+
+msgid "List view"
+msgstr "Vizualizare listă"
+
+msgid "Listening port:"
+msgstr "Port de ascultare:"
+
+msgid "Loading…"
+msgstr "Se încarcă..."
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Resetare autentificare. Folosiți koreader123456789 și alegeți o nouă parolă."
+
+msgid "Move"
+msgstr "Mută"
+
+msgid "Name"
+msgstr "Nume"
+
+msgid "Never"
+msgstr "Nu"
+
+msgid "New file"
+msgstr "Fișier nou"
+
+msgid "New folder"
+msgstr "Director nou"
+
+msgid "New password"
+msgstr "Noua ta parolă"
+
+msgid "New Password"
+msgstr "Parolă Nouă"
+
+msgid "Next match"
+msgstr "Următorul meci"
+
+msgid "No matches"
+msgstr "Fără meciuri"
+
+msgid "No shared links"
+msgstr "Nu există linkuri partajate"
+
+msgid "not configured"
+msgstr "neconfigurat"
+
+msgid "Nothing here yet"
+msgstr "Nu este nimic aici..."
+
+msgid "Open"
+msgstr "Deschide"
+
+msgid "Optional password"
+msgstr "Parolă opțională"
+
+msgid "Password"
+msgstr "Parola"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "Parola schimbată; sesiunile și jetoanele API au fost revocate."
+
+msgid "Password protected"
+msgstr "Protejat prin parolă"
+
+msgid "Paste"
+msgstr "Pastă"
+
+msgid "Personal API token"
+msgstr "Token personal API"
+
+msgid "Personal API tokens"
+msgstr "Jetoane API personale"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Portul trebuie să fie între 1 și 65535."
+
+msgid "Port: "
+msgstr "Port:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Previzualizarea nu este disponibilă pentru acest fișier."
+
+msgid "Previous match"
+msgstr "Meciul anterior"
+
+msgid "Refresh"
+msgstr "Reîmprospăta"
+
+msgid "Rename"
+msgstr "Redenumește"
+
+msgid "Replace"
+msgstr "Înlocui"
+
+msgid "Replace all"
+msgstr "Înlocuiește-le pe toate"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Înlocuiți parola temporară înainte de a vă accesa fișierele."
+
+msgid "Reset login"
+msgstr "Resetați autentificarea"
+
+msgid "Reset owner login"
+msgstr "Resetați datele de conectare ale proprietarului"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Resetați datele de conectare ale proprietarului la parola doar de configurare și revocați fiecare sesiune și token API?"
+
+msgid "Restart now"
+msgstr "Reporniți acum"
+
+msgid "Restarting…"
+msgstr "Se repornește…"
+
+msgid "Revoke"
+msgstr "Revoca"
+
+msgid "Root"
+msgstr "Rădăcină"
+
+msgid "Root: "
+msgstr "Rădăcină:"
+
+msgid "Save"
+msgstr "Salva"
+
+msgid "Save and close"
+msgstr "Salvați și închideți"
+
+msgid "Save changes"
+msgstr "Salvați modificările"
+
+msgid "Save changes before closing?"
+msgstr "Salvați modificările înainte de a închide?"
+
+msgid "Save settings"
+msgstr "Salvează"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Salvat. Reporniți ZenFM pentru a aplica modificarea."
+
+msgid "Search results"
+msgstr "Rezultatele căutării"
+
+msgid "Search this folder"
+msgstr "Caută..."
+
+msgid "Settings"
+msgstr "Setări"
+
+msgid "Settings saved"
+msgstr "Setările au fost salvate"
+
+msgid "Share"
+msgstr "Distribuie"
+
+msgid "Shared files"
+msgstr "Fișiere partajate"
+
+msgid "Shared links"
+msgstr "Linkuri partajate"
+
+msgid "Shared with ZenFM"
+msgstr "Partajat cu ZenFM"
+
+msgid "Shares"
+msgstr "Acțiuni"
+
+msgid "Show hidden files"
+msgstr "Afișează fișierele ascunse"
+
+msgid "Show password"
+msgstr "Afișați parola"
+
+msgid "Sign in"
+msgstr "Autentificare"
+
+msgid "Sign out"
+msgstr "Sign out"
+
+msgid "Signing in…"
+msgstr "Se conectează..."
+
+msgid "Size"
+msgstr "Dimensiune"
+
+msgid "Skip all"
+msgstr "Sari peste toate"
+
+msgid "Something went wrong"
+msgstr "Ceva n-a funcționat cum trebuie"
+
+msgid "Start ZenFM"
+msgstr "Porniți ZenFM"
+
+msgid "Status and address"
+msgstr "Stare si adresa"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Nu mai așteptați solicitările obișnuite de server după atâtea secunde."
+
+msgid "Stop ZenFM"
+msgstr "Opriți ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Comutați la modul întunecat"
+
+msgid "Switch to light mode"
+msgstr "Comutați în modul de lumină"
+
+msgid "System"
+msgstr "Sistem"
+
+msgid "Temporary password"
+msgstr "Parolă temporară"
+
+msgid "Text editor"
+msgstr "Editor de text"
+
+msgid "The password is incorrect."
+msgstr "Parola este incorectă."
+
+msgid "Theme"
+msgstr "Temă"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Această conexiune folosește HTTP. Acreditările și conținutul fișierului pot fi vizibile în rețea."
+
+msgid "This file has unsaved changes."
+msgstr "Acest fișier are modificări nesalvate."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Acest fișier este prea mare sau neacceptat pentru editare în siguranță."
+
+msgid "This link is unavailable or has expired."
+msgstr "Acest link este indisponibil sau a expirat."
+
+msgid "Token name"
+msgstr "Nume simbol"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Tokenurile sunt afișate o dată și nu sunt stocate niciodată de acest browser."
+
+msgid "Total copy progress"
+msgstr "Progres total de copiere"
+
+msgid "Total upload progress"
+msgstr "Progres total de încărcare"
+
+msgid "Unlock"
+msgstr "Deblocați"
+
+msgid "Update"
+msgstr "Actualizare"
+
+msgid "Upload"
+msgstr "Încarcă"
+
+msgid "Upload a file or create one."
+msgstr "Încărcați un fișier sau creați unul."
+
+msgid "Upload files"
+msgstr "Încărcați fișiere"
+
+msgid "Upload folder"
+msgstr "Încărcați folderul"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Se încarcă {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Încărcarea · {{completed}} din {{count}} fișiere finalizată · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Utilizați rădăcină avansată pentru a expune /. Rădăcinile personalizate nu pot conține . sau .. componente."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Utilizați o cale absolută care începe cu /."
+
+msgid "Use at least 7 characters."
+msgstr "Utilizați cel puțin 7 caractere."
+
+msgid "Use unencrypted HTTP"
+msgstr "Utilizați HTTP necriptat"
+
+msgid "Version"
+msgstr "Versiune"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Atenție: modul rădăcină avansat expune întregul sistem de fișiere, inclusiv starea ZenFM și certificatele."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Avertisment: HTTP necriptat este activat."
+
+msgid "Your files, easily accessible."
+msgstr "Fișierele dvs., ușor accesibile."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM rulează."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM este oprit."
+
+msgid "ZenFM port"
+msgstr "Port ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Solicitare ZenFM în așteptare..."
+
+msgid "ZenFM started."
+msgstr "ZenFM a început."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM sa oprit după inactivitate."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM sa oprit."
+
+msgid "ZenFM update cancelled."
+msgstr "Actualizarea ZenFM a fost anulată."
+
+msgid "ZenFM update timed out."
+msgstr "Actualizarea ZenFM a expirat."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Stare"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: Comutați serverul"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} articole"
+
+msgid "{{count}} items selected"
+msgstr "{{count}} elemente selectate"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} din {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} există deja. Aplicați această opțiune tuturor conflictelor din această încărcare."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} din {{total}} — {{progress}}%"

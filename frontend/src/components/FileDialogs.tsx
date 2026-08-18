@@ -1,10 +1,15 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import DOMPurify from 'dompurify'
 import {
-  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress,
-  MenuItem, Stack, TextField, Typography, useTheme,
+  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, LinearProgress,
+  MenuItem, Stack, TextField, Tooltip, Typography, useTheme,
 } from '@mui/material'
 import CloseRounded from '@mui/icons-material/CloseRounded'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import KeyboardArrowLeftRounded from '@mui/icons-material/KeyboardArrowLeftRounded'
+import KeyboardArrowRightRounded from '@mui/icons-material/KeyboardArrowRightRounded'
+import SearchRounded from '@mui/icons-material/SearchRounded'
+import DownloadIcon from '@mui/icons-material/Download'
 import EditDocumentIcon from '@mui/icons-material/EditDocument'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
@@ -13,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { api, isConflictError } from '../api/client'
 import type { CreateShareInput, FileEntry } from '../api/types'
 import { ErrorPane, LoadingPane } from './Feedback'
+import { PasswordField } from './PasswordField'
 import { renderMarkdown } from '../markdown'
 import { parseCsv } from '../csv'
 import { formatBytes, formatDuration, joinPath } from '../utils'
@@ -29,14 +35,35 @@ function extension(path: string) {
 }
 
 function isTextEntry(entry: FileEntry) {
-  return entry.type === 'file' && (entry.mimeType?.startsWith('text/') || textExtensions.has(extension(entry.name)))
+  return entry.type === 'file' && (entry.mimeType?.startsWith('text/') || !entry.name.includes('.') || textExtensions.has(extension(entry.name)))
 }
 
 export function canEdit(entry: FileEntry) {
   return isTextEntry(entry) && entry.size <= MAX_EDITABLE_TEXT_BYTES
 }
 
-export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry | null; onClose: () => void; onEdit?: () => void }) {
+function summarizeTextMatches(text: string, query: string) {
+  if (!query) return { count: 0, first: -1, last: -1 }
+  let count = 0
+  let first = -1
+  let last = -1
+  for (let match = text.indexOf(query); match !== -1; match = text.indexOf(query, match + query.length)) {
+    if (first === -1) first = match
+    last = match
+    count += 1
+  }
+  return { count, first, last }
+}
+
+function previousTextMatch(text: string, query: string, before: number) {
+  let previous = -1
+  for (let match = text.indexOf(query); match !== -1 && match < before; match = text.indexOf(query, match + query.length)) {
+    previous = match
+  }
+  return previous
+}
+
+export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScreenProp, onFullScreen }: { entry: FileEntry | null; onClose: () => void; onEdit?: () => void; fullScreen?: boolean; onFullScreen?: () => void }) {
   const { t } = useTranslation()
   const theme = useTheme()
   const surface = theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.background.paper
@@ -68,7 +95,76 @@ export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry
   const raw = entry ? api.files.rawUrl(entry.path) : ''
   const previewUrl = entry ? api.files.previewUrl(entry.path) : ''
   const csv = useMemo(() => ext === 'csv' && text.data ? parseCsv(text.data) : null, [ext, text.data])
-  useCloseOnHistoryNavigation(Boolean(entry), onClose)
+  const findButtonRef = useRef<HTMLButtonElement>(null)
+  const findInputRef = useRef<HTMLInputElement>(null)
+  const [localFullScreen, setLocalFullScreen] = useState(false)
+  const fullScreen = fullScreenProp ?? localFullScreen
+  const [findOpen, setFindOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [findIndex, setFindIndex] = useState(-1)
+  const [findStart, setFindStart] = useState(-1)
+  const searchableText = useMemo(() => (text.data ?? '').toLocaleLowerCase(), [text.data])
+  const activeFindQuery = findOpen ? findQuery : ''
+  const normalizedFindQuery = activeFindQuery.toLocaleLowerCase()
+  const findSummary = useMemo(
+    () => summarizeTextMatches(searchableText, normalizedFindQuery),
+    [normalizedFindQuery, searchableText],
+  )
+  const currentFindMatch = activeFindQuery && findStart >= 0
+    ? { from: findStart, to: findStart + activeFindQuery.length }
+    : undefined
+  useCloseOnHistoryNavigation(Boolean(entry) && fullScreenProp !== true, onClose)
+
+  const showFind = useCallback(() => {
+    setFindOpen(true)
+    window.requestAnimationFrame(() => findInputRef.current?.select())
+  }, [])
+
+  useEffect(() => {
+    setLocalFullScreen(false)
+    setFindOpen(false)
+    setFindQuery('')
+  }, [entry?.path])
+
+  useEffect(() => {
+    if (!fullScreen || !needsText) return
+    const handleFindShortcut = (event: globalThis.KeyboardEvent) => {
+      if (event.key.toLocaleLowerCase() !== 'f' || (!event.ctrlKey && !event.metaKey)) return
+      event.preventDefault()
+      showFind()
+    }
+    document.addEventListener('keydown', handleFindShortcut)
+    return () => document.removeEventListener('keydown', handleFindShortcut)
+  }, [fullScreen, needsText, showFind])
+
+  useEffect(() => {
+    setFindIndex(findSummary.count > 0 ? 0 : -1)
+    setFindStart(findSummary.first)
+  }, [findSummary.count, findSummary.first, normalizedFindQuery, searchableText])
+
+  const moveFind = (direction: number) => {
+    if (findSummary.count === 0 || !normalizedFindQuery) return
+    if (direction > 0) {
+      const next = searchableText.indexOf(normalizedFindQuery, findStart + normalizedFindQuery.length)
+      setFindStart(next === -1 ? findSummary.first : next)
+    } else {
+      const previous = previousTextMatch(searchableText, normalizedFindQuery, findStart)
+      setFindStart(previous === -1 ? findSummary.last : previous)
+    }
+    setFindIndex((current) => (current + direction + findSummary.count) % findSummary.count)
+  }
+  const handleFindKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.stopPropagation()
+      moveFind(event.shiftKey ? -1 : 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      setFindOpen(false)
+      window.requestAnimationFrame(() => findButtonRef.current?.focus())
+    }
+  }
 
   let preview = <Typography color="text.secondary">{t('files.noPreview')}</Typography>
   if (['tif', 'tiff'].includes(ext)) {
@@ -92,6 +188,7 @@ export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry
   } else if (needsText) {
     if (text.isPending) preview = <LoadingPane />
     else if (text.error) preview = <ErrorPane error={text.error} />
+    else if (fullScreen) preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly fullHeight find={{ query: activeFindQuery, current: currentFindMatch }} /></Suspense>
     else if (['html', 'htm'].includes(ext)) preview = <Box className="html-preview" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text.data ?? '', { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'img', 'link', 'meta', 'base'], FORBID_ATTR: ['style'] }) }} />
     else if (['md', 'markdown'].includes(ext)) preview = <Box className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(text.data ?? '') }} />
     else if (ext === 'csv' && csv) preview = <Box className="csv-preview" sx={{ overflow: 'auto' }}><table><thead>{csv.rows[0] && <tr>{csv.rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr>}</thead><tbody>{csv.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table>{csv.truncated && <Typography variant="caption" color="text.secondary">Preview truncated.</Typography>}</Box>
@@ -99,10 +196,37 @@ export function FilePreviewDialog({ entry, onClose, onEdit }: { entry: FileEntry
   }
 
   return (
-    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth slotProps={{ paper: { style: { backgroundColor: surface } } }}>
-      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></DialogTitle>
-      <DialogContent dividers style={{ backgroundColor: contentSurface }} sx={{ minHeight: 240 }}>{preview}</DialogContent>
-      <DialogActions style={{ backgroundColor: surface }}>{entry && <Button component="a" href={raw} download>{t('files.download')}</Button>}{entry && onEdit && canEdit(entry) && <Button variant="contained" startIcon={<EditDocumentIcon />} onClick={onEdit}>{t('files.edit')}</Button>}</DialogActions>
+    <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth fullScreen={fullScreen} slotProps={{ paper: { style: { backgroundColor: surface } } }}>
+      <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box>
+        {fullScreen && needsText && <Box className={`file-find-control${findOpen ? ' open' : ''}`} role="search">
+          <TextField
+            fullWidth
+            inputRef={findInputRef}
+            placeholder={t('files.find')}
+            value={findQuery}
+            onChange={(event) => setFindQuery(event.target.value)}
+            onKeyDown={handleFindKey}
+            inputProps={{ 'aria-label': t('files.find'), tabIndex: findOpen ? 0 : -1 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><Tooltip title={t('files.find')}><IconButton ref={findButtonRef} aria-label={t('files.find')} aria-expanded={findOpen} onClick={showFind}><SearchRounded /></IconButton></Tooltip></InputAdornment>,
+              endAdornment: findOpen ? <InputAdornment position="end">
+                {findQuery && <Typography aria-live="polite" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>{findSummary.count > 0 ? t('files.findMatchCount', { current: findIndex + 1, total: findSummary.count }) : t('files.noFindMatches')}</Typography>}
+                <Tooltip title={t('files.findPrevious')}><span><IconButton size="small" aria-label={t('files.findPrevious')} disabled={findSummary.count === 0} onClick={() => moveFind(-1)} sx={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}><KeyboardArrowLeftRounded /></IconButton></span></Tooltip>
+                <Tooltip title={t('files.findNext')}><span><IconButton size="small" aria-label={t('files.findNext')} disabled={findSummary.count === 0} onClick={() => moveFind(1)} sx={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}><KeyboardArrowRightRounded /></IconButton></span></Tooltip>
+                {findQuery && <Tooltip title={t('files.clearFind')}><IconButton edge="end" size="small" aria-label={t('files.clearFind')} onClick={() => { setFindQuery(''); findInputRef.current?.focus() }} sx={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}><CloseRounded /></IconButton></Tooltip>}
+              </InputAdornment> : undefined,
+            }}
+          />
+        </Box>}
+        <Tooltip title={t('files.closeFile')}><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></Tooltip>
+      </DialogTitle>
+      <DialogContent dividers style={{ backgroundColor: contentSurface }} className={fullScreen ? 'file-viewer-content fullscreen-viewer' : undefined} sx={{ minHeight: fullScreen && needsText ? 0 : 240, p: fullScreen && needsText ? 0 : undefined, flex: fullScreen && needsText ? 1 : undefined }}>{preview}</DialogContent>
+      <DialogActions style={{ backgroundColor: surface }}>
+        {entry && <Button component="a" href={raw} download startIcon={<DownloadIcon />}>{t('files.download')}</Button>}
+        {entry && onEdit && canEdit(entry) && <Button startIcon={<EditDocumentIcon />} onClick={onEdit}>{t('files.edit')}</Button>}
+        {entry && !fullScreen && <Button variant="contained" startIcon={<OpenInNewIcon />} onClick={() => onFullScreen ? onFullScreen() : setLocalFullScreen(true)}>{t('files.preview')}</Button>}
+      </DialogActions>
     </Dialog>
   )
 }
@@ -330,7 +454,7 @@ export function CreateShareDialog({ entry, onClose, onCreated }: { entry: FileEn
       <DialogContent sx={{ pt: 2, overflow: 'visible' }}><Stack gap={2} pt={0.5}>
         <Typography color="text.secondary" className="file-name">{entry?.path}</Typography>
         <TextField label={t('shares.name')} value={name} onChange={(event) => setName(event.target.value)} />
-        <TextField label={t('shares.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <PasswordField label={t('shares.password')} value={password} onChange={(event) => setPassword(event.target.value)} />
         <TextField select label={t('shares.expiry')} value={expiresInSeconds ?? 0} onChange={(event) => setExpiry(Number(event.target.value) || undefined)}>
           <MenuItem value={3600}>{t('shares.oneHour')}</MenuItem><MenuItem value={86400}>{t('shares.oneDay')}</MenuItem><MenuItem value={604800}>{t('shares.oneWeek')}</MenuItem><MenuItem value={0}>{t('shares.never')}</MenuItem>
         </TextField>

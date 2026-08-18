@@ -163,6 +163,9 @@ jobs:
           sh scripts/verify-release-assets.sh dist "$VERSION"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose --print-certs "dist/ZenFM-android-$VERSION.apk"
 
+      - name: Build release notes from the Lua changelog
+        run: python3 .github/scripts/build_release_notes.py '${{ needs.prepare.outputs.version }}' > "$RUNNER_TEMP/zenfm-release-notes.md"
+
       - name: Attest every published ZenFM artifact
         uses: actions/attest-build-provenance@v4.2.2
         with:
@@ -178,4 +181,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target '${{ needs.prepare.outputs.commit }}' \
             --title "ZenFM $TAG" \
-            --generate-notes
+            --notes-file "$RUNNER_TEMP/zenfm-release-notes.md"

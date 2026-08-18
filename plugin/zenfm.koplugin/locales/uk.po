@@ -1,0 +1,580 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenFM\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: uk\n"
+
+msgid "1 day"
+msgstr "1 день"
+
+msgid "1 hour"
+msgstr "1 година"
+
+msgid "1 week"
+msgstr "1 тиждень"
+
+msgid "1 year"
+msgstr "1 рік"
+
+msgid "30 days"
+msgstr "30 днів"
+
+msgid "About {{eta}} remaining"
+msgstr "Залишилося приблизно {{eta}}"
+
+msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
+msgstr "Розширений режим root активний. Системні файли, шляхи до пристроїв і секрети ZenFM видимі та можуть бути змінені або видалені."
+
+msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
+msgstr "Розширений кореневий режим обслуговує /. Він відкриває /proc, /sys, /dev, базу даних ZenFM, сертифікати, журнали та кожен файл, до якого може отримати доступ процес. Редагування або видалення їх може пошкодити пристрій або заблокувати вас."
+
+msgid "Advanced root: expose /"
+msgstr "Розширений корінь: викрити /"
+
+msgid "Android companion APK: opening updater…"
+msgstr "Додатковий файл APK для Android: відкриття програми оновлення…"
+
+msgid "Android companion did not report a fresh %s result within 30 seconds."
+msgstr "Android companion не повідомив про новий результат %s протягом 30 секунд."
+
+msgid "Another ZenFM Android request is still pending."
+msgstr "Інший запит ZenFM Android все ще очікує на розгляд."
+
+msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Ви впевнені, що бажаєте перемістити <filename>{{name}}</filename> до <path>{{destination}}</path>?"
+
+msgid "Beta updates"
+msgstr "Бета-оновлення"
+
+msgid "Calculating total size…"
+msgstr "Розрахунок загального розміру…"
+
+msgid "Cancel"
+msgstr "Відмінити"
+
+msgid "Change password"
+msgstr "Зміна пароля"
+
+msgid "Checking for a ZenFM update…"
+msgstr "Перевірка оновлення ZenFM…"
+
+msgid "Checksum"
+msgstr "Контрольна сума"
+
+msgid "Clear find"
+msgstr "Ясна знахідка"
+
+msgid "Clear search"
+msgstr "Очистити"
+
+msgid "Client timeout"
+msgstr "Час очікування клієнта"
+
+msgid "Close"
+msgstr "Закрити"
+
+msgid "Close file"
+msgstr "Закрити файл"
+
+msgid "Confirm"
+msgstr "ОК"
+
+msgid "Confirm password"
+msgstr "Підтвердження нового пароля"
+
+msgid "Copied"
+msgstr "Посилання скопійоване!"
+
+msgid "Copy"
+msgstr "Копіювати"
+
+msgid "Copy link"
+msgstr "Скопіювати завантажувальне посилання в буфер обміну"
+
+msgid "Copy this token now. It will not be shown again."
+msgstr "Скопіюйте цей маркер зараз. Його більше не буде показано."
+
+msgid "Copy token"
+msgstr "Копіювати маркер"
+
+msgid "Copying {{copied}} of {{total}} — {{progress}}%"
+msgstr "Копіювання {{copied}} з {{total}} — {{progress}}%"
+
+msgid "Could not read the Android companion result"
+msgstr "Не вдалося прочитати результат Android Companion"
+
+msgid "Create"
+msgstr "Створити"
+
+msgid "Create share"
+msgstr "Створити спільний доступ"
+
+msgid "Create temporary links without exposing your owner session."
+msgstr "Створюйте тимчасові посилання, не відкриваючи сеанс власника."
+
+msgid "Create token"
+msgstr "Створити маркер"
+
+msgid "Current password"
+msgstr "Поточний пароль"
+
+msgid "Custom root (blank uses device default)"
+msgstr "Настроюваний корінь (порожній використовує параметри пристрою за замовчуванням)"
+
+msgid "Dark"
+msgstr "Темна"
+
+msgid "Date modified"
+msgstr "Останній раз змінено"
+
+msgid "Delete"
+msgstr "Видалити"
+
+msgid "Delete {{count}} items?"
+msgstr "Видалити елементи {{count}}?"
+
+msgid "Destination folder"
+msgstr "Папка призначення"
+
+msgid "Destination path"
+msgstr "Шлях призначення"
+
+msgid "Discard"
+msgstr "Відкинути"
+
+msgid "Download"
+msgstr "Завантажити"
+
+msgid "Edit"
+msgstr "Редагувати"
+
+msgid "Editing {{name}}"
+msgstr "Редагування {{name}}"
+
+msgid "Enable HTTP"
+msgstr "Увімкнути HTTP"
+
+msgid "Expires"
+msgstr "Термін дії закінчується"
+
+msgid "Expires after"
+msgstr "Термін дії закінчується після"
+
+msgid "Expose entire filesystem"
+msgstr "Викрити всю файлову систему"
+
+msgid "File already exists"
+msgstr "Файл уже існує"
+
+msgid "File name"
+msgstr "Ім'я файлу"
+
+msgid "File or folder path"
+msgstr "Шлях"
+
+msgid "Files"
+msgstr "Файли"
+
+msgid "Find in file"
+msgstr "Знайти у файлі"
+
+msgid "Finish setup"
+msgstr "Завершити налаштування"
+
+msgid "Folder name"
+msgstr "Назва папки"
+
+msgid "General"
+msgstr "Загальний"
+
+msgid "Grid view"
+msgstr "Вигляд сітки"
+
+msgid "Hide password"
+msgstr "Приховати пароль"
+
+msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
+msgstr "HTTP надсилає паролі, файли cookie сеансу та вміст файлів без шифрування. Все одно ввімкнути?"
+
+msgid "Inactivity timeout (minutes)"
+msgstr "Тайм-аут бездіяльності (хвилини)"
+
+msgid "Inactivity timeout: %d min"
+msgstr "Час бездіяльності: %d хв"
+
+msgid "Installing ZenFM update…"
+msgstr "Встановлення оновлення ZenFM…"
+
+msgid "Invalid value."
+msgstr "Недійсне значення."
+
+msgid "Keep editing"
+msgstr "Продовжуйте редагувати"
+
+msgid "KOReader plugin bundle:"
+msgstr "Набір плагінів KOReader:"
+
+msgid "Label"
+msgstr "Мітка"
+
+msgid "Language"
+msgstr "Мова"
+
+msgid "Later"
+msgstr "Пізніше"
+
+msgid "Lifetime"
+msgstr "Тривалість життя"
+
+msgid "Light"
+msgstr "Світла"
+
+msgid "List view"
+msgstr "Перегляд списку"
+
+msgid "Listening port:"
+msgstr "Порт прослуховування:"
+
+msgid "Loading…"
+msgstr "Завантаження..."
+
+msgid "Login reset. Use koreader123456789 and choose a new password."
+msgstr "Скидання входу. Використовуйте koreader123456789 і виберіть новий пароль."
+
+msgid "Move"
+msgstr "Перемістити"
+
+msgid "Name"
+msgstr "Ім'я"
+
+msgid "Never"
+msgstr "Ніколи"
+
+msgid "New file"
+msgstr "Новий файл"
+
+msgid "New folder"
+msgstr "Новий каталог"
+
+msgid "New password"
+msgstr "Новий пароль"
+
+msgid "New Password"
+msgstr "Новий пароль"
+
+msgid "Next match"
+msgstr "Наступний матч"
+
+msgid "No matches"
+msgstr "Немає збігів"
+
+msgid "No shared links"
+msgstr "Немає спільних посилань"
+
+msgid "not configured"
+msgstr "не налаштовано"
+
+msgid "Nothing here yet"
+msgstr "Тут порожньо..."
+
+msgid "Open"
+msgstr "Попередній перегляд"
+
+msgid "Optional password"
+msgstr "Необов'язковий пароль"
+
+msgid "Password"
+msgstr "Пароль"
+
+msgid "Password changed; sessions and API tokens were revoked."
+msgstr "пароль змінено; сеансів і маркерів API було відкликано."
+
+msgid "Password protected"
+msgstr "Захищено паролем"
+
+msgid "Paste"
+msgstr "Вставити"
+
+msgid "Personal API token"
+msgstr "Особистий маркер API"
+
+msgid "Personal API tokens"
+msgstr "Персональні токени API"
+
+msgid "Port must be between 1 and 65535."
+msgstr "Порт має бути від 1 до 65535."
+
+msgid "Port: "
+msgstr "Порт:"
+
+msgid "Preview is unavailable for this file."
+msgstr "Попередній перегляд для цього файлу недоступний."
+
+msgid "Previous match"
+msgstr "Попередній матч"
+
+msgid "Refresh"
+msgstr "Оновити"
+
+msgid "Rename"
+msgstr "Перейменувати"
+
+msgid "Replace"
+msgstr "Замінити"
+
+msgid "Replace all"
+msgstr "Замінити все"
+
+msgid "Replace the temporary password before accessing your files."
+msgstr "Замініть тимчасовий пароль, перш ніж отримати доступ до файлів."
+
+msgid "Reset login"
+msgstr "Скинути логін"
+
+msgid "Reset owner login"
+msgstr "Скинути логін власника"
+
+msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
+msgstr "Скинути обліковий запис власника на пароль лише для налаштування та відкликати кожен сеанс і маркер API?"
+
+msgid "Restart now"
+msgstr "Перезапустіть зараз"
+
+msgid "Restarting…"
+msgstr "Перезапуск…"
+
+msgid "Revoke"
+msgstr "Відкликати"
+
+msgid "Root"
+msgstr "Корінь"
+
+msgid "Root: "
+msgstr "Корінь:"
+
+msgid "Save"
+msgstr "зберегти"
+
+msgid "Save and close"
+msgstr "Зберегти та закрити"
+
+msgid "Save changes"
+msgstr "Зберегти зміни"
+
+msgid "Save changes before closing?"
+msgstr "Зберегти зміни перед закриттям?"
+
+msgid "Save settings"
+msgstr "Зберегти"
+
+msgid "Saved. Restart ZenFM to apply the change."
+msgstr "Збережено. Перезапустіть ZenFM, щоб застосувати зміни."
+
+msgid "Search results"
+msgstr "Результати пошуку"
+
+msgid "Search this folder"
+msgstr "Пошук..."
+
+msgid "Settings"
+msgstr "Налаштування"
+
+msgid "Settings saved"
+msgstr "Налаштування збережено"
+
+msgid "Share"
+msgstr "Поділитися"
+
+msgid "Shared files"
+msgstr "Спільні файли"
+
+msgid "Shared links"
+msgstr "Управління спільними посиланнями"
+
+msgid "Shared with ZenFM"
+msgstr "Спільно з ZenFM"
+
+msgid "Shares"
+msgstr "акції"
+
+msgid "Show hidden files"
+msgstr "Показати приховані файли"
+
+msgid "Show password"
+msgstr "Показати пароль"
+
+msgid "Sign in"
+msgstr "Увійти"
+
+msgid "Sign out"
+msgstr "Вийти"
+
+msgid "Signing in…"
+msgstr "Вхід…"
+
+msgid "Size"
+msgstr "Розмір"
+
+msgid "Skip all"
+msgstr "Пропустити все"
+
+msgid "Something went wrong"
+msgstr "Помилка"
+
+msgid "Start ZenFM"
+msgstr "Запустіть ZenFM"
+
+msgid "Status and address"
+msgstr "Статус і адреса"
+
+msgid "Stop waiting for ordinary server requests after this many seconds."
+msgstr "Припиніть очікування звичайних запитів до сервера через стільки секунд."
+
+msgid "Stop ZenFM"
+msgstr "Зупиніть ZenFM"
+
+msgid "Switch to dark mode"
+msgstr "Переключіться на темний режим"
+
+msgid "Switch to light mode"
+msgstr "Переключіться на світлий режим"
+
+msgid "System"
+msgstr "За замовчуванням (системна)"
+
+msgid "Temporary password"
+msgstr "Тимчасовий пароль"
+
+msgid "Text editor"
+msgstr "Текстовий редактор"
+
+msgid "The password is incorrect."
+msgstr "Пароль неправильний."
+
+msgid "Theme"
+msgstr "Тема"
+
+msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
+msgstr "Це підключення використовує HTTP. Облікові дані та вміст файлу можуть бути видимими в мережі."
+
+msgid "This file has unsaved changes."
+msgstr "У цьому файлі є незбережені зміни."
+
+msgid "This file is too large or unsupported for safe editing."
+msgstr "Цей файл завеликий або не підтримується для безпечного редагування."
+
+msgid "This link is unavailable or has expired."
+msgstr "Це посилання недоступне або термін його дії закінчився."
+
+msgid "Token name"
+msgstr "Назва маркера"
+
+msgid "Tokens are shown once and never stored by this browser."
+msgstr "Токени відображаються один раз і ніколи не зберігаються в цьому браузері."
+
+msgid "Total copy progress"
+msgstr "Загальний прогрес копіювання"
+
+msgid "Total upload progress"
+msgstr "Загальний прогрес завантаження"
+
+msgid "Unlock"
+msgstr "Розблокувати"
+
+msgid "Update"
+msgstr "оновлення"
+
+msgid "Upload"
+msgstr "Вивантажити"
+
+msgid "Upload a file or create one."
+msgstr "Завантажте файл або створіть його."
+
+msgid "Upload files"
+msgstr "Завантажте файли"
+
+msgid "Upload folder"
+msgstr "Завантажити папку"
+
+msgid "Uploading {{name}} — {{progress}}%"
+msgstr "Завантаження {{name}} — {{progress}}%"
+
+msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
+msgstr "Завантаження · {{completed}} з {{count}} файлів завершено · {{name}}"
+
+msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
+msgstr "Використовуйте розширений root, щоб відкрити /. Настроювані корені не можуть містити . або .. компоненти."
+
+msgid "Use an absolute path beginning with /."
+msgstr "Використовуйте абсолютний шлях, що починається з /."
+
+msgid "Use at least 7 characters."
+msgstr "Використовуйте принаймні 7 символів."
+
+msgid "Use unencrypted HTTP"
+msgstr "Використовуйте незашифрований HTTP"
+
+msgid "Version"
+msgstr "Версія"
+
+msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
+msgstr "Попередження: розширений кореневий режим відкриває всю файлову систему, включаючи стан і сертифікати ZenFM."
+
+msgid "Warning: unencrypted HTTP is enabled."
+msgstr "Попередження: увімкнено незашифрований HTTP."
+
+msgid "Your files, easily accessible."
+msgstr "Легко доступні ваші файли."
+
+msgid "ZenFM"
+msgstr "ZenFM"
+
+msgid "ZenFM is running."
+msgstr "ZenFM працює."
+
+msgid "ZenFM is stopped."
+msgstr "ZenFM зупинено."
+
+msgid "ZenFM port"
+msgstr "Порт ZenFM"
+
+msgid "ZenFM request pending…"
+msgstr "Запит ZenFM очікує…"
+
+msgid "ZenFM started."
+msgstr "ZenFM стартував."
+
+msgid "ZenFM stopped after inactivity."
+msgstr "ZenFM зупинився після бездіяльності."
+
+msgid "ZenFM stopped."
+msgstr "ZenFM зупинився."
+
+msgid "ZenFM update cancelled."
+msgstr "Оновлення ZenFM скасовано."
+
+msgid "ZenFM update timed out."
+msgstr "Час очікування оновлення ZenFM минув."
+
+msgid "ZenFM: Status"
+msgstr "ZenFM: Статус"
+
+msgid "ZenFM: Toggle server"
+msgstr "ZenFM: перемкнути сервер"
+
+msgid "{{action}} {{count}} items"
+msgstr "{{action}} {{count}} пунктів"
+
+msgid "{{count}} items selected"
+msgstr "Вибрано {{count}} елементів"
+
+msgid "{{current}} of {{total}}"
+msgstr "{{current}} з {{total}}"
+
+msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
+msgstr "{{name}} вже існує. Застосуйте цей вибір до всіх конфліктів у цьому завантаженні."
+
+msgid "{{uploaded}} of {{total}} — {{progress}}%"
+msgstr "{{uploaded}} з {{total}} — {{progress}}%"

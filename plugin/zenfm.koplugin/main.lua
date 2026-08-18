@@ -4,7 +4,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local ConfirmBox = require("ui/widget/confirmbox")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
-local _ = require("gettext")
+local _ = require("zenfm_i18n").translate
 
 local Daemon = require("zenfm_daemon")
 local Updater = require("zenfm_updater")
@@ -15,15 +15,25 @@ local ZenFM = WidgetContainer:extend{
 }
 
 local server_poll_seconds = 60
+local update_timeout_seconds = 120
 
 local function notice(text, warning, persistent)
     local timeout = warning and 6 or 3
     if persistent then timeout = false end
-    UIManager:show(InfoMessage:new{
+    local message = InfoMessage:new{
         text = text,
         icon = warning and "notice-warning" or nil,
         timeout = timeout,
-    })
+    }
+    UIManager:show(message)
+    return message
+end
+
+local function close_notice(message)
+    message.dismiss_callback = nil
+    if not UIManager.isWidgetShown or UIManager:isWidgetShown(message) then
+        UIManager:close(message)
+    end
 end
 
 function ZenFM:init()
@@ -57,7 +67,7 @@ function ZenFM:check_android_poll(pending)
     local checked, done, success, detail = pcall(
         self.daemon.check_android_result, self.daemon, pending.action, pending.request_id)
     if not checked then
-        done, success, detail = true, false, "Could not read the Android companion result"
+        done, success, detail = true, false, _("Could not read the Android companion result")
     end
     if done then
         self.android_pending = nil
@@ -67,8 +77,9 @@ function ZenFM:check_android_poll(pending)
     pending.attempts = pending.attempts - 1
     if pending.attempts <= 0 then
         self.android_pending = nil
-        pending.complete(false,
-            "Android companion did not report a fresh " .. pending.action .. " result within 30 seconds")
+        pending.complete(false, string.format(
+            _("Android companion did not report a fresh %s result within 30 seconds."),
+            pending.action))
         return
     end
     self:schedule_android_poll(pending)
@@ -117,14 +128,15 @@ end
 function ZenFM:check_server_monitor(monitor)
     if self.server_monitor ~= monitor then return end
     monitor.scheduled = false
-    local running = self.daemon:status()
+    local running, detail = self.daemon:status()
     if running then
         self:schedule_server_monitor(monitor)
         return
     end
     self.server_monitor = nil
     self.android_running = false
-    notice(_("ZenFM stopped."))
+    notice(type(detail) == "string" and detail:match("^idle_stopped")
+        and _("ZenFM stopped after inactivity.") or _("ZenFM stopped."))
 end
 
 function ZenFM:start_server_monitor(running)
@@ -171,9 +183,19 @@ function ZenFM:onDispatcherRegisterActions()
     })
 end
 
+function ZenFM:wait_for_network_before_start()
+    local NetworkMgr = require("ui/network/manager")
+    return NetworkMgr:willRerunWhenConnected(function()
+        local running = self.daemon:is_android()
+            and self:android_cached_running() or self.daemon:status()
+        if not running then self:onToggleZenFM() end
+    end)
+end
+
 function ZenFM:onToggleZenFM()
     if self.daemon:is_android() then
         local running = self:android_cached_running()
+        if not running and self:wait_for_network_before_start() then return true end
         local action = running and "stop" or "start"
         if running then self.server_monitor = nil end
         local started = self:begin_android_action(action, function(ok, detail)
@@ -196,6 +218,7 @@ function ZenFM:onToggleZenFM()
         return started
     end
     local running = self.daemon:status()
+    if not running and self:wait_for_network_before_start() then return true end
     local ok, detail
     if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
@@ -211,7 +234,7 @@ end
 
 function ZenFM:show_status(status)
     if not status.running then
-        notice(_("ZenFM is stopped.") .. (status.detail and "\n" .. status.detail or ""), false, true)
+        notice(_("ZenFM is stopped."), false, true)
         return
     end
     local lines = { _("ZenFM is running.") }
@@ -277,6 +300,35 @@ function ZenFM:show_port_dialog()
     end)
 end
 
+function ZenFM:show_auto_stop_dialog(touchmenu_instance)
+    local SpinWidget = require("ui/widget/spinwidget")
+    local settings = self.daemon.settings
+    local enabled = settings.values.auto_stop_minutes > 0
+    local minutes = enabled and settings.values.auto_stop_minutes
+        or settings.values.auto_stop_last_minutes or 30
+    local function save(value)
+        local saved = settings:set("auto_stop_last_minutes", value)
+        if saved and enabled then saved = settings:set("auto_stop_minutes", value) end
+        if not saved then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(_("Saved. Restart ZenFM to apply the change."))
+    end
+    UIManager:show(SpinWidget:new{
+        title_text = _("Inactivity timeout (minutes)"),
+        value = minutes > 0 and minutes or 30,
+        value_min = 1,
+        value_max = 12 * 60,
+        value_step = 1,
+        value_hold_step = 10,
+        default_value = 30,
+        ok_text = _("Save"),
+        callback = function(spin) save(spin.value) end,
+    })
+end
+
 function ZenFM:show_path_dialog(key, title, allow_empty)
     input_dialog(self, title, self.daemon.settings.values[key], nil, function(raw)
         if raw == "" and allow_empty then return self.daemon.settings:set(key, "") end
@@ -295,79 +347,186 @@ function ZenFM:show_path_dialog(key, title, allow_empty)
     end)
 end
 
-function ZenFM:confirm_http()
+function ZenFM:restart_after_server_setting_change()
+    if self.daemon:is_android() then
+        if not self:android_cached_running() then return true end
+        self.server_monitor = nil
+        local started = self:begin_android_action("start", function(ok, detail)
+            if not ok then
+                self:start_server_monitor(true)
+                notice(tostring(detail), true)
+                return
+            end
+            self.android_running = true
+            self:start_server_monitor(true)
+            self:show_status(self.daemon:status_details_from_raw(detail))
+        end)
+        if not started then self:start_server_monitor(true) end
+        return started
+    end
+    if not self.daemon:status() then return true end
+    self.server_monitor = nil
+    local ok, detail = self.daemon:restart()
+    if not ok then
+        notice(tostring(detail), true)
+        return false
+    end
+    self:start_server_monitor(true)
+    self:show_status(self.daemon:status_details_from_raw(detail))
+    return true
+end
+
+function ZenFM:set_http(enabled, touchmenu_instance)
+    local saved = self.daemon.settings:set("insecure_http", enabled)
+    if not saved then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    if touchmenu_instance then
+        touchmenu_instance:updateItems()
+        UIManager:forceRePaint()
+    end
+    return self:restart_after_server_setting_change()
+end
+
+function ZenFM:confirm_http(touchmenu_instance)
     if self.daemon.settings.values.insecure_http then
-        self.daemon.settings:set("insecure_http", false)
-        if self.daemon.settings.values.port == 8080 then self.daemon.settings:set("port", 8443) end
-        return
+        return self:set_http(false, touchmenu_instance)
     end
     UIManager:show(ConfirmBox:new{
         text = _("HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"),
         ok_text = _("Enable HTTP"),
         ok_callback = function()
-            self.daemon.settings:set("insecure_http", true)
-            if self.daemon.settings.values.port == 8443 then self.daemon.settings:set("port", 8080) end
+            self:set_http(true, touchmenu_instance)
         end,
     })
 end
 
-function ZenFM:confirm_advanced_root()
+function ZenFM:set_advanced_root(enabled)
+    local saved = self.daemon.settings:set("advanced_root", enabled)
+    if not saved then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    return self:restart_after_server_setting_change()
+end
+
+function ZenFM:confirm_advanced_root(touchmenu_instance)
     if self.daemon.settings.values.advanced_root then
-        self.daemon.settings:set("advanced_root", false)
-        return
+        return self:set_advanced_root(false)
     end
     UIManager:show(ConfirmBox:new{
         text = _("Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."),
         ok_text = _("Expose entire filesystem"),
-        ok_callback = function() self.daemon.settings:set("advanced_root", true) end,
+        ok_callback = function()
+            self:set_advanced_root(true)
+            touchmenu_instance:updateItems()
+        end,
     })
 end
 
 function ZenFM:confirm_reset_login()
     UIManager:show(ConfirmBox:new{
-        text = _("Reset the owner login to the setup-only credentials and revoke every session and API token?"),
+        text = _("Reset the owner login to the setup-only password and revoke every session and API token?"),
         ok_text = _("Reset login"),
         ok_callback = function()
+            self.server_monitor = nil
+            local success = _("Login reset. Use koreader123456789 and choose a new password.")
             if self.daemon:is_android() then
-                self:begin_android_action("reset", function(ok, detail)
-                    notice(ok and _("Login reset. Use koreader / koreader123456789 and choose a new password.")
-                        or tostring(detail), not ok)
+                local started = self:begin_android_action("reset", function(ok, detail)
+                    if ok then self.android_running = false else self:start_server_monitor() end
+                    notice(ok and success or tostring(detail), not ok, ok)
                 end)
+                if not started then self:start_server_monitor() end
                 return
             end
             local ok, err = self.daemon:reset_login()
-            local success = _("Login reset. Use koreader / koreader123456789 and choose a new password.")
-            notice(ok and success or tostring(err), not ok)
+            if not ok then self:start_server_monitor() end
+            notice(ok and success or tostring(err), not ok, ok)
         end,
     })
 end
 
 function ZenFM:update()
-    notice(_("Checking for a ZenFM update…"))
-    if self.daemon:is_android() then
-        local ok, result = Updater.install_latest(self.daemon)
-        local plugin_failed = not ok and result ~= "ZenFM is up to date"
-        notice("KOReader plugin bundle: " .. tostring(result)
-            .. "\nAndroid companion APK: opening updater…", plugin_failed)
-        local companion_ok, companion_result = self.daemon:open_android("update")
-        if not companion_ok then notice(tostring(companion_result), true) end
-        return companion_ok, companion_result
+    if self.daemon:is_android() and not self:android_cached_running() then
+        return self:begin_android_action("start", function(ok, detail)
+            if not ok then
+                notice(tostring(detail), true)
+                return
+            end
+            self.android_running = true
+            self:start_server_monitor(true)
+            self:update()
+        end)
     end
-    local ok, result = Updater.install_latest(self.daemon)
-    local plugin_failed = not ok and result ~= "ZenFM is up to date"
-    notice(tostring(result), plugin_failed)
-    return ok, result
+
+    local beta_updates = self.daemon.settings.values.beta_updates == true
+    local progress = notice(_("Checking for a ZenFM update…"), false, true)
+    UIManager:forceRePaint()
+    UIManager:scheduleIn(0.1, function()
+        local Trapper = require("ui/trapper")
+        Trapper:wrap(function()
+            local co = coroutine.running()
+            local timed_out = false
+            local timeout_callback = function()
+                timed_out = true
+                coroutine.resume(co, false)
+            end
+            UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
+            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.prepare_latest(self.daemon, beta_updates)
+            end, progress)
+            UIManager:unschedule(timeout_callback)
+            close_notice(progress)
+            if not completed then
+                notice(timed_out and _("ZenFM update timed out.") or _("ZenFM update cancelled."), timed_out)
+                return
+            end
+
+            local ok = false
+            if prepared then
+                local installing = notice(_("Installing ZenFM update…"), false, true)
+                UIManager:forceRePaint()
+                ok, result = Updater.activate_stage(self.daemon, result)
+                close_notice(installing)
+            end
+            if self.daemon:is_android() then
+                local plugin_failed = not ok and result ~= "ZenFM is up to date"
+                notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
+                    .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
+                local companion_ok, companion_result = self.daemon:open_android("update")
+                if not companion_ok then notice(tostring(companion_result), true) end
+                return
+            end
+            if not ok then
+                notice(tostring(result), result ~= "ZenFM is up to date")
+                return
+            end
+
+            UIManager:show(ConfirmBox:new{
+                text = tostring(result),
+                ok_text = _("Restart now"),
+                cancel_text = _("Later"),
+                ok_callback = function()
+                    notice(_("Restarting…"), false, true)
+                    UIManager:tickAfterNext(function()
+                        UIManager:restartKOReader()
+                    end)
+                end,
+            })
+        end)
+    end)
+    return true, "update started"
 end
 
 function ZenFM:settings_menu()
     local values = self.daemon.settings.values
+    local function auto_stop_minutes()
+        local minutes = self.daemon.settings.values.auto_stop_minutes
+        return minutes > 0 and minutes
+            or self.daemon.settings.values.auto_stop_last_minutes or 30
+    end
     return {
-        {
-            text_func = function()
-                return _("Backend version: ") .. self.daemon:installed_backend_version()
-            end,
-            enabled_func = function() return false end,
-        },
         {
             text = _("Port: ") .. tostring(values.port),
             keep_menu_open = true,
@@ -376,14 +535,15 @@ function ZenFM:settings_menu()
         {
             text = _("Use unencrypted HTTP"),
             checked_func = function() return self.daemon.settings.values.insecure_http end,
+            check_callback_updates_menu = true,
             keep_menu_open = true,
-            callback = function() self:confirm_http() end,
+            callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
         },
         {
             text = _("Advanced root: expose /"),
             checked_func = function() return self.daemon.settings.values.advanced_root end,
             keep_menu_open = true,
-            callback = function() self:confirm_advanced_root() end,
+            callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
         },
         {
             text_func = function()
@@ -393,39 +553,49 @@ function ZenFM:settings_menu()
             callback = function() self:show_path_dialog("custom_root", _("Custom root (blank uses device default)"), true) end,
         },
         {
-            text = _("Stop after 30 minutes without activity"),
-            checked_func = function() return self.daemon.settings.values.auto_stop_minutes == 30 end,
-            keep_menu_open = true,
-            callback = function()
-                local enabled = self.daemon.settings.values.auto_stop_minutes == 30
-                self.daemon.settings:set("auto_stop_minutes", enabled and 0 or 30)
-            end,
-        },
-        {
             text_func = function()
-                local value = self.daemon.settings.values.tls_cert
-                return _("TLS certificate: ") .. (value ~= "" and value or _("generated"))
+                return string.format(_("Inactivity timeout: %d min"), auto_stop_minutes())
+            end,
+            checked_func = function() return self.daemon.settings.values.auto_stop_minutes > 0 end,
+            checkmark_callback = function()
+                local settings = self.daemon.settings
+                local enabled = settings.values.auto_stop_minutes > 0
+                local saved = true
+                if enabled then
+                    saved = settings:set("auto_stop_last_minutes", auto_stop_minutes())
+                end
+                if saved then
+                    saved = settings:set("auto_stop_minutes", enabled and 0 or auto_stop_minutes())
+                end
+                if not saved then
+                    notice(_("Invalid value."), true)
+                    return
+                end
             end,
             keep_menu_open = true,
-            enabled_func = function() return not self.daemon.settings.values.insecure_http end,
-            callback = function() self:show_path_dialog("tls_cert", _("TLS certificate path (blank uses generated certificate)"), true) end,
-        },
-        {
-            text_func = function()
-                local value = self.daemon.settings.values.tls_key
-                return _("TLS private key: ") .. (value ~= "" and value or _("generated"))
-            end,
-            keep_menu_open = true,
-            enabled_func = function() return not self.daemon.settings.values.insecure_http end,
-            callback = function() self:show_path_dialog("tls_key", _("TLS private-key path (blank uses generated key)"), true) end,
+            callback = function(touchmenu_instance) self:show_auto_stop_dialog(touchmenu_instance) end,
         },
         {
             text = _("Reset owner login"),
             callback = function() self:confirm_reset_login() end,
         },
         {
+            text = _("Beta updates"),
+            checked_func = function() return self.daemon.settings.values.beta_updates end,
+            keep_menu_open = true,
+            callback = function()
+                self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
+            end,
+        },
+        {
             text = _("Update"),
             callback = function() self:update() end,
+        },
+        {
+            text_func = function()
+                return _("Version") .. ": " .. self.daemon:installed_backend_version()
+            end,
+            enabled_func = function() return false end,
         },
     }
 end
@@ -442,9 +612,17 @@ function ZenFM:addToMainMenu(menu_items)
                     end
                     return self.daemon:status() and _("Stop ZenFM") or _("Start ZenFM")
                 end,
-                callback = function() self:onToggleZenFM() end,
+                keep_menu_open = true,
+                callback = function(touchmenu_instance)
+                    self:onToggleZenFM()
+                    touchmenu_instance:updateItems()
+                end,
             },
-            { text = _("Status and address"), callback = function() self:onShowZenFMStatus() end },
+            {
+                text = _("Status and address"),
+                keep_menu_open = true,
+                callback = function() self:onShowZenFMStatus() end,
+            },
             { text = _("Settings"), sub_item_table = self:settings_menu() },
         },
     }

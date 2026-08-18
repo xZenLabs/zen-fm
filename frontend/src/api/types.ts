@@ -5,7 +5,6 @@ export type FileKind = 'file' | 'directory' | 'symlink' | 'special'
 
 export interface Session {
   authenticated: boolean
-  username?: string
   setupRequired: boolean
   csrfToken?: string
   idleExpiresAt?: string

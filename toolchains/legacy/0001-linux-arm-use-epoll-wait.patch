@@ -16,3 +16,29 @@ index 5b8c9da..7d78286 100644
  	SYS_EPOLL_CREATE1 = 357
  	SYS_EPOLL_PWAIT2  = 441
  	SYS_EVENTFD2      = 356
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index cc91122..eb1379a 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1090 +1090,20 @@ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int,
+-	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	// Kindle Paperwhite 1 kernels predate accept4. Fall back to accept and
++	// apply the requested descriptor flags separately, matching Go's former
++	// old-kernel behavior for this Linux/ARM-only toolchain.
++	if e1 == ENOSYS && flags&^(SOCK_NONBLOCK|SOCK_CLOEXEC) == 0 {
++		r0, _, e1 = Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++		if e1 == 0 {
++			fd = int(r0)
++			if flags&SOCK_CLOEXEC != 0 {
++				CloseOnExec(fd)
++			}
++			if flags&SOCK_NONBLOCK != 0 {
++				if err = SetNonblock(fd, true); err != nil {
++					Close(fd)
++					return -1, err
++				}
++			}
++			return fd, nil
++		}
++	}
