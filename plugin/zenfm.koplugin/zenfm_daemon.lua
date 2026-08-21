@@ -268,6 +268,12 @@ local function auto_stop_duration(minutes)
     return minutes > 0 and tostring(minutes) .. "m" or "0"
 end
 
+function Daemon:debug_logging_enabled()
+    local reader_settings = rawget(_G, "G_reader_settings")
+    return reader_settings ~= nil and type(reader_settings.isTrue) == "function"
+        and reader_settings:isTrue("debug") == true
+end
+
 function Daemon:serve_arguments()
     local values = self.settings.values
     local arguments = {
@@ -278,6 +284,7 @@ function Daemon:serve_arguments()
         "--control-socket", self:control_socket(),
         "--auto-stop", auto_stop_duration(values.auto_stop_minutes),
     }
+    if self:debug_logging_enabled() then table.insert(arguments, "--debug") end
     if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
         table.insert(arguments, "--insecure-http")

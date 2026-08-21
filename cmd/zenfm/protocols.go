@@ -92,13 +92,8 @@ func (d *protocolDispatcher) dispatch(connection net.Conn) {
 		return
 	}
 	target := d.plain
-	protocol := "http"
 	if first[0] == 0x16 { // A supported TLS connection starts with a handshake record.
 		target = d.tls
-		protocol = "https"
-	}
-	if d.logger != nil {
-		d.logger.Printf("connection classified: remote=%s protocol=%s", connection.RemoteAddr(), protocol)
 	}
 	wrapped := &bufferedConn{Conn: connection, reader: reader}
 	select {

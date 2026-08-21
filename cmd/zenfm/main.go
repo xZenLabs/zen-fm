@@ -86,6 +86,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	sessionAbsolute := flags.Duration("session-absolute", 12*time.Hour, "browser session absolute lifetime")
 	insecureHTTP := flags.Bool("insecure-http", false, "explicitly serve unencrypted HTTP")
 	modeLessFilesystem := flags.Bool("mode-less-filesystem", false, "allow storage without Unix file modes")
+	debugLogging := flags.Bool("debug", false, "enable debug logging")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -104,7 +105,11 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *keyFile == "" {
 		*keyFile = filepath.Join(*dataDir, "tls", "key.pem")
 	}
-	diagnostics := log.New(stderr, "debug: ", 0)
+	var diagnosticOutput io.Writer = io.Discard
+	if *debugLogging {
+		diagnosticOutput = stderr
+	}
+	diagnostics := log.New(diagnosticOutput, "debug: ", 0)
 	transport := "https"
 	if *insecureHTTP {
 		transport = "http"
@@ -117,19 +122,16 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if err := platform.ModeChangeError(os.Chmod(*dataDir, 0o700), *modeLessFilesystem); err != nil {
 		return fmt.Errorf("secure data directory: %w", err)
 	}
-	diagnostics.Printf("server setup: private data directory ready")
 	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
 	if err != nil {
 		return fmt.Errorf("open state store: %w", err)
 	}
 	defer store.Close()
-	diagnostics.Printf("server setup: state store ready")
 	root, err := zenfiles.Open(*rootPath, zenfiles.Options{})
 	if err != nil {
 		return fmt.Errorf("open filesystem root: %w", err)
 	}
 	defer root.Close()
-	diagnostics.Printf("server setup: filesystem root ready")
 	api, err := server.New(server.Config{
 		Store: store, Files: root, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
 		SessionIdle: *sessionIdle, SessionAbsolute: *sessionAbsolute,
@@ -140,14 +142,11 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("initialize HTTP API: %w", err)
 	}
 	defer api.Close()
-	diagnostics.Printf("server setup: HTTP API ready")
 	listener, err := net.Listen(listenNetwork(*listenAddress), *listenAddress)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
-	listener = diagnosticListener{Listener: listener, logger: diagnostics}
 	defer listener.Close()
-	diagnostics.Printf("server setup: TCP listener ready address=%s", listener.Addr())
 	fingerprint := "-"
 	var certificateManager *tlsutil.Manager
 	if !*insecureHTTP {
@@ -157,7 +156,6 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("TLS certificate: %w", err)
 		}
-		diagnostics.Printf("server setup: TLS certificate ready")
 	}
 	scheme := "https"
 	if *insecureHTTP {
@@ -179,7 +177,6 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		Path: *controlSocket, URL: address, Fingerprint: fingerprint, Stop: cancel,
 		ModeLessFilesystem: *modeLessFilesystem, Logger: diagnostics,
 	}
-	diagnostics.Printf("server setup: starting local control socket")
 	go func() { controlErrors <- controlServer.Run(ctx) }()
 	serveErrors := make(chan error, 2)
 	var redirectServer *http.Server

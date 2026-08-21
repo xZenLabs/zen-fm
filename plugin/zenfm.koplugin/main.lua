@@ -8,6 +8,7 @@ local _ = require("zenfm_i18n").translate
 
 local Daemon = require("zenfm_daemon")
 local Updater = require("zenfm_updater")
+if Daemon.stopped_notice_armed == nil then Daemon.stopped_notice_armed = false end
 
 local ZenFM = WidgetContainer:extend{
     name = "zenfm",
@@ -116,6 +117,7 @@ function ZenFM:onExit()
     self.android_pending = nil
     self.android_running = false
     self.server_monitor = nil
+    Daemon.stopped_notice_armed = false
     self.daemon:stop()
 end
 
@@ -135,6 +137,8 @@ function ZenFM:check_server_monitor(monitor)
     end
     self.server_monitor = nil
     self.android_running = false
+    if not Daemon.stopped_notice_armed then return end
+    Daemon.stopped_notice_armed = false
     notice(type(detail) == "string" and detail:match("^idle_stopped")
         and _("ZenFM stopped after inactivity.") or _("ZenFM stopped."))
 end
@@ -143,6 +147,7 @@ function ZenFM:start_server_monitor(running)
     self.server_monitor = nil
     if running == nil then running = self.daemon:status() end
     if not running then return end
+    Daemon.stopped_notice_armed = true
     local monitor = {}
     monitor.callback = function() self:check_server_monitor(monitor) end
     self.server_monitor = monitor
@@ -197,7 +202,10 @@ function ZenFM:onToggleZenFM()
         local running = self:android_cached_running()
         if not running and self:wait_for_network_before_start() then return true end
         local action = running and "stop" or "start"
-        if running then self.server_monitor = nil end
+        if running then
+            self.server_monitor = nil
+            Daemon.stopped_notice_armed = false
+        end
         local started = self:begin_android_action(action, function(ok, detail)
             if not ok then
                 if action == "stop" then self:start_server_monitor(true) end
@@ -220,7 +228,12 @@ function ZenFM:onToggleZenFM()
     local running = self.daemon:status()
     if not running and self:wait_for_network_before_start() then return true end
     local ok, detail
-    if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
+    if running then
+        Daemon.stopped_notice_armed = false
+        ok, detail = self.daemon:stop()
+    else
+        ok, detail = self.daemon:start()
+    end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
     if ok and not running then
         self:start_server_monitor(true)
@@ -351,6 +364,7 @@ function ZenFM:restart_after_server_setting_change()
     if self.daemon:is_android() then
         if not self:android_cached_running() then return true end
         self.server_monitor = nil
+        Daemon.stopped_notice_armed = false
         local started = self:begin_android_action("start", function(ok, detail)
             if not ok then
                 self:start_server_monitor(true)
@@ -366,6 +380,7 @@ function ZenFM:restart_after_server_setting_change()
     end
     if not self.daemon:status() then return true end
     self.server_monitor = nil
+    Daemon.stopped_notice_armed = false
     local ok, detail = self.daemon:restart()
     if not ok then
         notice(tostring(detail), true)
@@ -431,6 +446,7 @@ function ZenFM:confirm_reset_login()
         ok_text = _("Reset login"),
         ok_callback = function()
             self.server_monitor = nil
+            Daemon.stopped_notice_armed = false
             local success = _("Login reset. Use koreader123456789 and choose a new password.")
             if self.daemon:is_android() then
                 local started = self:begin_android_action("reset", function(ok, detail)

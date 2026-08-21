@@ -40,6 +40,29 @@ func TestServeRejectsNonPositiveSessionLifetimes(t *testing.T) {
 	}
 }
 
+func TestServeDebugFlagControlsDiagnostics(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		arguments []string
+		wantDebug bool
+	}{
+		{name: "disabled"},
+		{name: "enabled", arguments: []string{"--debug"}, wantDebug: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			missingRoot := filepath.Join(t.TempDir(), "missing")
+			arguments := append([]string{"serve", "--root", missingRoot, "--data-dir", t.TempDir()}, test.arguments...)
+			if code := run(arguments, &stdout, &stderr); code != 1 {
+				t.Fatalf("run: %d %q", code, stderr.String())
+			}
+			if got := strings.Contains(stderr.String(), "debug: server setup started"); got != test.wantDebug {
+				t.Fatalf("debug output present = %v, want %v: %q", got, test.wantDebug, stderr.String())
+			}
+		})
+	}
+}
+
 func TestListenNetworkUsesIPv4ForIPv4Addresses(t *testing.T) {
 	for address, want := range map[string]string{
 		"0.0.0.0:8443":      "tcp4",
@@ -149,12 +172,12 @@ func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatalf("TLS bytes = %x, want %x", got, want)
 	}
-	if !strings.Contains(logs.String(), "connection classified:") || !strings.Contains(logs.String(), "protocol=https") {
-		t.Fatalf("protocol diagnostics = %q", logs.String())
+	if logs.Len() != 0 {
+		t.Fatalf("successful protocol detection produced diagnostics: %q", logs.String())
 	}
 }
 
-func TestRequestDiagnosticsReportOutcomeWithoutSecrets(t *testing.T) {
+func TestRequestDiagnosticsReportFailuresWithoutSecrets(t *testing.T) {
 	var logs bytes.Buffer
 	logger := log.New(&logs, "", 0)
 	handler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -187,13 +210,22 @@ func TestRequestDiagnosticsReportOutcomeWithoutSecrets(t *testing.T) {
 		}
 	}
 	logs.Reset()
-	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/assets/app.js", nil)
+	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/api/v1/files", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	successHandler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}), logger)
+	successHandler.ServeHTTP(httptest.NewRecorder(), request)
+	if logs.Len() != 0 {
+		t.Fatalf("successful API request produced diagnostics: %q", logs.String())
+	}
+
+	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/assets/app.js", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	successHandler.ServeHTTP(httptest.NewRecorder(), request)
 	if logs.Len() != 0 {
 		t.Fatalf("successful static request produced diagnostics: %q", logs.String())

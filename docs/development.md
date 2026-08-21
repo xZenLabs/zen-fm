@@ -309,14 +309,15 @@ below the configured root. Editing or deleting its live state can expose
 credentials, corrupt state, or stop ZenFM. Public shares exclude it.
 
 Backend and supervisor output is appended to KOReader's `crash.log` so it is
-included with the device's normal diagnostics. Each line uses KOReader's local
+included with the device's normal diagnostics. ZenFM follows KOReader's
+**Enable debug logging** setting; backend debug entries are emitted only when
+that setting was enabled when ZenFM started. Each line uses KOReader's local
 `MM/DD/YY-HH:MM:SS` timestamp format followed by `ZenFM:` for easy filtering.
 Outside KOReader, ZenFM falls back to `<state directory>/zenfm.log` with the
-same timestamped format. Diagnostics include supervisor and server setup
-phases, accepted connection and HTTP/HTTPS classification, and HTTP response
-status for API calls, redirects, and failures. Successful static asset requests
-are skipped. Request query strings are omitted, and bearer-like URL segments
-are redacted.
+same timestamped format. Debug diagnostics cover server lifecycle events,
+failures, and failed HTTP responses. Successful connections, status polls, and
+requests are omitted. Request query strings are omitted, and bearer-like URL
+segments are redacted.
 
 On Android, the companion keeps the database, generated certificate, and
 control socket in app-private storage. The KOReader `ZenFM` settings directory

@@ -252,6 +252,32 @@ test("KOReader backend output uses crash.log", function()
     package.loaded.datastorage = previous
 end)
 
+test("backend debug logging follows KOReader's debug setting", function()
+    local previous = rawget(_G, "G_reader_settings")
+    local enabled = false
+    _G.G_reader_settings = {
+        isTrue = function(_, key)
+            equal(key, "debug")
+            return enabled
+        end,
+    }
+    local daemon = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "host",
+        settings = fake_settings(defaults), path_exists = function() return false end,
+    }
+    local function has_debug_argument()
+        for _, argument in ipairs(daemon:serve_arguments()) do
+            if argument == "--debug" then return true end
+        end
+        return false
+    end
+
+    assert(not has_debug_argument())
+    enabled = true
+    assert(has_debug_argument())
+    _G.G_reader_settings = previous
+end)
+
 test("installed backend version prefers the installed marker", function()
     local base = os.tmpname() .. ".version"
     local plugin_dir, state_dir = base .. "/plugin", base .. "/state"
@@ -1697,19 +1723,22 @@ test("Android toggle restarts the companion after an inactivity stop", function(
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("KOReader notices when inactivity stops a running server", function()
+test("KOReader reports an inactivity stop once across concurrent monitors", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
     }
-    local saved, scheduled, shown = {}, {}, nil
+    local saved, scheduled, shown, shown_count = {}, {}, nil, 0
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
     package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
     package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
     package.loaded["ui/uimanager"] = {
-        show = function(_, message) shown = message end,
+        show = function(_, message)
+            shown = message
+            shown_count = shown_count + 1
+        end,
         scheduleIn = function(_, delay, callback)
             table.insert(scheduled, { delay = delay, callback = callback })
         end,
@@ -1720,30 +1749,32 @@ test("KOReader notices when inactivity stops a running server", function()
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
-    local statuses = {
-        { true, "ok running" },
-        { true, "ok running" },
-        { false, "idle_stopped request=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    local OtherZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local running = true
+    local daemon = {
+        status = function()
+            return running, running and "ok running"
+                or "idle_stopped request=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        end,
     }
-    local status_index = 0
-    local owner = setmetatable({
-        daemon = {
-            status = function()
-                status_index = status_index + 1
-                local status = statuses[status_index]
-                return status[1], status[2]
-            end,
-        },
-    }, { __index = ZenFM })
+    local owner = setmetatable({ daemon = daemon }, { __index = ZenFM })
+    local other_owner = setmetatable({ daemon = daemon }, { __index = OtherZenFM })
 
     owner:start_server_monitor()
     equal(scheduled[1].delay, 60)
     table.remove(scheduled, 1).callback()
     equal(scheduled[1].delay, 60)
     assert(shown == nil)
+
+    other_owner:start_server_monitor()
+    equal(#scheduled, 2)
+    running = false
     table.remove(scheduled, 1).callback()
     equal(shown.text, "ZenFM stopped after inactivity.")
     assert(owner.server_monitor == nil)
+    table.remove(scheduled, 1).callback()
+    equal(shown_count, 1)
+    assert(other_owner.server_monitor == nil)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
