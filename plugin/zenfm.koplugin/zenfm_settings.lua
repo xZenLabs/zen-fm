@@ -4,8 +4,8 @@ local Util = require("zenfm_util")
 local Settings = {}
 Settings.__index = Settings
 
-local settings_version = 2
-local default_port = 53241
+local settings_version = 3
+local default_port = 54321
 local max_auto_stop_minutes = 12 * 60
 local defaults = {
     settings_version = settings_version,
@@ -130,7 +130,7 @@ function Settings:load()
     end
     local result = sanitize(value, self.default_auto_stop_minutes)
     if result.settings_version < settings_version then
-        if result.port == 8080 or result.port == 8443 then result.port = default_port end
+        if result.port == 8080 or result.port == 8443 or result.port == 53241 then result.port = default_port end
         result.settings_version = settings_version
         return result, true
     end

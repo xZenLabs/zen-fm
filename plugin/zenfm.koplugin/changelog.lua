@@ -15,4 +15,9 @@ return {
         "Customize inactivity timeout",
         "Bug fixes"
     },
+    ["1.0.2"] = {
+        "Restart a running server after plugin updates",
+        "Reduce routine logging and follow KOReader's debug setting",
+        "Prevent duplicate inactivity-stop notifications",
+    }
 }

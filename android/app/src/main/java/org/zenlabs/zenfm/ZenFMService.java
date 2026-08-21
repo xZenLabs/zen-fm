@@ -29,7 +29,7 @@ public final class ZenFMService extends Service {
     static final String ACTION_RESET = "org.zenlabs.zenfm.action.RESET";
     private static final String CHANNEL = "zenfm-server";
     private static final int NOTIFICATION = 4197;
-    private static final int DEFAULT_PORT = 53241;
+    private static final int DEFAULT_PORT = 54321;
     private Process process;
     private Thread worker;
     private Config config;

@@ -121,7 +121,7 @@ func (l *pipeListener) Dial() (net.Conn, error) {
 }
 
 func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
-	listener := newPipeListener("kindle.local:53241")
+	listener := newPipeListener("kindle.local:54321")
 	_, plainListener, dispatcher := splitProtocols(listener, nil)
 	defer dispatcher.Close()
 	redirectServer := &http.Server{Handler: httpsRedirectHandler()}
@@ -131,13 +131,13 @@ func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 	transport := &http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) { return listener.Dial() }}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Get("http://kindle.local:53241/files/a%20b?view=grid")
+	response, err := client.Get("http://kindle.local:54321/files/a%20b?view=grid")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, response.Body)
-	want := "https://kindle.local:53241/files/a%20b?view=grid"
+	want := "https://kindle.local:54321/files/a%20b?view=grid"
 	if response.StatusCode != http.StatusTemporaryRedirect || response.Header.Get("Location") != want {
 		t.Fatalf("redirect = %d %q, want %d %q", response.StatusCode, response.Header.Get("Location"), http.StatusTemporaryRedirect, want)
 	}
@@ -147,7 +147,7 @@ func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 }
 
 func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
-	listener := newPipeListener("kindle.local:53241")
+	listener := newPipeListener("kindle.local:54321")
 	var logs bytes.Buffer
 	tlsListener, _, dispatcher := splitProtocols(listener, log.New(&logs, "", 0))
 	defer dispatcher.Close()

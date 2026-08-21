@@ -289,7 +289,7 @@ In KOReader, open **ZenFM > Start ZenFM**, followed by
 **ZenFM > Status and address**. The status dialog shows the device's LAN IP and
 the active ZenFM listening port.
 
-The default server is HTTPS on port 53241, shared by every installation and by
+The default server is HTTPS on port 54321, shared by every installation and by
 both transport modes unless changed in the plugin settings. While HTTPS is
 enabled, plain HTTP requests to that port redirect to the same URL over HTTPS.
 The initial login password is `koreader123456789`; file APIs remain locked

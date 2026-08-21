@@ -199,8 +199,8 @@ end)
 test("fresh installations use the shared static high port", function()
     local state = os.tmpname() .. ".static-port"
     local settings = Settings:new(state)
-    equal(settings.values.port, 53241)
-    equal(Settings:new(state).values.port, 53241)
+    equal(settings.values.port, 54321)
+    equal(Settings:new(state).values.port, 54321)
 
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
@@ -211,9 +211,22 @@ test("legacy transport defaults migrate to the shared static high port", functio
     assert(Util.ensure_dir(state))
     assert(Util.write_atomic(state .. "/settings.lua", "return { port = 8080, insecure_http = true }\n", "600"))
     local settings = Settings:new(state)
-    equal(settings.values.port, 53241)
+    equal(settings.values.port, 54321)
     assert(settings.values.insecure_http)
-    equal(Settings:new(state).values.port, 53241)
+    equal(Settings:new(state).values.port, 54321)
+
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
+test("previous shared default migrates to the memorable private port", function()
+    local state = os.tmpname() .. ".previous-default-port"
+    assert(Util.ensure_dir(state))
+    assert(Util.write_atomic(state .. "/settings.lua", "return { settings_version = 2, port = 53241 }\n", "600"))
+    local settings = Settings:new(state)
+    equal(settings.values.port, 54321)
+    equal(settings.values.settings_version, 3)
+    equal(Settings:new(state).values.port, 54321)
 
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
@@ -398,7 +411,7 @@ test("Kindle supervisor requests firewall setup", function()
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
         settings = fake_settings(Settings.defaults()), execute = function() return 0 end,
     }
-    contains(daemon:supervisor_command(), "--port '53241' --kindle --")
+    contains(daemon:supervisor_command(), "--port '54321' --kindle --")
 end)
 
 test("runtime control paths stay off user storage and below Unix socket limits", function()
@@ -865,7 +878,7 @@ test("settings validation", function()
         custom_root = "relative", auto_stop_minutes = 45, beta_updates = "yes",
         tls_cert = "/cert", tls_key = "relative",
     }
-    equal(values.port, 53241)
+    equal(values.port, 54321)
     assert(values.advanced_root and values.insecure_http)
     equal(values.custom_root, "")
     equal(values.auto_stop_minutes, 45)
@@ -1555,7 +1568,7 @@ test("changing server settings while running restarts and refreshes the menu", f
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
-    local port, restarts, menu_refreshes = 54321, 0, 0
+    local port, restarts, menu_refreshes = 55432, 0, 0
     settings = {
         values = { port = port, insecure_http = false, advanced_root = false },
         set = function(self, key, value) self.values[key] = value return true end,
@@ -1639,7 +1652,7 @@ test("changing HTTP restarts an active Android companion", function()
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
-    local action, port = nil, 54321
+    local action, port = nil, 55432
     local settings = {
         values = { port = port, insecure_http = false, advanced_root = false },
         set = function(self, key, value) self.values[key] = value return true end,

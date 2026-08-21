@@ -26,7 +26,7 @@ import (
 	"github.com/xZenLabs/zen-fm/internal/webui"
 )
 
-const defaultPort = 53241
+const defaultPort = 54321
 
 var version = "dev"
 
