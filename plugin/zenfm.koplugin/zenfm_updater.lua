@@ -473,7 +473,16 @@ function Updater.activate_stage(daemon, root)
         if not stopped then return false, "could not stop ZenFM before update: " .. tostring(stop_err) end
     end
     local installed, result = Updater.install_stage(daemon, root, was_running)
-    if not installed and was_running then daemon:start() end
+    if installed and was_running then
+        local started, start_err = daemon:start()
+        if not started then
+            return false, "ZenFM was updated, but the new server could not start: "
+                .. tostring(start_err)
+                .. ". Restart KOReader to retry activation."
+        end
+    elseif not installed and was_running then
+        daemon:start()
+    end
     return installed, result
 end
 

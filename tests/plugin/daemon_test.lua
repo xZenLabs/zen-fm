@@ -1201,6 +1201,30 @@ test("activation waits for supervisor exit and restores a running service on fai
     equal(table.concat(events, ","), "status,stop,wait,install,start")
 end)
 
+test("activation replaces and restarts a running server", function()
+    local previous_install_stage = Updater.install_stage
+    local events = {}
+    Updater.install_stage = function(_, root, resume_after_update)
+        equal(root, "/prepared/plugin")
+        assert(resume_after_update)
+        table.insert(events, "install")
+        return true, "updated"
+    end
+    local called, installed, detail = pcall(Updater.activate_stage, {
+        is_android = function() return false end,
+        status = function() table.insert(events, "status") return true end,
+        stop = function() table.insert(events, "stop") return true end,
+        wait_until_stopped = function() table.insert(events, "wait") return true end,
+        start = function() table.insert(events, "start") return true end,
+    }, "/prepared/plugin")
+    Updater.install_stage = previous_install_stage
+
+    assert(called, tostring(installed))
+    assert(installed)
+    equal(detail, "updated")
+    equal(table.concat(events, ","), "status,stop,wait,install,start")
+end)
+
 test("update health verification restores a stopped service", function()
     local plugin_dir = os.tmpname() .. ".plugin"
     assert(Util.ensure_dir(plugin_dir))
