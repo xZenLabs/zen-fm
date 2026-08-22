@@ -21,6 +21,9 @@ msgstr "1 year"
 msgid "30 days"
 msgstr "30 days"
 
+msgid "A restart is required to take effect."
+msgstr "A restart is required to take effect."
+
 msgid "About {{eta}} remaining"
 msgstr "About {{eta}} remaining"
 
@@ -204,6 +207,12 @@ msgstr "Inactivity timeout (minutes)"
 msgid "Inactivity timeout: %d min"
 msgstr "Inactivity timeout: %d min"
 
+msgid "Install later"
+msgstr "Install later"
+
+msgid "Install now"
+msgstr "Install now"
+
 msgid "Installing ZenFM update…"
 msgstr "Installing ZenFM update…"
 
@@ -338,6 +347,9 @@ msgstr "Reset owner login"
 
 msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
 msgstr "Reset the owner login to the setup-only password and revoke every session and API token?"
+
+msgid "Restart later"
+msgstr "Restart later"
 
 msgid "Restart now"
 msgstr "Restart now"
@@ -557,6 +569,9 @@ msgstr "ZenFM update cancelled."
 
 msgid "ZenFM update timed out."
 msgstr "ZenFM update timed out."
+
+msgid "ZenFM update v%s is available."
+msgstr "ZenFM update v%s is available."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Status"

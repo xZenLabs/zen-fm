@@ -1208,6 +1208,9 @@ test("a second update cannot erase rollback state before restart", function()
     }, false)
     assert(not prepared)
     contains(detail, "Restart KOReader")
+    local available, check_detail = Updater.check_latest({ plugin_dir = plugin_dir }, false)
+    assert(not available)
+    contains(check_detail, "Restart KOReader")
     local parent = plugin_dir:match("^(.*)/[^/]+$")
     if parent then Util.remove_tree(plugin_dir, parent) end
 end)
@@ -1426,6 +1429,7 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     equal(settings_menu[#settings_menu - 2].text, "Beta updates")
     assert(not settings_menu[#settings_menu - 2].checked_func())
     equal(settings_menu[#settings_menu - 1].text, "Update")
+    assert(settings_menu[#settings_menu - 1].keep_menu_open)
     equal(settings_menu[#settings_menu].text_func(), "Version: 9.8.7")
     assert(not settings_menu[#settings_menu].enabled_func())
 
@@ -1948,14 +1952,15 @@ test("server monitoring pauses in standby and checks immediately on resume", fun
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("e-reader menu update prompts before restarting KOReader", function()
+test("e-reader menu update offers install later before installing and restarting", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "gettext",
         "zenfm_daemon", "zenfm_updater",
     }
     local saved, events, scheduled, shown = {}, {}, {}, {}
-    local restart_prompt, restart_callback
+    local update_prompt, restart_prompt
+    local restart_callbacks = {}
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -1964,7 +1969,10 @@ test("e-reader menu update prompts before restarting KOReader", function()
     package.loaded["ui/uimanager"] = {
         show = function(_, message)
             shown[message] = true
-            if message.ok_text == "Restart now" then
+            if message.ok_text == "Install now" then
+                update_prompt = message
+                table.insert(events, "confirm:" .. message.text)
+            elseif message.ok_text == "Restart now" then
                 restart_prompt = message
                 table.insert(events, "confirm:" .. message.text)
             else
@@ -1980,9 +1988,9 @@ test("e-reader menu update prompts before restarting KOReader", function()
                 if scheduled[index] == callback then table.remove(scheduled, index) end
             end
         end,
-        tickAfterNext = function(_, callback)
-            table.insert(events, "restart-scheduled")
-            restart_callback = callback
+        nextTick = function(_, callback)
+            table.insert(events, "restart-tick-scheduled")
+            table.insert(restart_callbacks, callback)
         end,
         restartKOReader = function() table.insert(events, "restart") end,
     }
@@ -1998,7 +2006,14 @@ test("e-reader menu update prompts before restarting KOReader", function()
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = {
         finalize_pending = function() return true end,
-        prepare_latest = function()
+        check_latest = function(_, beta_updates)
+            assert(not beta_updates)
+            table.insert(events, "check")
+            return true, "2.4.0"
+        end,
+        prepare_latest = function(_, beta_updates, version)
+            assert(not beta_updates)
+            equal(version, "2.4.0")
             table.insert(events, "prepare")
             return true, "/prepared/plugin"
         end,
@@ -2022,30 +2037,47 @@ test("e-reader menu update prompts before restarting KOReader", function()
     equal(events[2], "repaint")
     equal(#scheduled, 1)
     table.remove(scheduled, 1)()
-    equal(events[3], "prepare")
-    equal(events[4], "notice:Installing ZenFM update…")
-    equal(events[5], "repaint")
-    equal(events[6], "activate")
-    equal(events[7], "confirm:ZenFM updated. Restart KOReader to finish activation.")
+    equal(events[3], "check")
+    equal(events[4], "confirm:ZenFM update v2.4.0 is available.")
+    equal(update_prompt.ok_text, "Install now")
+    equal(update_prompt.cancel_text, "Install later")
+    equal(#events, 4)
+    equal(#scheduled, 0)
+
+    update_prompt.ok_callback()
+    equal(events[5], "notice:Installing ZenFM update…")
+    equal(events[6], "repaint")
+    equal(#scheduled, 1)
+    table.remove(scheduled, 1)()
+    equal(events[7], "prepare")
+    equal(events[8], "activate")
+    equal(events[9], "confirm:A restart is required to take effect.")
     equal(restart_prompt.ok_text, "Restart now")
-    equal(restart_prompt.cancel_text, "Later")
-    assert(restart_callback == nil)
-    equal(#events, 7)
+    equal(restart_prompt.cancel_text, "Restart later")
+    equal(#restart_callbacks, 0)
+    equal(#events, 9)
     equal(#scheduled, 0)
 
     restart_prompt.ok_callback()
-    equal(events[8], "notice:Restarting…")
-    equal(events[9], "restart-scheduled")
-    assert(type(restart_callback) == "function")
-    equal(#events, 9)
+    equal(events[10], "notice:Restarting…")
+    equal(events[11], "repaint")
+    equal(events[12], "restart-tick-scheduled")
+    equal(#restart_callbacks, 1)
+    equal(#events, 12)
 
-    restart_callback()
-    equal(events[10], "restart")
+    table.remove(restart_callbacks, 1)()
+    equal(events[13], "restart-tick-scheduled")
+    equal(#restart_callbacks, 1)
+    equal(#events, 13)
+
+    table.remove(restart_callbacks, 1)()
+    equal(events[14], "restart")
+    equal(#restart_callbacks, 0)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("Android update opens the companion only after plugin update work", function()
+test("Android update opens the companion only after the plugin update check", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/trapper", "gettext",
@@ -2084,12 +2116,11 @@ test("Android update opens the companion only after plugin update work", functio
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = {
         finalize_pending = function() return true end,
-        prepare_latest = function(_, beta_updates)
+        check_latest = function(_, beta_updates)
             assert(beta_updates)
-            table.insert(events, "plugin-update")
+            table.insert(events, "plugin-check")
             return false, "ZenFM is up to date"
         end,
-        activate_stage = function() error("up-to-date plugin was activated") end,
     }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
@@ -2111,7 +2142,7 @@ test("Android update opens the companion only after plugin update work", functio
     equal(events[2], "repaint")
     equal(#scheduled, 1)
     table.remove(scheduled, 1)()
-    equal(events[3], "plugin-update")
+    equal(events[3], "plugin-check")
     contains(events[4], "KOReader plugin bundle: ZenFM is up to date")
     contains(events[4], "Android companion APK: opening updater")
     equal(events[5], "companion-update")

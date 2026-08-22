@@ -462,6 +462,67 @@ function ZenFM:confirm_reset_login()
     })
 end
 
+function ZenFM:prompt_update_restart()
+    UIManager:show(ConfirmBox:new{
+        text = _("A restart is required to take effect."),
+        ok_text = _("Restart now"),
+        cancel_text = _("Restart later"),
+        ok_callback = function()
+            notice(_("Restarting…"), false, true)
+            UIManager:forceRePaint()
+            UIManager:nextTick(function()
+                UIManager:nextTick(function()
+                    UIManager:restartKOReader()
+                end)
+            end)
+        end,
+    })
+end
+
+function ZenFM:install_update(beta_updates, version)
+    local progress = notice(_("Installing ZenFM update…"), false, true)
+    UIManager:forceRePaint()
+    UIManager:scheduleIn(0.1, function()
+        local Trapper = require("ui/trapper")
+        Trapper:wrap(function()
+            local co = coroutine.running()
+            local timed_out = false
+            local timeout_callback = function()
+                timed_out = true
+                coroutine.resume(co, false)
+            end
+            UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
+            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.prepare_latest(self.daemon, beta_updates, version)
+            end, progress)
+            UIManager:unschedule(timeout_callback)
+            if not completed then
+                close_notice(progress)
+                notice(timed_out and _("ZenFM update timed out.") or _("ZenFM update cancelled."), timed_out)
+                return
+            end
+
+            local ok = false
+            if prepared then ok, result = Updater.activate_stage(self.daemon, result) end
+            close_notice(progress)
+            if self.daemon:is_android() then
+                local plugin_failed = not ok
+                notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
+                    .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
+                local companion_ok, companion_result = self.daemon:open_android("update")
+                if not companion_ok then notice(tostring(companion_result), true) end
+                if ok then self:prompt_update_restart() end
+                return
+            end
+            if not ok then
+                notice(tostring(result), true)
+                return
+            end
+            self:prompt_update_restart()
+        end)
+    end)
+end
+
 function ZenFM:update()
     if self.daemon:is_android() and not self:android_cached_running() then
         return self:begin_android_action("start", function(ok, detail)
@@ -488,8 +549,8 @@ function ZenFM:update()
                 coroutine.resume(co, false)
             end
             UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
-            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
-                return Updater.prepare_latest(self.daemon, beta_updates)
+            local completed, available, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.check_latest(self.daemon, beta_updates)
             end, progress)
             UIManager:unschedule(timeout_callback)
             close_notice(progress)
@@ -498,35 +559,25 @@ function ZenFM:update()
                 return
             end
 
-            local ok = false
-            if prepared then
-                local installing = notice(_("Installing ZenFM update…"), false, true)
-                UIManager:forceRePaint()
-                ok, result = Updater.activate_stage(self.daemon, result)
-                close_notice(installing)
-            end
-            if self.daemon:is_android() then
-                local plugin_failed = not ok and result ~= "ZenFM is up to date"
+            if self.daemon:is_android() and not available then
+                local plugin_failed = result ~= "ZenFM is up to date"
                 notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
                     .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
                 local companion_ok, companion_result = self.daemon:open_android("update")
                 if not companion_ok then notice(tostring(companion_result), true) end
                 return
             end
-            if not ok then
+            if not available then
                 notice(tostring(result), result ~= "ZenFM is up to date")
                 return
             end
 
             UIManager:show(ConfirmBox:new{
-                text = tostring(result),
-                ok_text = _("Restart now"),
-                cancel_text = _("Later"),
+                text = string.format(_("ZenFM update v%s is available."), tostring(result)),
+                ok_text = _("Install now"),
+                cancel_text = _("Install later"),
                 ok_callback = function()
-                    notice(_("Restarting…"), false, true)
-                    UIManager:tickAfterNext(function()
-                        UIManager:restartKOReader()
-                    end)
+                    self:install_update(beta_updates, result)
                 end,
             })
         end)
@@ -604,6 +655,7 @@ function ZenFM:settings_menu()
         },
         {
             text = _("Update"),
+            keep_menu_open = true,
             callback = function() self:update() end,
         },
         {

@@ -433,12 +433,24 @@ function Updater.finalize_pending(daemon)
     return false, "updated backend failed health check; previous plugin restored. Restart KOReader."
 end
 
-function Updater.prepare_latest(daemon, allow_prerelease)
+function Updater.check_latest(daemon, allow_prerelease)
     if Util.path_exists(daemon.plugin_dir .. "/.update-pending") then
         return false, "Restart KOReader to finish the pending ZenFM update."
     end
     local release, err = latest(daemon, allow_prerelease)
     if not release then return false, err or "ZenFM is up to date" end
+    return true, release.version
+end
+
+function Updater.prepare_latest(daemon, allow_prerelease, expected_version)
+    if Util.path_exists(daemon.plugin_dir .. "/.update-pending") then
+        return false, "Restart KOReader to finish the pending ZenFM update."
+    end
+    local release, err = latest(daemon, allow_prerelease)
+    if not release then return false, err or "ZenFM is up to date" end
+    if expected_version and release.version ~= expected_version then
+        return false, "ZenFM update availability changed. Check again."
+    end
     if release.size and (release.size <= 0 or release.size > maximum_package_bytes) then
         return false, "release package size is invalid"
     end
