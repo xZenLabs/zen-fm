@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/xZenLabs/zen-fm/internal/state"
 )
 
 func TestRunVersionAndUnknownCommand(t *testing.T) {
@@ -245,6 +247,22 @@ func TestResetLoginCommand(t *testing.T) {
 	stderr.Reset()
 	if code := run([]string{"reset-login", "--data-dir", dataDir, "--mode-less-filesystem"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("mode-less reset: %d %q", code, stderr.String())
+	}
+
+	koboDataDir := filepath.Join(t.TempDir(), "kobo-state")
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"reset-login", "--data-dir", koboDataDir, "--show-hidden-by-default"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Kobo reset: %d %q", code, stderr.String())
+	}
+	store, err := state.Open(filepath.Join(koboDataDir, "zenfm.db"), state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	settings, err := store.Settings()
+	if err != nil || !settings.ShowHidden {
+		t.Fatalf("unexpected Kobo defaults: %+v, %v", settings, err)
 	}
 }
 

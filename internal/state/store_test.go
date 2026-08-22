@@ -65,6 +65,40 @@ func TestInitialOwnerAndSettings(t *testing.T) {
 	}
 }
 
+func TestInitialSettingsCanShowHiddenByDefaultWithoutOverwritingSavedPreference(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state", "zenfm.db")
+	options := Options{
+		PasswordParams:      auth.PasswordParams{Memory: 8 * 1024, Iterations: 1, Parallelism: 1, SaltLength: 16, KeyLength: 16},
+		ShowHiddenByDefault: true,
+	}
+	s, err := Open(path, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	settings, err := s.Settings()
+	if err != nil || !settings.ShowHidden {
+		t.Fatalf("unexpected initial settings: %+v, %v", settings, err)
+	}
+	settings.ShowHidden = false
+	if err := s.SaveSettings(settings); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err = Open(path, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	settings, err = s.Settings()
+	if err != nil || settings.ShowHidden {
+		t.Fatalf("saved preference was overwritten: %+v, %v", settings, err)
+	}
+}
+
 func TestSessionIdleAndAbsoluteExpiry(t *testing.T) {
 	now := time.Unix(1000, 0)
 	s := testStore(t, &now)

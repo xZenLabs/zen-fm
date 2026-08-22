@@ -285,6 +285,7 @@ function Daemon:serve_arguments()
         "--auto-stop", auto_stop_duration(values.auto_stop_minutes),
     }
     if self:debug_logging_enabled() then table.insert(arguments, "--debug") end
+    if self:platform() == "kobo" then table.insert(arguments, "--show-hidden-by-default") end
     if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
         table.insert(arguments, "--insecure-http")
@@ -486,6 +487,7 @@ function Daemon:reset_login()
     if not ready then return false, ready_err end
     local command = Util.sh_quote(self:backend_path()) .. " reset-login --data-dir "
         .. Util.sh_quote(self.state_dir)
+    if self:platform() == "kobo" then command = command .. " --show-hidden-by-default" end
     if self:is_pocketbook() then command = command .. " --mode-less-filesystem" end
     command = self:logged_command(command) .. " </dev/null"
     return self.execute(command) == 0, "reset-login failed; see " .. self:log_path()

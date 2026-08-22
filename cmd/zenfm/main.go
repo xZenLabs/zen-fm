@@ -86,6 +86,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	sessionAbsolute := flags.Duration("session-absolute", 12*time.Hour, "browser session absolute lifetime")
 	insecureHTTP := flags.Bool("insecure-http", false, "explicitly serve unencrypted HTTP")
 	modeLessFilesystem := flags.Bool("mode-less-filesystem", false, "allow storage without Unix file modes")
+	showHiddenByDefault := flags.Bool("show-hidden-by-default", false, "show hidden files in newly initialized state")
 	debugLogging := flags.Bool("debug", false, "enable debug logging")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -122,7 +123,10 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if err := platform.ModeChangeError(os.Chmod(*dataDir, 0o700), *modeLessFilesystem); err != nil {
 		return fmt.Errorf("secure data directory: %w", err)
 	}
-	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
+	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{
+		ModeLessFilesystem:  *modeLessFilesystem,
+		ShowHiddenByDefault: *showHiddenByDefault,
+	})
 	if err != nil {
 		return fmt.Errorf("open state store: %w", err)
 	}
@@ -271,13 +275,17 @@ func runReset(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	dataDir := flags.String("data-dir", platform.DefaultDataDir(), "private ZenFM state directory")
 	modeLessFilesystem := flags.Bool("mode-less-filesystem", false, "allow storage without Unix file modes")
+	showHiddenByDefault := flags.Bool("show-hidden-by-default", false, "show hidden files in newly initialized state")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return errors.New("invalid reset-login arguments")
 	}
-	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{ModeLessFilesystem: *modeLessFilesystem})
+	store, err := state.Open(filepath.Join(*dataDir, "zenfm.db"), state.Options{
+		ModeLessFilesystem:  *modeLessFilesystem,
+		ShowHiddenByDefault: *showHiddenByDefault,
+	})
 	if err != nil {
 		return err
 	}

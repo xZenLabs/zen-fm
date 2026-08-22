@@ -406,6 +406,28 @@ test("advanced HTTP arguments", function()
     contains(command, "--insecure-http")
 end)
 
+test("Kobo enables the hidden-file default for every backend initialization path", function()
+    local kobo = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "kobo",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+    }
+    contains(table.concat(kobo:serve_arguments(), " "), "--show-hidden-by-default")
+
+    local reset_command
+    kobo.stop = function() return true end
+    kobo.status = function() return false end
+    kobo.ensure_backend = function() return true end
+    kobo.execute = function(command) reset_command = command return 0 end
+    assert(kobo:reset_login())
+    contains(reset_command, "reset-login --data-dir '/state' --show-hidden-by-default")
+
+    local kindle = Daemon:new{
+        plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
+        settings = fake_settings(Settings.defaults()), path_exists = function() return false end,
+    }
+    assert(not table.concat(kindle:serve_arguments(), " "):find("--show-hidden-by-default", 1, true))
+end)
+
 test("Kindle supervisor requests firewall setup", function()
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
