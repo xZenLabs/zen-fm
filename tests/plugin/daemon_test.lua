@@ -1316,7 +1316,7 @@ test("shell quoting does not create a second command", function()
     equal(Util.sh_quote("x'; touch /tmp/owned; '"), "'x'\\''; touch /tmp/owned; '\\'''" )
 end)
 
-test("opening the Android menu uses cached state and exit stops the service", function()
+test("opening the Android menu uses cached state and exit preserves the service", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1334,14 +1334,14 @@ test("opening the Android menu uses cached state and exit stops the service", fu
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
-    local cached_calls, stops = 0, 0
+    local cached_calls = 0
     local owner = setmetatable({
         daemon = {
             settings = { values = Settings.defaults() },
             is_android = function() return true end,
             cached_android_status = function() cached_calls = cached_calls + 1 return false, "stopped" end,
             status = function() error("Android menu performed a live status request") end,
-            stop = function() stops = stops + 1 return true end,
+            stop = function() error("KOReader exit stopped ZenFM") end,
         },
     }, { __index = ZenFM })
     local menu = {}
@@ -1351,7 +1351,6 @@ test("opening the Android menu uses cached state and exit stops the service", fu
     owner.android_pending = {}
     owner.android_running = true
     equal(owner:onExit(), nil)
-    equal(stops, 1)
     assert(owner.android_pending == nil)
     assert(not owner.android_running)
 

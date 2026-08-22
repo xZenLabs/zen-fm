@@ -118,7 +118,6 @@ function ZenFM:onExit()
     self.android_running = false
     self.server_monitor = nil
     Daemon.stopped_notice_armed = false
-    self.daemon:stop()
 end
 
 function ZenFM:schedule_server_monitor(monitor)
