@@ -308,6 +308,21 @@ function isMoveDestinationAllowed(destination: string, entry: FileEntry) {
   return entry.type !== 'directory' || (destination !== entry.path && !destination.startsWith(`${entry.path}/`))
 }
 
+function duplicateName(entry: FileEntry, existingNames: Set<string>) {
+  const extensionAt = entry.type === 'file' ? entry.name.lastIndexOf('.') : -1
+  const stem = extensionAt > 0 ? entry.name.slice(0, extensionAt) : entry.name
+  const extension = extensionAt > 0 ? entry.name.slice(extensionAt) : ''
+  for (let number = 1; ; number++) {
+    const name = `${stem} copy${number === 1 ? '' : ` ${number}`}${extension}`
+    if (!existingNames.has(name)) {
+      existingNames.add(name)
+      return name
+    }
+  }
+}
+
+type PathActionChoice = { overwrite: boolean; duplicate?: boolean }
+
 export function PathActionDialog({ action, entries, copyDestination, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; copyDestination?: string; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
@@ -331,8 +346,11 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
     setDestination(action === 'rename' ? entry.name : action === 'move' || multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`)
   }, [action, entriesKey, entry, multiple])
 
+  const sameFolderEntries = directCopy ? entries.filter((item) => joinPath(copyDestination, item.name) === item.path) : []
+  const sameFolderEntry = sameFolderEntries[0]
+  const sameFolderPaste = Boolean(sameFolderEntry)
   const mutate = useMutation({
-    mutationFn: async (overwrite: boolean) => {
+    mutationFn: async ({ overwrite, duplicate = false }: PathActionChoice) => {
       if (!entry || !action) return
       let plan = copyPlan.current
       if (action === 'copy' && !plan) {
@@ -340,6 +358,14 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
         const measured = await api.files.copySize(entries.map((item) => item.path))
         plan = { bytes: new Map(measured.items.map((item) => [item.source, item.bytes])), totalBytes: measured.totalBytes }
         copyPlan.current = plan
+      }
+      const duplicateNames = new Map<string, Set<string>>()
+      if (duplicate) {
+        const parents = [...new Set(sameFolderEntries.map((item) => parentPath(item.path)))]
+        await Promise.all(parents.map(async (parent) => {
+          const listing = await api.files.list(parent, true)
+          duplicateNames.set(parent, new Set(listing.entries.map((item) => item.name)))
+        }))
       }
       const completedBytes = action === 'copy' && plan
         ? entries.reduce((total, item) => total + (completed.current.has(item.path) ? (plan.bytes.get(item.path) ?? 0) : 0), 0)
@@ -350,11 +376,15 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
       }
       for (const item of entries) {
         if (completed.current.has(item.path)) continue
-        const target = action === 'rename'
+        let target = action === 'rename'
           ? `${parentPath(item.path)}/${destination}`.replaceAll('//', '/')
           : action === 'move' || multiple || directCopy ? joinPath(copyDestination ?? destination, item.name) : destination
+        if (duplicate && target === item.path) {
+          const parent = parentPath(item.path)
+          target = joinPath(parent, duplicateName(item, duplicateNames.get(parent)!))
+        }
         try {
-          const replaceConflict = overwrite && conflictPath.current === item.path
+          const replaceConflict = overwrite && (conflictPath.current === item.path || target === item.path)
           if (action === 'copy' && plan) {
             const itemBase = entries.reduce((total, candidate) => total + (completed.current.has(candidate.path) ? (plan.bytes.get(candidate.path) ?? 0) : 0), 0)
             const itemBytes = plan.bytes.get(item.path) ?? 0
@@ -395,12 +425,12 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
 
   const startMutation = mutate.mutate
   useEffect(() => {
-    if (!directCopy || !entry || directCopyStarted.current) return
+    if (!directCopy || sameFolderPaste || !entry || directCopyStarted.current) return
     directCopyStarted.current = true
-    startMutation(false)
-  }, [directCopy, entry, startMutation])
+    startMutation({ overwrite: false })
+  }, [directCopy, entry, sameFolderPaste, startMutation])
 
-  const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate(false) }
+  const submit = (event: FormEvent) => { event.preventDefault(); mutate.mutate({ overwrite: false }) }
   const conflict = isConflictError(mutate.error)
   const percentage = copyProgress && copyProgress.totalBytes > 0 ? Math.min(100, Math.round(copyProgress.copiedBytes / copyProgress.totalBytes * 100)) : 0
   const activeCopiedBytes = copyProgress ? copyProgress.copiedBytes - copyProgress.baseBytes : 0
@@ -414,9 +444,10 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
   return (
     <Dialog open={Boolean(action && entry)} onClose={mutate.isPending ? undefined : onClose} maxWidth="xs">
       <Stack component="form" onSubmit={submit}>
-        <DialogTitle>{directCopy ? t('files.paste') : action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
+        <DialogTitle>{sameFolderPaste ? t('files.conflictTitle') : directCopy ? t('files.paste') : action ? multiple ? t('files.actionItems', { action: t(`files.${action}`), count: entries.length }) : t(`files.${action}`) : ''}</DialogTitle>
         <DialogContent sx={{ pt: 2, overflow: 'visible' }}>
           {multiple && <Typography color="text.secondary" mb={2}>{t('files.itemsSelected', { count: entries.length })}</Typography>}
+          {sameFolderPaste && <Typography mb={2}>{t('files.sameFolderConflict', { name: sameFolderEntry?.name })}</Typography>}
           {action === 'move' ? <Stack gap={1.5}>
             <Typography variant="body2" color="text.secondary">{t('files.destinationFolder')}</Typography>
             <Typography aria-live="polite" className="file-name" fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">{destination}</Typography>
@@ -432,7 +463,7 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
             {etaSeconds > 0 && <Typography variant="caption" color="text.secondary">{t('files.copyEta', { eta: formatDuration(etaSeconds) })}</Typography>}
           </Stack>}
         </DialogContent>
-        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate(true)}>{t('files.replace')}</Button> : !directCopy && <Button type="submit" variant="contained" disabled={!destination || movingToCurrentFolder || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
+        <DialogActions><Button onClick={onClose}>{t('common.cancel')}</Button>{sameFolderPaste ? <><Button disabled={mutate.isPending} onClick={() => mutate.mutate({ overwrite: false, duplicate: true })}>{t('files.duplicate')}</Button><Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate({ overwrite: true })}>{t('files.overwrite')}</Button></> : conflict ? <Button color="warning" variant="contained" disabled={mutate.isPending} onClick={() => mutate.mutate({ overwrite: true })}>{t('files.replace')}</Button> : !directCopy && <Button type="submit" variant="contained" disabled={!destination || movingToCurrentFolder || mutate.isPending}>{t('common.confirm')}</Button>}</DialogActions>
       </Stack>
     </Dialog>
   )

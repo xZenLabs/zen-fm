@@ -377,7 +377,7 @@ func TestMoveDoesNotBackUpCaseInsensitiveAliasOfSource(t *testing.T) {
 	}
 }
 
-func TestCopyRejectsSamePathAndDirectoryDescendant(t *testing.T) {
+func TestCopyAllowsExplicitSamePathReplacementAndRejectsDirectoryDescendant(t *testing.T) {
 	r, _ := testRoot(t, Options{})
 	if _, err := r.Mkdir("tree"); err != nil {
 		t.Fatal(err)
@@ -385,8 +385,11 @@ func TestCopyRejectsSamePathAndDirectoryDescendant(t *testing.T) {
 	if _, err := r.Write("tree/keep.txt", strings.NewReader("keep"), false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.Copy(context.Background(), "tree", "tree", true); !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("same-path copy returned %v", err)
+	if _, err := r.Copy(context.Background(), "tree", "tree", false); !errors.Is(err, ErrConflict) {
+		t.Fatalf("non-overwrite same-path copy returned %v", err)
+	}
+	if _, err := r.Copy(context.Background(), "tree", "tree", true); err != nil {
+		t.Fatalf("overwrite same-path copy returned %v", err)
 	}
 	if data, err := r.ReadContent("tree/keep.txt"); err != nil || string(data) != "keep" {
 		t.Fatalf("same-path copy damaged source: %q %v", data, err)

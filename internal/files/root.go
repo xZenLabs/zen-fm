@@ -1272,8 +1272,8 @@ func (r *Root) copy(ctx context.Context, source, destination string, overwrite b
 	if err != nil || dst == "." {
 		return Entry{}, ErrInvalidPath
 	}
-	if src == dst {
-		return Entry{}, ErrInvalidPath
+	if src == dst && !overwrite {
+		return Entry{}, ErrConflict
 	}
 	sourceInfo, err := r.lstat(src, false, false)
 	if err != nil {

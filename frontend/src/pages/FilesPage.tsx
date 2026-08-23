@@ -167,7 +167,7 @@ function iconFor(entry: FileEntry) {
 
 function canPasteInto(destination: string, entry: FileEntry) {
   const target = joinPath(destination, entry.name)
-  return target !== entry.path && (entry.type !== 'directory' || !target.startsWith(`${entry.path}/`))
+  return entry.type !== 'directory' || target === entry.path || !target.startsWith(`${entry.path}/`)
 }
 
 export function FilesPage() {
