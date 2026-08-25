@@ -76,6 +76,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	rootPath := flags.String("root", platform.DefaultRoot(), "filesystem root")
+	defaultDirectory := flags.String("default-directory", "/", "initial directory within the filesystem root")
 	dataDir := flags.String("data-dir", platform.DefaultDataDir(), "private ZenFM state directory")
 	listenAddress := flags.String("listen", "", "TCP listen address")
 	certFile := flags.String("tls-cert", "", "TLS certificate path")
@@ -115,8 +116,8 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *insecureHTTP {
 		transport = "http"
 	}
-	diagnostics.Printf("server setup started: version=%s root=%q data-dir=%q listen=%q transport=%s control-socket=%q auto-stop=%s",
-		version, *rootPath, *dataDir, *listenAddress, transport, *controlSocket, autoStop.String())
+	diagnostics.Printf("server setup started: version=%s root=%q default-directory=%q data-dir=%q listen=%q transport=%s control-socket=%q auto-stop=%s",
+		version, *rootPath, *defaultDirectory, *dataDir, *listenAddress, transport, *controlSocket, autoStop.String())
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
@@ -138,7 +139,8 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	defer root.Close()
 	api, err := server.New(server.Config{
 		Store: store, Files: root, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
-		SessionIdle: *sessionIdle, SessionAbsolute: *sessionAbsolute,
+		DefaultDirectory: *defaultDirectory,
+		SessionIdle:      *sessionIdle, SessionAbsolute: *sessionAbsolute,
 		ModeLessFilesystem: *modeLessFilesystem,
 		PublicExclusions:   []string{*certFile, *keyFile},
 	})

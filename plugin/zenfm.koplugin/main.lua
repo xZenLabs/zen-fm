@@ -8,6 +8,7 @@ local _ = require("zenfm_i18n").translate
 
 local Daemon = require("zenfm_daemon")
 local Updater = require("zenfm_updater")
+local Util = require("zenfm_util")
 if Daemon.stopped_notice_armed == nil then Daemon.stopped_notice_armed = false end
 
 local ZenFM = WidgetContainer:extend{
@@ -341,21 +342,105 @@ function ZenFM:show_auto_stop_dialog(touchmenu_instance)
     })
 end
 
-function ZenFM:show_path_dialog(key, title, allow_empty)
-    input_dialog(self, title, self.daemon.settings.values[key], nil, function(raw)
-        if raw == "" and allow_empty then return self.daemon.settings:set(key, "") end
-        if raw:sub(1, 1) ~= "/" then return false, _("Use an absolute path beginning with /.") end
-        if key == "custom_root" then
-            if raw:gsub("/", "") == "" then
-                return false, _("Use Advanced root to expose /. Custom roots cannot contain . or .. components.")
-            end
-            for component in raw:gmatch("[^/]+") do
-                if component == "." or component == ".." then
-                    return false, _("Use Advanced root to expose /. Custom roots cannot contain . or .. components.")
-                end
-            end
+local function clean_directory_path(path)
+    if type(path) ~= "string" or path:sub(1, 1) ~= "/" then return nil end
+    path = path:gsub("/+$", "")
+    return path == "" and "/" or path
+end
+
+local function canonical_directory_path(path)
+    path = clean_directory_path(path)
+    if not path then return nil end
+    local ok, ffi_util = pcall(require, "ffi/util")
+    if ok and ffi_util and type(ffi_util.realpath) == "function" then
+        local resolved = ffi_util.realpath(path)
+        if resolved then path = clean_directory_path(resolved) or path end
+    end
+    return path
+end
+
+local function directory_within_root(path, root)
+    path, root = canonical_directory_path(path), canonical_directory_path(root)
+    if not path or not root then return nil end
+    if path == root then return "/" end
+    if root == "/" then return path end
+    if path:sub(1, #root + 1) == root .. "/" then return path:sub(#root + 1) end
+    return nil
+end
+
+local function directory_from_root(root, relative)
+    root = clean_directory_path(root)
+    if not root then return nil end
+    if relative == "/" then return root end
+    return root == "/" and relative or root .. relative
+end
+
+function ZenFM:show_directory_chooser(path, on_confirm)
+    local PathChooser = require("ui/widget/pathchooser")
+    UIManager:show(PathChooser:new{
+        select_directory = true,
+        select_file = false,
+        show_files = false,
+        path = path,
+        onConfirm = on_confirm,
+    })
+end
+
+function ZenFM:show_root_chooser(touchmenu_instance)
+    local settings = self.daemon.settings
+    self:show_directory_chooser(self.daemon:root() or self.daemon:device_root() or "/", function(selected)
+        selected = canonical_directory_path(selected)
+        if not selected then
+            notice(_("Invalid value."), true)
+            return
         end
-        return self.daemon.settings:set(key, raw)
+        if selected == "/" then
+            if not settings.values.advanced_root then self:confirm_advanced_root(touchmenu_instance) end
+            return
+        end
+
+        local device_root = canonical_directory_path(self.daemon:device_root())
+        local custom_root = selected == device_root and "" or selected
+        local saved = settings:set("custom_root", custom_root)
+        if saved and settings.values.advanced_root then saved = settings:set("advanced_root", false) end
+        local default_reset = false
+        local default_directory = settings.values.default_directory or "/"
+        if saved and default_directory ~= "/"
+            and not Util.is_directory(directory_from_root(selected, default_directory)) then
+            saved = settings:set("default_directory", "/")
+            default_reset = saved
+        end
+        if not saved then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(default_reset
+            and _("Saved. The default directory was reset to Home. Restart ZenFM to apply the change.")
+            or _("Saved. Restart ZenFM to apply the change."))
+    end)
+end
+
+function ZenFM:show_default_directory_chooser(touchmenu_instance)
+    local root = canonical_directory_path(self.daemon:root())
+    if not root then
+        notice(_("Configure ZenFM Home first."), true)
+        return
+    end
+    local current = directory_from_root(root, self.daemon.settings.values.default_directory or "/")
+    if not Util.is_directory(current) then current = root end
+    self:show_directory_chooser(current, function(selected)
+        local relative = directory_within_root(selected, root)
+        if not relative then
+            notice(_("Choose a folder within ZenFM Home."), true)
+            return
+        end
+        if not self.daemon.settings:set("default_directory", relative) then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(_("Saved. Restart ZenFM to apply the change."))
     end)
 end
 
@@ -613,10 +698,21 @@ function ZenFM:settings_menu()
         },
         {
             text_func = function()
-                return _("Root: ") .. (self.daemon:root() or _("not configured"))
+                return _("Home: ") .. (self.daemon:root() or _("not configured"))
             end,
             keep_menu_open = true,
-            callback = function() self:show_path_dialog("custom_root", _("Custom root (blank uses device default)"), true) end,
+            callback = function(touchmenu_instance) self:show_root_chooser(touchmenu_instance) end,
+        },
+        {
+            text_func = function()
+                local directory = directory_from_root(
+                    self.daemon:root(),
+                    self.daemon.settings.values.default_directory or "/"
+                )
+                return _("Default directory: ") .. (directory or _("not configured"))
+            end,
+            keep_menu_open = true,
+            callback = function(touchmenu_instance) self:show_default_directory_chooser(touchmenu_instance) end,
         },
         {
             text_func = function()

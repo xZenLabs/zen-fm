@@ -264,6 +264,10 @@ function Daemon:root()
     return self.settings:default_root(self:platform(), self:android_storage())
 end
 
+function Daemon:device_root()
+    return self.settings:device_root(self:platform(), self:android_storage())
+end
+
 local function auto_stop_duration(minutes)
     return minutes > 0 and tostring(minutes) .. "m" or "0"
 end
@@ -279,6 +283,7 @@ function Daemon:serve_arguments()
     local arguments = {
         "serve",
         "--root", self:root(),
+        "--default-directory", values.default_directory,
         "--data-dir", self.state_dir,
         "--listen", "0.0.0.0:" .. tostring(values.port),
         "--control-socket", self:control_socket(),
@@ -342,13 +347,14 @@ function Daemon:android_uri(action, request_id)
         local values = self.settings.values
         local fields = {
             root = self:root(),
+            default_directory = values.default_directory,
             port = tostring(values.port),
             insecure = values.insecure_http and "1" or "0",
             auto_stop = auto_stop_duration(values.auto_stop_minutes),
             tls_cert = values.tls_cert,
             tls_key = values.tls_key,
         }
-        for _, key in ipairs({ "root", "port", "insecure", "auto_stop", "tls_cert", "tls_key" }) do
+        for _, key in ipairs({ "root", "default_directory", "port", "insecure", "auto_stop", "tls_cert", "tls_key" }) do
             table.insert(query, key .. "=" .. Util.url_encode(fields[key]))
         end
     elseif action == "update" and self.settings.values.beta_updates then

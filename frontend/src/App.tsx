@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { Alert, Box, Button, CircularProgress } from '@mui/material'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth/AuthProvider'
+import { currentPrivateLocation, postAuthenticationLocation } from './auth/navigation'
 import { AppShell } from './components/AppShell'
 
 const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })))
@@ -17,6 +18,7 @@ function Loading() {
 
 export default function App() {
   const { status, session, validationError, refresh } = useAuth()
+  const location = useLocation()
 
   if (status === 'checking') {
     if (!validationError) return <Loading />
@@ -31,19 +33,21 @@ export default function App() {
       {status === 'anonymous' ? (
         <>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace state={{ returnTo: currentPrivateLocation(location) }} />} />
         </>
       ) : session?.setupRequired ? (
         <>
           <Route path="/setup" element={<SetupPage />} />
-          <Route path="*" element={<Navigate to="/setup" replace />} />
+          <Route path="*" element={<Navigate to="/setup" replace state={{
+            returnTo: currentPrivateLocation(location) ?? postAuthenticationLocation(location.state, session.defaultDirectory),
+          }} />} />
         </>
       ) : (
         <Route element={<AppShell />}>
           <Route path="/files/*" element={<FilesPage />} />
           <Route path="/shares" element={<SharesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/files" replace />} />
+          <Route path="*" element={<Navigate to={postAuthenticationLocation(location.state, session?.defaultDirectory)} replace />} />
         </Route>
       )}
     </Routes></Suspense></>

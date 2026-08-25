@@ -200,7 +200,11 @@ test("fresh installations use the shared static high port", function()
     local state = os.tmpname() .. ".static-port"
     local settings = Settings:new(state)
     equal(settings.values.port, 54321)
-    equal(Settings:new(state).values.port, 54321)
+    equal(settings.values.default_directory, "/")
+    assert(settings:set("default_directory", "/Books/Unread"))
+    local reloaded = Settings:new(state)
+    equal(reloaded.values.port, 54321)
+    equal(reloaded.values.default_directory, "/Books/Unread")
 
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
@@ -225,7 +229,7 @@ test("previous shared default migrates to the memorable private port", function(
     assert(Util.write_atomic(state .. "/settings.lua", "return { settings_version = 2, port = 53241 }\n", "600"))
     local settings = Settings:new(state)
     equal(settings.values.port, 54321)
-    equal(settings.values.settings_version, 3)
+    equal(settings.values.settings_version, 4)
     equal(Settings:new(state).values.port, 54321)
 
     os.remove(state .. "/settings.lua")
@@ -395,12 +399,13 @@ end)
 test("advanced HTTP arguments", function()
     local values = Settings.defaults()
     values.advanced_root, values.insecure_http, values.auto_stop_minutes = true, true, 45
+    values.default_directory = "/Books"
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
         settings = fake_settings(values), path_exists = function() return false end,
     }
     local command = table.concat(daemon:serve_arguments(), " ")
-    contains(command, "--root / --data-dir /state")
+    contains(command, "--root / --default-directory /Books --data-dir /state")
     contains(command, "--listen 0.0.0.0:" .. tostring(values.port))
     contains(command, "--auto-stop 45m")
     contains(command, "--insecure-http")
@@ -637,7 +642,7 @@ end)
 test("Android handoff carries paired token and validated settings", function()
     local state = os.tmpname() .. ".d"
     local values = Settings.defaults()
-    values.port, values.auto_stop_minutes = 9443, 45
+    values.port, values.auto_stop_minutes, values.default_directory = 9443, 45, "/Books/Unread"
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(values), path_exists = function() return false end,
@@ -648,6 +653,7 @@ test("Android handoff carries paired token and validated settings", function()
     assert(uri:match("request_id=[0-9a-f]+"))
     contains(uri, "home=" .. Util.url_encode(state))
     contains(uri, "root=%2Fstorage%2Femulated%2F0")
+    contains(uri, "default_directory=%2FBooks%2FUnread")
     contains(uri, "port=9443")
     contains(uri, "auto_stop=45m")
     assert(not uri:find("beta=", 1, true))
@@ -897,12 +903,13 @@ end)
 test("settings validation", function()
     local values = Settings.sanitize{
         port = 70000, advanced_root = true, insecure_http = true,
-        custom_root = "relative", auto_stop_minutes = 45, beta_updates = "yes",
+        custom_root = "relative", default_directory = "/Books/../private", auto_stop_minutes = 45, beta_updates = "yes",
         tls_cert = "/cert", tls_key = "relative",
     }
     equal(values.port, 54321)
     assert(values.advanced_root and values.insecure_http)
     equal(values.custom_root, "")
+    equal(values.default_directory, "/")
     equal(values.auto_stop_minutes, 45)
     assert(not values.beta_updates)
     assert(Settings.sanitize{ beta_updates = true }.beta_updates)
@@ -913,10 +920,12 @@ test("settings validation", function()
     equal(values.tls_key, "")
     equal(Settings.sanitize{ custom_root = "/" }.custom_root, "")
     equal(Settings.sanitize{ custom_root = "/safe/../" }.custom_root, "")
+    equal(Settings.sanitize{ default_directory = "/Books" }.default_directory, "/Books")
+    equal(Settings.sanitize{ default_directory = "/Books/" }.default_directory, "/")
 end)
 
 test("normal mode never falls back to literal root when home is unavailable", function()
-    local settings = fake_settings(Settings.defaults())
+    local settings = setmetatable({ values = Settings.defaults() }, { __index = Settings })
     local original_getenv = os.getenv
     os.getenv = function(name)
         if name == "HOME" then return nil end
@@ -1411,6 +1420,7 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     local owner = setmetatable({
         daemon = {
             settings = { values = Settings.defaults() },
+            root = function() return "/mnt/us" end,
             installed_backend_version = function() return "9.8.7" end,
         },
     }, { __index = ZenFM })
@@ -1425,13 +1435,85 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     equal(toggles, 1)
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
-    equal(#settings_menu, 9)
+    equal(#settings_menu, 10)
+    equal(settings_menu[5].text_func(), "Default directory: /mnt/us")
     equal(settings_menu[#settings_menu - 2].text, "Beta updates")
     assert(not settings_menu[#settings_menu - 2].checked_func())
     equal(settings_menu[#settings_menu - 1].text, "Update")
     assert(settings_menu[#settings_menu - 1].keep_menu_open)
     equal(settings_menu[#settings_menu].text_func(), "Version: 9.8.7")
     assert(not settings_menu[#settings_menu].enabled_func())
+
+    for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+end)
+
+test("root and default directory settings use KOReader's folder chooser", function()
+    local module_names = {
+        "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
+        "ui/widget/pathchooser", "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext",
+        "zenfm_daemon", "zenfm_updater",
+    }
+    local saved, shown = {}, {}
+    for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
+    package.loaded["dispatcher"] = { registerAction = function() end }
+    package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/inputdialog"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
+    package.loaded["ui/widget/pathchooser"] = { new = function(_, options) return options end }
+    package.loaded["ui/uimanager"] = { show = function(_, widget) table.insert(shown, widget) end }
+    package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["gettext"] = function(value) return value end
+    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
+
+    local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local settings = {
+        values = Settings.defaults(),
+        set = function(self, key, value) self.values[key] = value return true end,
+    }
+    local daemon = { settings = settings }
+    function daemon:device_root() return "/mnt/us" end
+    function daemon:root()
+        if self.settings.values.advanced_root then return "/" end
+        return self.settings.values.custom_root ~= "" and self.settings.values.custom_root or self:device_root()
+    end
+    local owner = setmetatable({ daemon = daemon }, { __index = ZenFM })
+    local menu_updates = 0
+    local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
+    equal(owner:settings_menu()[4].text_func(), "Home: /mnt/us")
+    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us")
+
+    owner:settings_menu()[4].callback(touchmenu)
+    local root_chooser = shown[#shown]
+    assert(root_chooser.select_directory and not root_chooser.select_file and not root_chooser.show_files)
+    equal(root_chooser.path, "/mnt/us")
+    root_chooser.onConfirm("/mnt/us/Library")
+    equal(settings.values.custom_root, "/mnt/us/Library")
+    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library")
+    equal(menu_updates, 1)
+
+    owner:settings_menu()[5].callback(touchmenu)
+    local default_chooser = shown[#shown]
+    equal(default_chooser.path, "/mnt/us/Library")
+    default_chooser.onConfirm("/mnt/us/Library/Books")
+    equal(settings.values.default_directory, "/Books")
+    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library/Books")
+    equal(menu_updates, 2)
+
+    owner:settings_menu()[5].callback(touchmenu)
+    local outside_chooser = shown[#shown]
+    outside_chooser.onConfirm("/mnt/us/Elsewhere")
+    equal(settings.values.default_directory, "/Books")
+    equal(menu_updates, 2)
+    equal(shown[#shown].text, "Choose a folder within ZenFM Home.")
+
+    owner:settings_menu()[4].callback(touchmenu)
+    local device_root_chooser = shown[#shown]
+    device_root_chooser.onConfirm("/mnt/us")
+    equal(settings.values.custom_root, "")
+    equal(settings.values.default_directory, "/")
+    equal(menu_updates, 3)
+    contains(shown[#shown].text, "default directory was reset to Home")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
@@ -1525,7 +1607,7 @@ test("inactivity timeout label opens a number wheel and its checkbox only toggle
     local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    local item = owner:settings_menu()[5]
+    local item = owner:settings_menu()[6]
     equal(item.text_func(), "Inactivity timeout: 30 min")
     assert(not item.checked_func())
     item.callback(touchmenu)

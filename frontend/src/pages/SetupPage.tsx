@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Alert, Button, LinearProgress, Stack } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthProvider'
+import { postAuthenticationLocation } from '../auth/navigation'
 import { offerToSavePassword } from '../auth/passwordCredential'
 import { AuthLayout } from '../components/AuthLayout'
 import { PasswordField } from '../components/PasswordField'
@@ -11,6 +12,7 @@ export function SetupPage() {
   const { t } = useTranslation()
   const { completeSetup } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [pending, setPending] = useState(false)
@@ -23,9 +25,9 @@ export function SetupPage() {
     setPending(true)
     setError('')
     try {
-      await completeSetup(password)
+      const session = await completeSetup(password)
       await offerToSavePassword(password)
-      void navigate('/files', { replace: true })
+      void navigate(postAuthenticationLocation(location.state, session.defaultDirectory), { replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('common.error'))
     } finally {

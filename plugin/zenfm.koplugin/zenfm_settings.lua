@@ -4,7 +4,7 @@ local Util = require("zenfm_util")
 local Settings = {}
 Settings.__index = Settings
 
-local settings_version = 3
+local settings_version = 4
 local default_port = 54321
 local max_auto_stop_minutes = 12 * 60
 local defaults = {
@@ -13,6 +13,7 @@ local defaults = {
     insecure_http = false,
     advanced_root = false,
     custom_root = "",
+    default_directory = "/", -- Browser-relative / is the configured Home folder.
     auto_stop_minutes = 0,
     auto_stop_last_minutes = 30,
     beta_updates = false,
@@ -53,6 +54,15 @@ local function valid_port(value)
     return port and port >= 1 and port <= 65535 and port % 1 == 0
 end
 
+local function safe_default_directory(value)
+    if type(value) ~= "string" or value:sub(1, 1) ~= "/" then return false end
+    if value ~= "/" and (value:sub(-1) == "/" or value:find("//", 1, true)) then return false end
+    for component in value:gmatch("[^/]+") do
+        if component == "." or component == ".." then return false end
+    end
+    return true
+end
+
 local function valid_auto_stop_minutes(value)
     local minutes = tonumber(value)
     return minutes and minutes >= 0 and minutes <= max_auto_stop_minutes and minutes % 1 == 0
@@ -77,6 +87,9 @@ local function sanitize(value, default_auto_stop_minutes)
     if safe_custom_root(value.custom_root) then
         result.custom_root = value.custom_root
     end
+    if safe_default_directory(value.default_directory) then
+        result.default_directory = value.default_directory
+    end
     if value.auto_stop_minutes ~= nil then
         if valid_auto_stop_minutes(value.auto_stop_minutes) then
             result.auto_stop_minutes = tonumber(value.auto_stop_minutes)
@@ -98,7 +111,7 @@ local function sanitize(value, default_auto_stop_minutes)
 end
 
 local function serialize(value)
-    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "auto_stop_minutes", "auto_stop_last_minutes", "beta_updates", "tls_cert", "tls_key" }
+    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "beta_updates", "tls_cert", "tls_key" }
     local lines = { "return {" }
     for _, key in ipairs(keys) do
         local item = value[key]
@@ -155,9 +168,7 @@ function Settings:set(key, value)
     return self:save()
 end
 
-function Settings:default_root(platform, android_storage)
-    if self.values.advanced_root then return "/" end
-    if self.values.custom_root ~= "" then return self.values.custom_root end
+function Settings:device_root(platform, android_storage)
     if platform == "kindle" then return "/mnt/us" end
     if platform == "kobo" then return "/mnt/onboard" end
     if platform == "pocketbook" then return "/mnt/ext1" end
@@ -168,6 +179,12 @@ function Settings:default_root(platform, android_storage)
     local home = os.getenv("HOME")
     if home and home:sub(1, 1) == "/" then return home end
     return nil
+end
+
+function Settings:default_root(platform, android_storage)
+    if self.values.advanced_root then return "/" end
+    if self.values.custom_root ~= "" then return self.values.custom_root end
+    return self:device_root(platform, android_storage)
 end
 
 function Settings.defaults()

@@ -357,6 +357,7 @@ public final class ZenFMActivity extends Activity {
     private Intent startIntent(Uri uri) {
         String home = validatedHome(uri);
         String root = absolute(uri.getQueryParameter("root"), true, "root");
+        String defaultDirectory = virtualDirectory(uri.getQueryParameter("default_directory"));
         int port = integer(uri.getQueryParameter("port"), 1, 65535, "port");
         boolean insecure = "1".equals(uri.getQueryParameter("insecure"));
         String autoStop = CommandRequest.requireAutoStop(uri.getQueryParameter("auto_stop"));
@@ -368,6 +369,7 @@ public final class ZenFMActivity extends Activity {
         service.setAction(ZenFMService.ACTION_START);
         service.putExtra("home", home);
         service.putExtra("root", root);
+        service.putExtra("default_directory", defaultDirectory);
         service.putExtra("port", port);
         service.putExtra("insecure", insecure);
         service.putExtra("auto_stop", autoStop);
@@ -485,6 +487,20 @@ public final class ZenFMActivity extends Activity {
 
     private static String optionalAbsolute(String value, String label) {
         return value == null || value.isEmpty() ? "" : absolute(value, false, label);
+    }
+
+    private static String virtualDirectory(String value) {
+        if (value == null || value.isEmpty() || value.length() > 4096 || value.indexOf('\0') >= 0
+                || value.indexOf('\\') >= 0 || !value.startsWith("/")
+                || (!"/".equals(value) && (value.endsWith("/") || value.contains("//")))) {
+            throw new IllegalArgumentException("default_directory");
+        }
+        for (String component : value.substring(1).split("/")) {
+            if (".".equals(component) || "..".equals(component)) {
+                throw new IllegalArgumentException("default_directory");
+            }
+        }
+        return value;
     }
 
     private static String absolute(String value, boolean allowRoot, String label) {
