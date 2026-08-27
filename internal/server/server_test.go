@@ -138,6 +138,28 @@ func TestHealthIsRedactedAndHardened(t *testing.T) {
 	}
 }
 
+func TestSessionReportsConfiguredDefaultDirectory(t *testing.T) {
+	a := newTestAPI(t)
+	a.server.cfg.DefaultDirectory = "/Books"
+	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"`+state.SetupPassword+`"}`), nil, "", "")
+	if r.Code != http.StatusOK {
+		t.Fatalf("login: %d %s", r.Code, r.Body.String())
+	}
+	if got := decodeMap(t, r)["defaultDirectory"]; got != "/Books" {
+		t.Fatalf("defaultDirectory = %#v", got)
+	}
+}
+
+func TestServerRejectsInvalidDefaultDirectory(t *testing.T) {
+	a := newTestAPI(t)
+	if _, err := New(Config{Store: a.store, Files: a.files, DefaultDirectory: "/Books/../private"}); err == nil || !strings.Contains(err.Error(), "invalid default directory") {
+		t.Fatalf("New invalid default directory: %v", err)
+	}
+	if _, err := New(Config{Store: a.store, Files: a.files, DefaultDirectory: "/missing"}); err == nil || !strings.Contains(err.Error(), "open default directory") {
+		t.Fatalf("New missing default directory: %v", err)
+	}
+}
+
 func TestSettingsReportRunningBackendVersion(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf := a.finishSetup()

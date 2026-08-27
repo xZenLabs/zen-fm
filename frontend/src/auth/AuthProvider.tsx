@@ -11,7 +11,7 @@ interface AuthContextValue {
   login: (password: string) => Promise<Session>
   logout: () => Promise<void>
   refresh: () => Promise<void>
-  completeSetup: (newPassword: string) => Promise<void>
+  completeSetup: (newPassword: string) => Promise<Session>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -92,8 +92,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const completeSetup = useCallback(async (newPassword: string) => {
     const next = await api.owner.changePassword(undefined, newPassword)
     setValidationError(null)
-    setSession({ ...next, authenticated: true, setupRequired: false })
+    const completed = { ...next, authenticated: true, setupRequired: false }
+    setSession(completed)
     setStatus('authenticated')
+    return completed
   }, [])
 
   const value = useMemo(() => ({ status, session, validationError, login, logout, refresh, completeSetup }), [completeSetup, login, logout, refresh, session, status, validationError])

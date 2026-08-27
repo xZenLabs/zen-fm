@@ -167,7 +167,7 @@ function iconFor(entry: FileEntry) {
 
 function canPasteInto(destination: string, entry: FileEntry) {
   const target = joinPath(destination, entry.name)
-  return target !== entry.path && (entry.type !== 'directory' || !target.startsWith(`${entry.path}/`))
+  return entry.type !== 'directory' || target === entry.path || !target.startsWith(`${entry.path}/`)
 }
 
 export function FilesPage() {
@@ -844,7 +844,7 @@ export function FilesPage() {
           </Stack>
         </CardContent></Card>
 
-        {upload && <Alert icon={<UploadRounded />} action={<Button color="inherit" size="small" onClick={cancelUpload}>{t('common.cancel')}</Button>}><Stack width="100%" gap={0.5}>
+        {upload && <Alert icon={<UploadRounded />} action={<Button color="inherit" size="small" onClick={cancelUpload}>{t('common.cancel')}</Button>} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#123f39' : undefined }}><Stack width="100%" gap={0.5}>
           <Typography>{t('files.uploadingBatch', { completed: upload.completedFiles, count: upload.totalFiles, name: upload.name })}</Typography>
           <Typography variant="caption" color="text.secondary">{t('files.uploadingProgress', { uploaded: formatBytes(upload.uploadedBytes), total: formatBytes(upload.totalBytes), progress: uploadPercentage })}</Typography>
           <LinearProgress aria-label={t('files.uploadProgress')} variant="determinate" value={uploadPercentage} />

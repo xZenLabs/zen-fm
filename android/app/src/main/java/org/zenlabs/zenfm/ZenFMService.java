@@ -29,7 +29,7 @@ public final class ZenFMService extends Service {
     static final String ACTION_RESET = "org.zenlabs.zenfm.action.RESET";
     private static final String CHANNEL = "zenfm-server";
     private static final int NOTIFICATION = 4197;
-    private static final int DEFAULT_PORT = 53241;
+    private static final int DEFAULT_PORT = 54321;
     private Process process;
     private Thread worker;
     private Config config;
@@ -311,6 +311,7 @@ public final class ZenFMService extends Service {
         List<String> command = new ArrayList<String>();
         command.add(executable); command.add("serve");
         command.add("--root"); command.add(value.root);
+        command.add("--default-directory"); command.add(value.defaultDirectory);
         command.add("--data-dir"); command.add(getFilesDir().getAbsolutePath());
         command.add("--listen"); command.add("0.0.0.0:" + value.port);
         command.add("--control-socket"); command.add(socketPath());
@@ -478,24 +479,27 @@ public final class ZenFMService extends Service {
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private static final class Config {
-        final String home, root, autoStop, certificate, key, requestId;
+        final String home, root, defaultDirectory, autoStop, certificate, key, requestId;
         final int port;
         final boolean insecure;
-        Config(String home, String root, int port, boolean insecure, String autoStop,
+        Config(String home, String root, String defaultDirectory, int port, boolean insecure, String autoStop,
             String certificate, String key, String requestId) {
             this.home = home; this.root = root; this.port = port; this.insecure = insecure;
+            this.defaultDirectory = defaultDirectory;
             this.autoStop = autoStop; this.certificate = certificate; this.key = key;
             this.requestId = requestId == null ? "" : requestId;
         }
         boolean sameAs(Config other) {
-            return other != null && home.equals(other.home) && root.equals(other.root) && port == other.port
+            return other != null && home.equals(other.home) && root.equals(other.root)
+                && defaultDirectory.equals(other.defaultDirectory) && port == other.port
                 && insecure == other.insecure && autoStop.equals(other.autoStop)
                 && certificate.equals(other.certificate) && key.equals(other.key);
         }
         static Config from(Intent intent) {
             String home = intent.getStringExtra("home"), root = intent.getStringExtra("root");
-            if (home == null || root == null) return null;
-            return new Config(home, root, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
+            String defaultDirectory = intent.getStringExtra("default_directory");
+            if (home == null || root == null || defaultDirectory == null) return null;
+            return new Config(home, root, defaultDirectory, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
                 intent.getStringExtra("auto_stop"), intent.getStringExtra("tls_cert"), intent.getStringExtra("tls_key"),
                 intent.getStringExtra("request_id"));
         }
@@ -503,6 +507,7 @@ public final class ZenFMService extends Service {
         void save(Service service) {
             // A command may immediately kill this process; the service config must be durable first.
             service.getSharedPreferences("server", MODE_PRIVATE).edit().putString("home", home).putString("root", root)
+                .putString("default_directory", defaultDirectory)
                 .putInt("port", port).putBoolean("insecure", insecure).putString("auto_stop", autoStop)
                 .putString("certificate", certificate).putString("key", key).commit();
         }
@@ -510,7 +515,7 @@ public final class ZenFMService extends Service {
             SharedPreferences p = service.getSharedPreferences("server", MODE_PRIVATE);
             String home = p.getString("home", null), root = p.getString("root", null);
             if (home == null || root == null) return null;
-            return new Config(home, root, p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
+            return new Config(home, root, p.getString("default_directory", "/"), p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
                 p.getString("auto_stop", "0"), p.getString("certificate", ""), p.getString("key", ""), "");
         }
     }

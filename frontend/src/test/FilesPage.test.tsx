@@ -484,6 +484,24 @@ describe('file browser', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Paste' })).not.toBeInTheDocument())
   })
 
+  it('allows pasting an item back into its current folder', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [{ name: 'notes.txt', path: '/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' }],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    fireEvent.contextMenu(await screen.findByRole('row', { name: /notes\.txt/ }))
+    await user.click(screen.getByRole('menuitem', { name: 'Copy' }))
+    fireEvent.contextMenu(document.querySelector('.file-listing')!)
+
+    const paste = screen.getByRole('menuitem', { name: 'Paste' })
+    expect(paste).toBeEnabled()
+    await user.click(paste)
+    expect(screen.getByRole('dialog', { name: 'File already exists' })).toBeInTheDocument()
+  })
+
   it('opens folders on double click', async () => {
     server.use(http.get('http://localhost/api/v1/files', ({ request }) => {
       const path = new URL(request.url).searchParams.get('path')

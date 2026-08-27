@@ -348,6 +348,64 @@ it('offers an explicit replacement after a copy destination conflict', async () 
   expect(onClose).toHaveBeenCalledOnce()
 })
 
+it('asks whether to overwrite or duplicate a same-folder paste', async () => {
+  const requests: Array<{ source: string; destination: string; overwrite: boolean }> = []
+  server.use(
+    http.get('http://localhost/api/v1/files', ({ request }) => {
+      expect(new URL(request.url).searchParams.get('path')).toBe('/Downloads')
+      expect(new URL(request.url).searchParams.get('hidden')).toBe('true')
+      return HttpResponse.json({
+        path: '/Downloads', advancedMode: false,
+        entries: [
+          { name: 'notes.txt', path: '/Downloads/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' },
+          { name: 'notes copy.txt', path: '/Downloads/notes copy.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' },
+        ],
+      })
+    }),
+    http.post('http://localhost/api/v1/files/copy-size', () => HttpResponse.json({ items: [{ source: '/Downloads/notes.txt', bytes: 8 }], totalBytes: 8 })),
+    http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+      requests.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+      return new HttpResponse('{"copiedBytes":8,"done":true}\n', { headers: { 'Content-Type': 'application/x-ndjson' } })
+    }),
+  )
+  const entry: FileEntry = { name: 'notes.txt', path: '/Downloads/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const onClose = vi.fn()
+  const onDone = vi.fn()
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entries={[entry]} copyDestination="/Downloads" onClose={onClose} onDone={onDone} /></QueryClientProvider>)
+
+  expect(screen.getByRole('heading', { name: 'File already exists' })).toBeInTheDocument()
+  expect(screen.getByText('notes.txt already exists in this folder. Do you want to overwrite it or create a duplicate?')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Overwrite' })).toBeInTheDocument()
+  expect(requests).toEqual([])
+
+  await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+
+  await waitFor(() => expect(requests).toEqual([{ source: '/Downloads/notes.txt', destination: '/Downloads/notes copy 2.txt', overwrite: false }]))
+  expect(onDone).toHaveBeenCalledOnce()
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+it('explicitly overwrites when that same-folder paste choice is confirmed', async () => {
+  const requests: Array<{ source: string; destination: string; overwrite: boolean }> = []
+  server.use(
+    http.post('http://localhost/api/v1/files/copy-size', () => HttpResponse.json({ items: [{ source: '/Downloads/notes.txt', bytes: 8 }], totalBytes: 8 })),
+    http.post('http://localhost/api/v1/files/copy', async ({ request }) => {
+      requests.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+      return new HttpResponse('{"copiedBytes":8,"done":true}\n', { headers: { 'Content-Type': 'application/x-ndjson' } })
+    }),
+  )
+  const entry: FileEntry = { name: 'notes.txt', path: '/Downloads/notes.txt', type: 'file', size: 8, modifiedAt: '2026-01-01T00:00:00Z' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><PathActionDialog action="copy" entries={[entry]} copyDestination="/Downloads" onClose={() => undefined} onDone={() => undefined} /></QueryClientProvider>)
+
+  await user.click(screen.getByRole('button', { name: 'Overwrite' }))
+
+  await waitFor(() => expect(requests).toEqual([{ source: '/Downloads/notes.txt', destination: '/Downloads/notes.txt', overwrite: true }]))
+})
+
 it('moves an entry into a folder chosen in the dialog', async () => {
   const requests: Array<{ source: string; destination: string; overwrite: boolean }> = []
   server.use(

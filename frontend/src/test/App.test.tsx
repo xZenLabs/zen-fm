@@ -5,6 +5,54 @@ import { server } from './server'
 import { renderApp } from './renderApp'
 
 describe('authentication flow', () => {
+  it('returns to the requested directory after signing in again', async () => {
+    let listedPath = ''
+    server.use(
+      http.get('http://localhost/api/v1/session', () => HttpResponse.json({ title: 'Unauthorized', status: 401 }, { status: 401 })),
+      http.post('http://localhost/api/v1/session', () => HttpResponse.json({
+        authenticated: true,
+        setupRequired: false,
+        defaultDirectory: '/Fallback',
+        csrfToken: 'return-location-csrf-value-123456',
+      })),
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        listedPath = new URL(request.url).searchParams.get('path') ?? ''
+        return HttpResponse.json({ path: listedPath, advancedMode: false, entries: [] })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files/Books')
+
+    await user.type(await screen.findByLabelText(/Password/), 'owner password')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => expect(listedPath).toBe('/Books'))
+  })
+
+  it('opens the configured default directory on a fresh login', async () => {
+    let listedPath = ''
+    server.use(
+      http.get('http://localhost/api/v1/session', () => HttpResponse.json({ title: 'Unauthorized', status: 401 }, { status: 401 })),
+      http.post('http://localhost/api/v1/session', () => HttpResponse.json({
+        authenticated: true,
+        setupRequired: false,
+        defaultDirectory: '/Books/Unread',
+        csrfToken: 'default-directory-csrf-value-12345',
+      })),
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        listedPath = new URL(request.url).searchParams.get('path') ?? ''
+        return HttpResponse.json({ path: listedPath, advancedMode: false, entries: [] })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/login')
+
+    await user.type(await screen.findByLabelText(/Password/), 'owner password')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => expect(listedPath).toBe('/Books/Unread'))
+  })
+
   it('shows login and routes a temporary owner session to mandatory setup', async () => {
     let loginBody: Record<string, unknown> | undefined
     server.use(
@@ -113,6 +161,26 @@ describe('authentication flow', () => {
       else Reflect.deleteProperty(navigator, 'credentials')
     }
   })
+
+  it('opens the configured default directory for an existing fresh session', async () => {
+    let listedPath = ''
+    server.use(
+      http.get('http://localhost/api/v1/session', () => HttpResponse.json({
+        authenticated: true,
+        setupRequired: false,
+        defaultDirectory: '/Books/Current',
+        csrfToken: 'existing-session-csrf-value-123456',
+      })),
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        listedPath = new URL(request.url).searchParams.get('path') ?? ''
+        return HttpResponse.json({ path: listedPath, advancedMode: false, entries: [] })
+      }),
+    )
+
+    renderApp('/')
+
+    await waitFor(() => expect(listedPath).toBe('/Books/Current'))
+  })
 })
 
 describe('responsive and accessible shell', () => {
@@ -191,6 +259,7 @@ describe('responsive and accessible shell', () => {
     renderApp('/settings')
 
     expect(await screen.findByText('Version: 9.8.7-backend')).toBeInTheDocument()
+    expect(screen.getByText('Home: /mnt/us')).toBeInTheDocument()
   })
 
   it('places the hidden-file preference in general settings', async () => {

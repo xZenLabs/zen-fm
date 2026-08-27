@@ -31,6 +31,7 @@ type Config struct {
 	Files              *zenfiles.Root
 	StaticFS           fs.FS
 	Version            string
+	DefaultDirectory   string
 	SecureTransport    bool
 	SessionIdle        time.Duration
 	SessionAbsolute    time.Duration
@@ -83,6 +84,21 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.Version == "" {
 		cfg.Version = "dev"
+	}
+	if cfg.DefaultDirectory == "" {
+		cfg.DefaultDirectory = "/"
+	}
+	defaultDirectory, err := zenfiles.Normalize(cfg.DefaultDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("invalid default directory: %w", err)
+	}
+	cfg.DefaultDirectory = zenfiles.PublicPath(defaultDirectory)
+	defaultEntry, err := cfg.Files.Entry(cfg.DefaultDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("open default directory: %w", err)
+	}
+	if !defaultEntry.Directory {
+		return nil, errors.New("default directory is not a directory")
 	}
 	if cfg.SessionIdle <= 0 {
 		cfg.SessionIdle = 2 * time.Hour
@@ -513,7 +529,8 @@ func sessionCookieName(secure bool) string {
 func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
 		"authenticated": true, "setupRequired": setup,
-		"csrfToken": v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
+		"defaultDirectory": s.cfg.DefaultDirectory,
+		"csrfToken":        v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }
 

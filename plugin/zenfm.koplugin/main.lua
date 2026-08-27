@@ -8,6 +8,8 @@ local _ = require("zenfm_i18n").translate
 
 local Daemon = require("zenfm_daemon")
 local Updater = require("zenfm_updater")
+local Util = require("zenfm_util")
+if Daemon.stopped_notice_armed == nil then Daemon.stopped_notice_armed = false end
 
 local ZenFM = WidgetContainer:extend{
     name = "zenfm",
@@ -116,7 +118,7 @@ function ZenFM:onExit()
     self.android_pending = nil
     self.android_running = false
     self.server_monitor = nil
-    self.daemon:stop()
+    Daemon.stopped_notice_armed = false
 end
 
 function ZenFM:schedule_server_monitor(monitor)
@@ -135,6 +137,8 @@ function ZenFM:check_server_monitor(monitor)
     end
     self.server_monitor = nil
     self.android_running = false
+    if not Daemon.stopped_notice_armed then return end
+    Daemon.stopped_notice_armed = false
     notice(type(detail) == "string" and detail:match("^idle_stopped")
         and _("ZenFM stopped after inactivity.") or _("ZenFM stopped."))
 end
@@ -143,6 +147,7 @@ function ZenFM:start_server_monitor(running)
     self.server_monitor = nil
     if running == nil then running = self.daemon:status() end
     if not running then return end
+    Daemon.stopped_notice_armed = true
     local monitor = {}
     monitor.callback = function() self:check_server_monitor(monitor) end
     self.server_monitor = monitor
@@ -197,7 +202,10 @@ function ZenFM:onToggleZenFM()
         local running = self:android_cached_running()
         if not running and self:wait_for_network_before_start() then return true end
         local action = running and "stop" or "start"
-        if running then self.server_monitor = nil end
+        if running then
+            self.server_monitor = nil
+            Daemon.stopped_notice_armed = false
+        end
         local started = self:begin_android_action(action, function(ok, detail)
             if not ok then
                 if action == "stop" then self:start_server_monitor(true) end
@@ -220,7 +228,12 @@ function ZenFM:onToggleZenFM()
     local running = self.daemon:status()
     if not running and self:wait_for_network_before_start() then return true end
     local ok, detail
-    if running then ok, detail = self.daemon:stop() else ok, detail = self.daemon:start() end
+    if running then
+        Daemon.stopped_notice_armed = false
+        ok, detail = self.daemon:stop()
+    else
+        ok, detail = self.daemon:start()
+    end
     local success = running and _("ZenFM stopped.") or _("ZenFM started.")
     if ok and not running then
         self:start_server_monitor(true)
@@ -329,21 +342,105 @@ function ZenFM:show_auto_stop_dialog(touchmenu_instance)
     })
 end
 
-function ZenFM:show_path_dialog(key, title, allow_empty)
-    input_dialog(self, title, self.daemon.settings.values[key], nil, function(raw)
-        if raw == "" and allow_empty then return self.daemon.settings:set(key, "") end
-        if raw:sub(1, 1) ~= "/" then return false, _("Use an absolute path beginning with /.") end
-        if key == "custom_root" then
-            if raw:gsub("/", "") == "" then
-                return false, _("Use Advanced root to expose /. Custom roots cannot contain . or .. components.")
-            end
-            for component in raw:gmatch("[^/]+") do
-                if component == "." or component == ".." then
-                    return false, _("Use Advanced root to expose /. Custom roots cannot contain . or .. components.")
-                end
-            end
+local function clean_directory_path(path)
+    if type(path) ~= "string" or path:sub(1, 1) ~= "/" then return nil end
+    path = path:gsub("/+$", "")
+    return path == "" and "/" or path
+end
+
+local function canonical_directory_path(path)
+    path = clean_directory_path(path)
+    if not path then return nil end
+    local ok, ffi_util = pcall(require, "ffi/util")
+    if ok and ffi_util and type(ffi_util.realpath) == "function" then
+        local resolved = ffi_util.realpath(path)
+        if resolved then path = clean_directory_path(resolved) or path end
+    end
+    return path
+end
+
+local function directory_within_root(path, root)
+    path, root = canonical_directory_path(path), canonical_directory_path(root)
+    if not path or not root then return nil end
+    if path == root then return "/" end
+    if root == "/" then return path end
+    if path:sub(1, #root + 1) == root .. "/" then return path:sub(#root + 1) end
+    return nil
+end
+
+local function directory_from_root(root, relative)
+    root = clean_directory_path(root)
+    if not root then return nil end
+    if relative == "/" then return root end
+    return root == "/" and relative or root .. relative
+end
+
+function ZenFM:show_directory_chooser(path, on_confirm)
+    local PathChooser = require("ui/widget/pathchooser")
+    UIManager:show(PathChooser:new{
+        select_directory = true,
+        select_file = false,
+        show_files = false,
+        path = path,
+        onConfirm = on_confirm,
+    })
+end
+
+function ZenFM:show_root_chooser(touchmenu_instance)
+    local settings = self.daemon.settings
+    self:show_directory_chooser(self.daemon:root() or self.daemon:device_root() or "/", function(selected)
+        selected = canonical_directory_path(selected)
+        if not selected then
+            notice(_("Invalid value."), true)
+            return
         end
-        return self.daemon.settings:set(key, raw)
+        if selected == "/" then
+            if not settings.values.advanced_root then self:confirm_advanced_root(touchmenu_instance) end
+            return
+        end
+
+        local device_root = canonical_directory_path(self.daemon:device_root())
+        local custom_root = selected == device_root and "" or selected
+        local saved = settings:set("custom_root", custom_root)
+        if saved and settings.values.advanced_root then saved = settings:set("advanced_root", false) end
+        local default_reset = false
+        local default_directory = settings.values.default_directory or "/"
+        if saved and default_directory ~= "/"
+            and not Util.is_directory(directory_from_root(selected, default_directory)) then
+            saved = settings:set("default_directory", "/")
+            default_reset = saved
+        end
+        if not saved then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(default_reset
+            and _("Saved. The default directory was reset to Home. Restart ZenFM to apply the change.")
+            or _("Saved. Restart ZenFM to apply the change."))
+    end)
+end
+
+function ZenFM:show_default_directory_chooser(touchmenu_instance)
+    local root = canonical_directory_path(self.daemon:root())
+    if not root then
+        notice(_("Configure ZenFM Home first."), true)
+        return
+    end
+    local current = directory_from_root(root, self.daemon.settings.values.default_directory or "/")
+    if not Util.is_directory(current) then current = root end
+    self:show_directory_chooser(current, function(selected)
+        local relative = directory_within_root(selected, root)
+        if not relative then
+            notice(_("Choose a folder within ZenFM Home."), true)
+            return
+        end
+        if not self.daemon.settings:set("default_directory", relative) then
+            notice(_("Invalid value."), true)
+            return
+        end
+        if touchmenu_instance then touchmenu_instance:updateItems() end
+        notice(_("Saved. Restart ZenFM to apply the change."))
     end)
 end
 
@@ -351,6 +448,7 @@ function ZenFM:restart_after_server_setting_change()
     if self.daemon:is_android() then
         if not self:android_cached_running() then return true end
         self.server_monitor = nil
+        Daemon.stopped_notice_armed = false
         local started = self:begin_android_action("start", function(ok, detail)
             if not ok then
                 self:start_server_monitor(true)
@@ -366,6 +464,7 @@ function ZenFM:restart_after_server_setting_change()
     end
     if not self.daemon:status() then return true end
     self.server_monitor = nil
+    Daemon.stopped_notice_armed = false
     local ok, detail = self.daemon:restart()
     if not ok then
         notice(tostring(detail), true)
@@ -431,6 +530,7 @@ function ZenFM:confirm_reset_login()
         ok_text = _("Reset login"),
         ok_callback = function()
             self.server_monitor = nil
+            Daemon.stopped_notice_armed = false
             local success = _("Login reset. Use koreader123456789 and choose a new password.")
             if self.daemon:is_android() then
                 local started = self:begin_android_action("reset", function(ok, detail)
@@ -445,6 +545,67 @@ function ZenFM:confirm_reset_login()
             notice(ok and success or tostring(err), not ok, ok)
         end,
     })
+end
+
+function ZenFM:prompt_update_restart()
+    UIManager:show(ConfirmBox:new{
+        text = _("A restart is required to take effect."),
+        ok_text = _("Restart now"),
+        cancel_text = _("Restart later"),
+        ok_callback = function()
+            notice(_("Restarting…"), false, true)
+            UIManager:forceRePaint()
+            UIManager:nextTick(function()
+                UIManager:nextTick(function()
+                    UIManager:restartKOReader()
+                end)
+            end)
+        end,
+    })
+end
+
+function ZenFM:install_update(beta_updates, version)
+    local progress = notice(_("Installing ZenFM update…"), false, true)
+    UIManager:forceRePaint()
+    UIManager:scheduleIn(0.1, function()
+        local Trapper = require("ui/trapper")
+        Trapper:wrap(function()
+            local co = coroutine.running()
+            local timed_out = false
+            local timeout_callback = function()
+                timed_out = true
+                coroutine.resume(co, false)
+            end
+            UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
+            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.prepare_latest(self.daemon, beta_updates, version)
+            end, progress)
+            UIManager:unschedule(timeout_callback)
+            if not completed then
+                close_notice(progress)
+                notice(timed_out and _("ZenFM update timed out.") or _("ZenFM update cancelled."), timed_out)
+                return
+            end
+
+            local ok = false
+            if prepared then ok, result = Updater.activate_stage(self.daemon, result) end
+            close_notice(progress)
+            if self.daemon:is_android() then
+                local plugin_failed = not ok
+                notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
+                    .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
+                local companion_ok, companion_result = self.daemon:open_android("update")
+                if not companion_ok then notice(tostring(companion_result), true) end
+                if ok then self:prompt_update_restart() end
+                return
+            end
+            if not ok then
+                notice(tostring(result), true)
+                return
+            end
+            self:prompt_update_restart()
+        end)
+    end)
 end
 
 function ZenFM:update()
@@ -473,8 +634,8 @@ function ZenFM:update()
                 coroutine.resume(co, false)
             end
             UIManager:scheduleIn(update_timeout_seconds, timeout_callback)
-            local completed, prepared, result = Trapper:dismissableRunInSubprocess(function()
-                return Updater.prepare_latest(self.daemon, beta_updates)
+            local completed, available, result = Trapper:dismissableRunInSubprocess(function()
+                return Updater.check_latest(self.daemon, beta_updates)
             end, progress)
             UIManager:unschedule(timeout_callback)
             close_notice(progress)
@@ -483,35 +644,25 @@ function ZenFM:update()
                 return
             end
 
-            local ok = false
-            if prepared then
-                local installing = notice(_("Installing ZenFM update…"), false, true)
-                UIManager:forceRePaint()
-                ok, result = Updater.activate_stage(self.daemon, result)
-                close_notice(installing)
-            end
-            if self.daemon:is_android() then
-                local plugin_failed = not ok and result ~= "ZenFM is up to date"
+            if self.daemon:is_android() and not available then
+                local plugin_failed = result ~= "ZenFM is up to date"
                 notice(_("KOReader plugin bundle:") .. " " .. tostring(result)
                     .. "\n" .. _("Android companion APK: opening updater…"), plugin_failed)
                 local companion_ok, companion_result = self.daemon:open_android("update")
                 if not companion_ok then notice(tostring(companion_result), true) end
                 return
             end
-            if not ok then
+            if not available then
                 notice(tostring(result), result ~= "ZenFM is up to date")
                 return
             end
 
             UIManager:show(ConfirmBox:new{
-                text = tostring(result),
-                ok_text = _("Restart now"),
-                cancel_text = _("Later"),
+                text = string.format(_("ZenFM update v%s is available."), tostring(result)),
+                ok_text = _("Install now"),
+                cancel_text = _("Install later"),
                 ok_callback = function()
-                    notice(_("Restarting…"), false, true)
-                    UIManager:tickAfterNext(function()
-                        UIManager:restartKOReader()
-                    end)
+                    self:install_update(beta_updates, result)
                 end,
             })
         end)
@@ -547,10 +698,21 @@ function ZenFM:settings_menu()
         },
         {
             text_func = function()
-                return _("Root: ") .. (self.daemon:root() or _("not configured"))
+                return _("Home: ") .. (self.daemon:root() or _("not configured"))
             end,
             keep_menu_open = true,
-            callback = function() self:show_path_dialog("custom_root", _("Custom root (blank uses device default)"), true) end,
+            callback = function(touchmenu_instance) self:show_root_chooser(touchmenu_instance) end,
+        },
+        {
+            text_func = function()
+                local directory = directory_from_root(
+                    self.daemon:root(),
+                    self.daemon.settings.values.default_directory or "/"
+                )
+                return _("Default directory: ") .. (directory or _("not configured"))
+            end,
+            keep_menu_open = true,
+            callback = function(touchmenu_instance) self:show_default_directory_chooser(touchmenu_instance) end,
         },
         {
             text_func = function()
@@ -589,6 +751,7 @@ function ZenFM:settings_menu()
         },
         {
             text = _("Update"),
+            keep_menu_open = true,
             callback = function() self:update() end,
         },
         {

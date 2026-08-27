@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Alert, Button, Stack } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthProvider'
+import { postAuthenticationLocation } from '../auth/navigation'
 import { offerToSavePassword } from '../auth/passwordCredential'
 import { AuthLayout } from '../components/AuthLayout'
 import { PasswordField } from '../components/PasswordField'
@@ -11,6 +12,7 @@ export function LoginPage() {
   const { t } = useTranslation()
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
@@ -22,7 +24,11 @@ export function LoginPage() {
     try {
       const session = await login(password)
       if (!session.setupRequired) await offerToSavePassword(password)
-      void navigate(session.setupRequired ? '/setup' : '/files', { replace: true })
+      const destination = postAuthenticationLocation(location.state, session.defaultDirectory)
+      void navigate(session.setupRequired ? '/setup' : destination, {
+        replace: true,
+        state: session.setupRequired ? { returnTo: destination } : undefined,
+      })
     } catch {
       setError(t('auth.passwordFailed'))
     } finally {

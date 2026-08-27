@@ -77,13 +77,16 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	if _, err := os.Lstat(path); !os.IsNotExist(err) {
 		t.Fatalf("socket was not cleaned: %v", err)
 	}
-	for _, expected := range []string{"control socket setup started", "control socket ready", "command=status", "invalid command", "command=stop"} {
+	for _, expected := range []string{"control socket ready", "invalid command", "command=stop"} {
 		if !strings.Contains(logs.String(), expected) {
 			t.Errorf("control diagnostics %q missing %q", logs.String(), expected)
 		}
 	}
 	if strings.Contains(logs.String(), "unknown") {
 		t.Fatalf("control diagnostics included untrusted command text: %q", logs.String())
+	}
+	if strings.Contains(logs.String(), "command=status") {
+		t.Fatalf("control status polling produced diagnostics: %q", logs.String())
 	}
 }
 

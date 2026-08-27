@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/xZenLabs/zen-fm/internal/state"
 )
 
 func TestRunVersionAndUnknownCommand(t *testing.T) {
@@ -37,6 +39,29 @@ func TestServeRejectsNonPositiveSessionLifetimes(t *testing.T) {
 		if code := run(arguments, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "invalid serve arguments") {
 			t.Fatalf("run(%v): %d %q", arguments, code, stderr.String())
 		}
+	}
+}
+
+func TestServeDebugFlagControlsDiagnostics(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		arguments []string
+		wantDebug bool
+	}{
+		{name: "disabled"},
+		{name: "enabled", arguments: []string{"--debug"}, wantDebug: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			missingRoot := filepath.Join(t.TempDir(), "missing")
+			arguments := append([]string{"serve", "--root", missingRoot, "--data-dir", t.TempDir()}, test.arguments...)
+			if code := run(arguments, &stdout, &stderr); code != 1 {
+				t.Fatalf("run: %d %q", code, stderr.String())
+			}
+			if got := strings.Contains(stderr.String(), "debug: server setup started"); got != test.wantDebug {
+				t.Fatalf("debug output present = %v, want %v: %q", got, test.wantDebug, stderr.String())
+			}
+		})
 	}
 }
 
@@ -98,7 +123,7 @@ func (l *pipeListener) Dial() (net.Conn, error) {
 }
 
 func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
-	listener := newPipeListener("kindle.local:53241")
+	listener := newPipeListener("kindle.local:54321")
 	_, plainListener, dispatcher := splitProtocols(listener, nil)
 	defer dispatcher.Close()
 	redirectServer := &http.Server{Handler: httpsRedirectHandler()}
@@ -108,13 +133,13 @@ func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 	transport := &http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) { return listener.Dial() }}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Get("http://kindle.local:53241/files/a%20b?view=grid")
+	response, err := client.Get("http://kindle.local:54321/files/a%20b?view=grid")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, response.Body)
-	want := "https://kindle.local:53241/files/a%20b?view=grid"
+	want := "https://kindle.local:54321/files/a%20b?view=grid"
 	if response.StatusCode != http.StatusTemporaryRedirect || response.Header.Get("Location") != want {
 		t.Fatalf("redirect = %d %q, want %d %q", response.StatusCode, response.Header.Get("Location"), http.StatusTemporaryRedirect, want)
 	}
@@ -124,7 +149,7 @@ func TestHTTPOnHTTPSPortRedirectsToSameLocation(t *testing.T) {
 }
 
 func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
-	listener := newPipeListener("kindle.local:53241")
+	listener := newPipeListener("kindle.local:54321")
 	var logs bytes.Buffer
 	tlsListener, _, dispatcher := splitProtocols(listener, log.New(&logs, "", 0))
 	defer dispatcher.Close()
@@ -149,12 +174,12 @@ func TestProtocolDispatcherPreservesTLSHandshakeBytes(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatalf("TLS bytes = %x, want %x", got, want)
 	}
-	if !strings.Contains(logs.String(), "connection classified:") || !strings.Contains(logs.String(), "protocol=https") {
-		t.Fatalf("protocol diagnostics = %q", logs.String())
+	if logs.Len() != 0 {
+		t.Fatalf("successful protocol detection produced diagnostics: %q", logs.String())
 	}
 }
 
-func TestRequestDiagnosticsReportOutcomeWithoutSecrets(t *testing.T) {
+func TestRequestDiagnosticsReportFailuresWithoutSecrets(t *testing.T) {
 	var logs bytes.Buffer
 	logger := log.New(&logs, "", 0)
 	handler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -187,13 +212,22 @@ func TestRequestDiagnosticsReportOutcomeWithoutSecrets(t *testing.T) {
 		}
 	}
 	logs.Reset()
-	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/assets/app.js", nil)
+	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/api/v1/files", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	successHandler := logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}), logger)
+	successHandler.ServeHTTP(httptest.NewRecorder(), request)
+	if logs.Len() != 0 {
+		t.Fatalf("successful API request produced diagnostics: %q", logs.String())
+	}
+
+	request, err = http.NewRequest(http.MethodGet, "http://zenfm.test/assets/app.js", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	successHandler.ServeHTTP(httptest.NewRecorder(), request)
 	if logs.Len() != 0 {
 		t.Fatalf("successful static request produced diagnostics: %q", logs.String())
@@ -213,6 +247,22 @@ func TestResetLoginCommand(t *testing.T) {
 	stderr.Reset()
 	if code := run([]string{"reset-login", "--data-dir", dataDir, "--mode-less-filesystem"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("mode-less reset: %d %q", code, stderr.String())
+	}
+
+	koboDataDir := filepath.Join(t.TempDir(), "kobo-state")
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"reset-login", "--data-dir", koboDataDir, "--show-hidden-by-default"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Kobo reset: %d %q", code, stderr.String())
+	}
+	store, err := state.Open(filepath.Join(koboDataDir, "zenfm.db"), state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	settings, err := store.Settings()
+	if err != nil || !settings.ShowHidden {
+		t.Fatalf("unexpected Kobo defaults: %+v, %v", settings, err)
 	}
 }
 

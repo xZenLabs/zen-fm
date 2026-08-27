@@ -151,7 +151,7 @@ documented under `docs/` and in [SECURITY.md](SECURITY.md).
 | Search request | 2 minutes |
 | Upload and download | No total limit; 30 seconds without progress |
 | Server auto-stop | 30 minutes on Android; off elsewhere; configurable up to 12 hours |
-| HTTPS and explicit HTTP port | 53241 by default, shared by both modes |
+| HTTPS and explicit HTTP port | 54321 by default, shared by both modes |
 
 The `serve` command exposes `--session-idle` and `--session-absolute` for
 controlled deployments and qualification tests; KOReader uses the defaults.

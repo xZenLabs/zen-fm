@@ -37,9 +37,10 @@ var (
 )
 
 type Options struct {
-	PasswordParams     auth.PasswordParams
-	Now                func() time.Time
-	ModeLessFilesystem bool
+	PasswordParams      auth.PasswordParams
+	Now                 func() time.Time
+	ModeLessFilesystem  bool
+	ShowHiddenByDefault bool
 }
 
 type Store struct {
@@ -137,14 +138,14 @@ func Open(path string, opts Options) (*Store, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 	s := &Store{db: db, now: opts.Now}
-	if err := s.initialize(opts.PasswordParams); err != nil {
+	if err := s.initialize(opts.PasswordParams, opts.ShowHiddenByDefault); err != nil {
 		db.Close()
 		return nil, err
 	}
 	return s, nil
 }
 
-func (s *Store) initialize(params auth.PasswordParams) error {
+func (s *Store) initialize(params auth.PasswordParams, showHiddenByDefault bool) error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		for _, name := range [][]byte{bucketOwner, bucketSettings, bucketSessions, bucketTokens, bucketShares, bucketShareSecrets, bucketPublicSessions, bucketUploads} {
 			if _, err := tx.CreateBucketIfNotExists(name); err != nil {
@@ -170,7 +171,7 @@ func (s *Store) initialize(params auth.PasswordParams) error {
 	}
 	now := s.now().Unix()
 	owner := Owner{PasswordHash: hash, SetupRequired: true, PasswordSetAt: now}
-	settings := Settings{Theme: "system", Locale: "en", ShowHidden: false, ClientTimeoutSeconds: 30}
+	settings := Settings{Theme: "system", Locale: "en", ShowHidden: showHiddenByDefault, ClientTimeoutSeconds: 30}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		if tx.Bucket(bucketOwner).Get(ownerKey) != nil {
 			return nil

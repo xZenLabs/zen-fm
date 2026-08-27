@@ -38,9 +38,6 @@ func (s *Server) Run(ctx context.Context) error {
 	if s.Path == "" || s.Stop == nil {
 		return errors.New("control socket path and stop callback are required")
 	}
-	if s.Logger != nil {
-		s.Logger.Printf("control socket setup started: path=%q", s.Path)
-	}
 	if err := removeStaleSocket(s.Path); err != nil {
 		return err
 	}
@@ -84,9 +81,6 @@ func (s *Server) Run(ctx context.Context) error {
 			}
 			return err
 		}
-		if s.Logger != nil {
-			s.Logger.Printf("control connection accepted")
-		}
 		s.handle(connection)
 	}
 }
@@ -110,8 +104,9 @@ func (s *Server) handle(connection *net.UnixConn) {
 	command := strings.TrimSpace(line)
 	if s.Logger != nil {
 		switch command {
-		case "status", "stop":
+		case "stop":
 			s.Logger.Printf("control request received: command=%s", command)
+		case "status":
 		default:
 			s.Logger.Printf("control request received: invalid command")
 		}
