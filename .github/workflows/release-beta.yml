@@ -194,3 +194,12 @@ jobs:
             --title "ZenFM $TAG" \
             --notes-file "$RUNNER_TEMP/zenfm-release-notes.md" \
             --prerelease
+
+      - name: Refresh ZenPM package
+        env:
+          GH_TOKEN: ${{ secrets.ZENPM_REPO_TOKEN }}
+        run: |
+          gh workflow run scrape-plugins.yml \
+            --repo xZenLabs/repo \
+            --ref main \
+            --field package=zenfm
