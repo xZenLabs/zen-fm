@@ -31,7 +31,7 @@ public final class ManifestPolicyTest {
         assertTrue(manifest.contains("android.intent.category.LAUNCHER"));
         assertFalse(manifest.contains("android:scheme=\"zenfm\""));
         assertTrue(Files.size(source("src/main/res/drawable-nodpi/zenfm_icon.png")) > 0);
-        assertTrue(Files.size(source("src/main/res/drawable-night-nodpi/zenfm_icon.png")) > 0);
+        assertFalse(Files.exists(source("src/main/res/drawable-night-nodpi/zenfm_icon.png")));
         assertFalse(manifest.contains("android.permission.FOREGROUND_SERVICE_DATA_SYNC"));
         assertFalse(manifest.contains("android:foregroundServiceType=\"dataSync\""));
 
