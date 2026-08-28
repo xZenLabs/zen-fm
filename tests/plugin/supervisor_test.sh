@@ -13,6 +13,7 @@ printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "$1" >> "$ZENFM_USLEEP_LOG"' '/bin/sle
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$TMP/readlink"
 chmod +x "$TMP/iptables" "$TMP/backend" "$ROOT/plugin/zenfm.koplugin/supervisor.sh"
 chmod +x "$TMP/sleep" "$TMP/usleep" "$TMP/readlink"
+! grep -Fq '$((' "$ROOT/plugin/zenfm.koplugin/supervisor.sh"
 runtime_id=$(basename "$TMP" | tr -cd '[:alnum:]' | awk '{ value=$0; if (length(value) > 12) value=substr(value, length(value)-11); print value }')
 chain_8443=ZFM${runtime_id}8443
 chain_9443=ZFM${runtime_id}9443
