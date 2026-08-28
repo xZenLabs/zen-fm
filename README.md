@@ -7,7 +7,7 @@
 ZenFM is a web based file manager built for E-Reader devices that run KOReader. ZenFM directly connects your computer/phone to your E-Reader allowing you to manage your files.
 
 
-The project is a clean-break successor to File Browser. It keeps the useful
+The project is a clean-break successor to [File Browser](https://github.com/filebrowser/filebrowser) which is now unmaintained. It keeps the useful
 file-management model while replacing Vue and self-contained JWTs with a
 TypeScript/React/MUI frontend and revocable server-side sessions implemented in Go.
 
@@ -35,7 +35,10 @@ TypeScript/React/MUI frontend and revocable server-side sessions implemented in 
 
 4. Open the URL displayed by the plugin from another device.
 
-5. Sign in with the password `koreader123456789` and immediately choose a new password.
+5. Proceed past the browser warning about the self-signed certificate
+> This is what allows encrypted https communication inside your local network. Optionally use `unencrypted http` setting to bypass this step.
+
+6. Sign in with the password `koreader123456789` and immediately choose a new password.
 
 > On the first Android start, approve the native **Start ZenFM?** prompt only
 when you just selected **Start ZenFM** in KOReader. That first approval links
