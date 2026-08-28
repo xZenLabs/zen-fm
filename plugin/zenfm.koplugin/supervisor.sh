@@ -119,14 +119,14 @@ terminate_recorded_child() {
     attempt=0
     while process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected" && [ "$attempt" -lt 50 ]; do
         pause 100000
-        attempt=$((attempt + 1))
+        attempt=$(expr "$attempt" + 1)
     done
     if process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected"; then
         kill -9 "$recorded_pid" 2>/dev/null || true
         attempt=0
         while process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected" && [ "$attempt" -lt 20 ]; do
             pause 100000
-            attempt=$((attempt + 1))
+            attempt=$(expr "$attempt" + 1)
         done
     fi
     ! process_matches "$recorded_pid" "$recorded_start" "$recorded_exe" "$recorded_expected"
@@ -145,7 +145,7 @@ cleanup() {
         attempt=0
         while kill -0 "$child" 2>/dev/null && ! process_zombie "$child" && [ "$attempt" -lt 50 ]; do
             pause 100000
-            attempt=$((attempt + 1))
+            attempt=$(expr "$attempt" + 1)
         done
         if kill -0 "$child" 2>/dev/null; then kill -9 "$child" 2>/dev/null || true; fi
         wait "$child" 2>/dev/null || true
@@ -185,7 +185,7 @@ if ! mkdir "$lock_dir" 2>/dev/null; then
             break
         fi
         pause 20000
-        attempt=$((attempt + 1))
+        attempt=$(expr "$attempt" + 1)
     done
     owner=${owner:-}
     recorded_owner_start=${recorded_owner_start:-}
@@ -256,7 +256,7 @@ while kill -0 "$child" 2>/dev/null && [ "$attempt" -lt 20 ]; do
     child_exe=$(process_exe "$child")
     [ "$child_exe" = "$expected_exe" ] && break
     pause 10000
-    attempt=$((attempt + 1))
+    attempt=$(expr "$attempt" + 1)
 done
 [ -n "$child_exe" ] || { echo "could not identify ZenFM child executable" >&2; exit 1; }
 printf '%s\n' "$child_exe" > "$lock_dir/child.exe"
