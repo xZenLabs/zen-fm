@@ -23,5 +23,8 @@ return {
         "Prevent duplicate inactivity-stop notifications",
         "Update updater flow",
         "Allow copy/paste in same dir with duplicate/overwrite",
+    },
+    ["1.0.3"] = {
+        "Fix ZenFM startup on PocketBook firmware without shell arithmetic support",
     }
 }
