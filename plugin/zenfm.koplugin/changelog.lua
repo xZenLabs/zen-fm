@@ -29,5 +29,6 @@ return {
     },
     ["1.0.4"] = {
         "Keep ZenFM icons visible in dark mode",
+        "Keep ZenFM icons visible in dark mode",
     }
 }

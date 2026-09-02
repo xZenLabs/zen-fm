@@ -17,6 +17,7 @@ local defaults = {
     auto_stop_minutes = 0,
     auto_stop_last_minutes = 30,
     beta_updates = false,
+    show_qr_code = true,
     tls_cert = "",
     tls_key = "",
 }
@@ -101,6 +102,7 @@ local function sanitize(value, default_auto_stop_minutes)
         result.auto_stop_last_minutes = result.auto_stop_minutes
     end
     result.beta_updates = value.beta_updates == true
+    result.show_qr_code = value.show_qr_code ~= false
     if type(value.tls_cert) == "string" and (value.tls_cert == "" or value.tls_cert:sub(1, 1) == "/") then
         result.tls_cert = value.tls_cert
     end
@@ -111,7 +113,7 @@ local function sanitize(value, default_auto_stop_minutes)
 end
 
 local function serialize(value)
-    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "beta_updates", "tls_cert", "tls_key" }
+    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "beta_updates", "show_qr_code", "tls_cert", "tls_key" }
     local lines = { "return {" }
     for _, key in ipairs(keys) do
         local item = value[key]

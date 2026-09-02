@@ -19,12 +19,14 @@ local ZenFM = WidgetContainer:extend{
 local server_poll_seconds = 60
 local update_timeout_seconds = 120
 
-local function notice(text, warning, persistent)
+local function notice(text, warning, persistent, image, width)
     local timeout = warning and 6 or 3
     if persistent then timeout = false end
     local message = InfoMessage:new{
         text = text,
         icon = warning and "notice-warning" or nil,
+        image = image,
+        width = width,
         timeout = timeout,
     }
     UIManager:show(message)
@@ -262,7 +264,18 @@ function ZenFM:show_status(status)
     if self.daemon.settings.values.advanced_root then
         table.insert(lines, _("Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."))
     end
-    notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root, true)
+    local image, width
+    if status.url and self.daemon.settings.values.show_qr_code == true then
+        local has_qr, QRWidget = pcall(require, "ui/widget/qrwidget")
+        if has_qr then
+            local Screen = require("device").screen
+            local size = math.floor(math.min(Screen:getWidth(), Screen:getHeight()) * 0.35)
+            image = QRWidget:new{ text = status.url, width = size, height = size }.image
+            width = math.floor(Screen:getWidth() * 0.9)
+        end
+    end
+    notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root,
+        true, image, width)
 end
 
 function ZenFM:onShowZenFMStatus()
@@ -747,6 +760,14 @@ function ZenFM:settings_menu()
             keep_menu_open = true,
             callback = function()
                 self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
+            end,
+        },
+        {
+            text = _("Show QR code"),
+            checked_func = function() return self.daemon.settings.values.show_qr_code == true end,
+            keep_menu_open = true,
+            callback = function()
+                self.daemon.settings:set("show_qr_code", not self.daemon.settings.values.show_qr_code)
             end,
         },
         {
