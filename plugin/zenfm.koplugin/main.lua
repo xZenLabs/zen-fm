@@ -692,22 +692,11 @@ function ZenFM:settings_menu()
     end
     return {
         {
-            text = _("Port: ") .. tostring(values.port),
-            keep_menu_open = true,
-            callback = function() self:show_port_dialog() end,
-        },
-        {
             text = _("Use unencrypted HTTP"),
             checked_func = function() return self.daemon.settings.values.insecure_http end,
             check_callback_updates_menu = true,
             keep_menu_open = true,
             callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
-        },
-        {
-            text = _("Advanced root: expose /"),
-            checked_func = function() return self.daemon.settings.values.advanced_root end,
-            keep_menu_open = true,
-            callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
         },
         {
             text_func = function()
@@ -751,8 +740,24 @@ function ZenFM:settings_menu()
             callback = function(touchmenu_instance) self:show_auto_stop_dialog(touchmenu_instance) end,
         },
         {
-            text = _("Reset owner login"),
-            callback = function() self:confirm_reset_login() end,
+            text = _("Advanced"),
+            sub_item_table = {
+                {
+                    text = _("Port: ") .. tostring(values.port),
+                    keep_menu_open = true,
+                    callback = function() self:show_port_dialog() end,
+                },
+                {
+                    text = _("Root: expose /"),
+                    checked_func = function() return self.daemon.settings.values.advanced_root end,
+                    keep_menu_open = true,
+                    callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
+                },
+                {
+                    text = _("Reset owner login"),
+                    callback = function() self:confirm_reset_login() end,
+                },
+            },
         },
         {
             text = _("Beta updates"),

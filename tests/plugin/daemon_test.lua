@@ -1438,8 +1438,14 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     equal(toggles, 1)
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
-    equal(#settings_menu, 11)
-    equal(settings_menu[5].text_func(), "Default directory: /mnt/us")
+    equal(#settings_menu, 9)
+    equal(settings_menu[3].text_func(), "Default directory: /mnt/us")
+    local advanced_menu = settings_menu[5].sub_item_table
+    equal(settings_menu[5].text, "Advanced")
+    equal(#advanced_menu, 3)
+    equal(advanced_menu[1].text, "Port: 54321")
+    equal(advanced_menu[2].text, "Root: expose /")
+    equal(advanced_menu[3].text, "Reset owner login")
     equal(settings_menu[#settings_menu - 3].text, "Beta updates")
     assert(not settings_menu[#settings_menu - 3].checked_func())
     equal(settings_menu[#settings_menu - 2].text, "Show QR code")
@@ -1485,34 +1491,34 @@ test("root and default directory settings use KOReader's folder chooser", functi
     local owner = setmetatable({ daemon = daemon }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    equal(owner:settings_menu()[4].text_func(), "Home: /mnt/us")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us")
+    equal(owner:settings_menu()[2].text_func(), "Home: /mnt/us")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us")
 
-    owner:settings_menu()[4].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local root_chooser = shown[#shown]
     assert(root_chooser.select_directory and not root_chooser.select_file and not root_chooser.show_files)
     equal(root_chooser.path, "/mnt/us")
     root_chooser.onConfirm("/mnt/us/Library")
     equal(settings.values.custom_root, "/mnt/us/Library")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library")
     equal(menu_updates, 1)
 
-    owner:settings_menu()[5].callback(touchmenu)
+    owner:settings_menu()[3].callback(touchmenu)
     local default_chooser = shown[#shown]
     equal(default_chooser.path, "/mnt/us/Library")
     default_chooser.onConfirm("/mnt/us/Library/Books")
     equal(settings.values.default_directory, "/Books")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library/Books")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library/Books")
     equal(menu_updates, 2)
 
-    owner:settings_menu()[5].callback(touchmenu)
+    owner:settings_menu()[3].callback(touchmenu)
     local outside_chooser = shown[#shown]
     outside_chooser.onConfirm("/mnt/us/Elsewhere")
     equal(settings.values.default_directory, "/Books")
     equal(menu_updates, 2)
     equal(shown[#shown].text, "Choose a folder within ZenFM Home.")
 
-    owner:settings_menu()[4].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local device_root_chooser = shown[#shown]
     device_root_chooser.onConfirm("/mnt/us")
     equal(settings.values.custom_root, "")
@@ -1612,7 +1618,7 @@ test("inactivity timeout label opens a number wheel and its checkbox only toggle
     local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    local item = owner:settings_menu()[6]
+    local item = owner:settings_menu()[4]
     equal(item.text_func(), "Inactivity timeout: 30 min")
     assert(not item.checked_func())
     item.callback(touchmenu)
@@ -1708,7 +1714,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         menu_refreshes = menu_refreshes + 1
         table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
     end }
-    local http_item = owner:settings_menu()[2]
+    local http_item = owner:settings_menu()[1]
     http_item.callback(touchmenu)
     equal(shown[1].ok_text, "Enable HTTP")
     shown[1].ok_callback()
@@ -1729,7 +1735,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         "menu:true,repaint:true,restart:true,menu:false,repaint:false,restart:false")
     contains(shown[3].text, "https://192.168.1.2:" .. port)
 
-    local advanced_item = owner:settings_menu()[3]
+    local advanced_item = owner:settings_menu()[5].sub_item_table[2]
     assert(not advanced_item.checked_func())
     advanced_item.callback({ updateItems = function() menu_refreshes = menu_refreshes + 1 end })
     equal(shown[4].ok_text, "Expose entire filesystem")
