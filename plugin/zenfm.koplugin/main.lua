@@ -161,17 +161,22 @@ function ZenFM:begin_android_action(action, complete)
         notice(_("Another ZenFM Android request is still pending."), true)
         return false
     end
-    local launched, result = self.daemon:begin_android(action)
-    if not launched then
-        notice(tostring(result), true)
-        return false
-    end
-    self.android_pending = {
+    local pending = {
         action = action,
-        request_id = result,
         attempts = self.daemon.android_poll_attempts or 300,
         complete = complete,
     }
+    self.android_pending = pending
+    UIManager:nextTick(function()
+        if self.android_pending ~= pending then return end
+        local launched, result = self.daemon:begin_android(action)
+        if not launched then
+            self.android_pending = nil
+            complete(false, result)
+            return
+        end
+        pending.request_id = result
+    end)
     return true
 end
 

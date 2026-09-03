@@ -1806,7 +1806,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
         "ui/network/manager",
     }
-    local saved, scheduled, shown = {}, {}, nil
+    local saved, scheduled, ticks, shown = {}, {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -1820,6 +1820,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
                 if scheduled[index] == callback then table.remove(scheduled, index) end
             end
         end,
+        nextTick = function(_, callback) table.insert(ticks, callback) end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
@@ -1854,10 +1855,13 @@ test("Android toggle restarts the companion after an inactivity stop", function(
         },
     }, { __index = ZenFM })
     assert(owner:onToggleZenFM())
-    equal(begin_actions[1], "start")
-    equal(#begin_actions, 1)
+    equal(#begin_actions, 0)
     equal(checks, 0)
     equal(#scheduled, 0)
+    equal(#ticks, 1)
+    table.remove(ticks, 1)()
+    equal(begin_actions[1], "start")
+    equal(#begin_actions, 1)
 
     owner:onResume()
     equal(#scheduled, 1)
