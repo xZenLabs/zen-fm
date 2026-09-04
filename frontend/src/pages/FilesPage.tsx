@@ -40,7 +40,7 @@ import { useCloseOnHistoryNavigation } from '../modalNavigation'
 
 type ViewMode = 'grid' | 'list'
 type PathAction = 'rename' | 'move' | 'copy'
-type PathActionRequest = { action: PathAction; entries: FileEntry[]; copyDestination?: string }
+type PathActionRequest = { action: PathAction; entries: FileEntry[]; copyDestination?: string; startingDestination?: string }
 type ConflictChoice = 'replace-all' | 'skip-all' | 'cancel'
 type ConflictPolicy = 'ask' | 'replace' | 'skip'
 type DroppedMove = { entry: FileEntry; destination: string }
@@ -393,7 +393,7 @@ export function FilesPage() {
   fileShortcutHandler.current = (event) => {
     if (event.defaultPrevented || event.repeat || event.isComposing
       || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    if (event.key !== 'Enter' && event.key !== 'Delete') return
+    if (event.key !== 'Enter' && event.key !== 'Delete' && event.key !== 'F2') return
     if (document.querySelector('[role="dialog"], [role="menu"]')) return
     const target = event.target
     if (target instanceof Element) {
@@ -407,6 +407,13 @@ export function FilesPage() {
       event.preventDefault()
       event.stopPropagation()
       openEntry(entry)
+      return
+    }
+    if (event.key === 'F2') {
+      if (selectedEntries.length !== 1) return
+      event.preventDefault()
+      event.stopPropagation()
+      beginAction('rename', selectedEntries)
       return
     }
     if (selectedEntries.length === 0) return
@@ -662,6 +669,8 @@ export function FilesPage() {
     && joinPath(destination, entry.name) !== entry.path
     && (entry.type !== 'directory' || destination !== entry.path && !destination.startsWith(`${entry.path}/`))
 
+  const entriesForDrag = (entry: FileEntry) => selectedPaths.has(entry.path) ? selectedEntries : [entry]
+
   const startMoveDrag = (event: ReactDragEvent<HTMLElement>, entry: FileEntry) => {
     draggedEntry.current = entry
     event.dataTransfer.effectAllowed = 'move'
@@ -685,7 +694,7 @@ export function FilesPage() {
     if (entry) {
       event.preventDefault()
       event.stopPropagation()
-      if (!canMoveTo(entry, destination)) {
+      if (!entriesForDrag(entry).every((target) => canMoveTo(target, destination))) {
         setDropTarget(null)
         return
       }
@@ -703,11 +712,16 @@ export function FilesPage() {
   const acceptDrop = (event: ReactDragEvent<HTMLElement>, destination: string) => {
     const entry = draggedEntry.current
     if (entry) {
+      const targets = entriesForDrag(entry)
       event.preventDefault()
       event.stopPropagation()
       draggedEntry.current = null
       setDropTarget(null)
-      if (canMoveTo(entry, destination)) {
+      if (targets.every((target) => canMoveTo(target, destination))) {
+        if (targets.length > 1) {
+          setPathAction({ action: 'move', entries: targets, startingDestination: destination })
+          return
+        }
         moveDroppedEntry.reset()
         setDroppedMove({ entry, destination })
       }
@@ -856,7 +870,7 @@ export function FilesPage() {
             <Box textAlign="center" py={10}><FolderRounded sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} /><Typography variant="h2">{t('files.empty')}</Typography><Typography color="text.secondary" mt={0.5}>{t('files.emptyHint')}</Typography></Box>
           ) : view === 'grid' ? (
             <Box role="list" display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap={1.5}>
-              {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
+              {entries.map((entry) => <Card key={entry.path} role="listitem" aria-label={entry.name} variant="outlined" draggable={entry.type !== 'special'} className={`file-card${selectedPaths.has(entry.path) ? ' selected' : ''}${dropTarget === entry.path ? ' drop-target' : ''}`} onContextMenu={(event) => openContextMenu(event, entry)} onDragStart={(event) => startMoveDrag(event, entry)} onDragEnd={endMoveDrag} onDragOver={entry.type === 'directory' ? (event) => prepareDrop(event, entry.path) : undefined} onDrop={entry.type === 'directory' ? (event) => acceptDrop(event, entry.path) : undefined}>
                 <CardActionArea component="div" onClick={(event) => selectEntry(event, entry)} onDoubleClick={() => openEntry(entry)} disabled={entry.type === 'special'}>
                   <CardContent><Stack direction="row" alignItems="center" gap={1.25}>{selectionCheckbox(entry)}<FileArtwork entry={entry} /><Box minWidth={0} flex={1}><Typography fontWeight={600} className="file-name" title={entry.name}>{entry.name}</Typography>{searchTerm && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{entry.path}</Typography>}<Typography variant="caption" color="text.secondary">{entry.type !== 'directory' && <>{formatBytes(entry.size)} · </>}{formatShortDate(entry.modifiedAt)}</Typography></Box><IconButton size="small" sx={{ ml: -0.75 }} aria-label={`Actions for ${entry.name}`} onClick={(event) => openMenu(event, entry)} onDoubleClick={(event) => event.stopPropagation()}><MoreVertRounded /></IconButton></Stack></CardContent>
                 </CardActionArea>
@@ -916,7 +930,7 @@ export function FilesPage() {
         }}
       />
       <FileEditorDialog entry={editor} onClose={() => setEditor(null)} onSaved={refresh} />
-      <PathActionDialog action={pathAction?.action ?? null} entries={pathAction?.entries ?? []} copyDestination={pathAction?.copyDestination} onClose={() => setPathAction(null)} onDone={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null; refresh() }} />
+      <PathActionDialog action={pathAction?.action ?? null} entries={pathAction?.entries ?? []} copyDestination={pathAction?.copyDestination} startingDestination={pathAction?.startingDestination} onClose={() => setPathAction(null)} onDone={() => { setSelected(null); setSelectedPaths(new Set()); selectionAnchor.current = null; refresh() }} />
       <CreateShareDialog entry={sharing} onClose={() => setSharing(null)} onCreated={(url) => { if (url) void navigator.clipboard.writeText(publicShareUrl(url)); setNotice(url ? t('common.copied') : t('shares.create')) }} />
       <Snackbar open={Boolean(notice)} autoHideDuration={5000} onClose={() => setNotice('')} message={notice} />
     </Box>

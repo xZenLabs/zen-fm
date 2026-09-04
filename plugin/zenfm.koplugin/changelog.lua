@@ -26,5 +26,10 @@ return {
     },
     ["1.0.3"] = {
         "Fix ZenFM startup on PocketBook firmware without shell arithmetic support",
+    },
+    ["1.0.4"] = {
+        "Add QR code",
+        "Keep ZenFM icons visible in dark mode",
+        "Reorganize settings",
     }
 }

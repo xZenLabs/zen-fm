@@ -201,10 +201,13 @@ test("fresh installations use the shared static high port", function()
     local settings = Settings:new(state)
     equal(settings.values.port, 54321)
     equal(settings.values.default_directory, "/")
+    assert(settings.values.show_qr_code)
     assert(settings:set("default_directory", "/Books/Unread"))
+    assert(settings:set("show_qr_code", false))
     local reloaded = Settings:new(state)
     equal(reloaded.values.port, 54321)
     equal(reloaded.values.default_directory, "/Books/Unread")
+    assert(not reloaded.values.show_qr_code)
 
     os.remove(state .. "/settings.lua")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
@@ -1435,10 +1438,18 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     equal(toggles, 1)
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
-    equal(#settings_menu, 10)
-    equal(settings_menu[5].text_func(), "Default directory: /mnt/us")
-    equal(settings_menu[#settings_menu - 2].text, "Beta updates")
-    assert(not settings_menu[#settings_menu - 2].checked_func())
+    equal(#settings_menu, 9)
+    equal(settings_menu[3].text_func(), "Default directory: /mnt/us")
+    local advanced_menu = settings_menu[5].sub_item_table
+    equal(settings_menu[5].text, "Advanced")
+    equal(#advanced_menu, 3)
+    equal(advanced_menu[1].text, "Port: 54321")
+    equal(advanced_menu[2].text, "Root: expose /")
+    equal(advanced_menu[3].text, "Reset owner login")
+    equal(settings_menu[#settings_menu - 3].text, "Beta updates")
+    assert(not settings_menu[#settings_menu - 3].checked_func())
+    equal(settings_menu[#settings_menu - 2].text, "Show QR code")
+    assert(settings_menu[#settings_menu - 2].checked_func())
     equal(settings_menu[#settings_menu - 1].text, "Update")
     assert(settings_menu[#settings_menu - 1].keep_menu_open)
     equal(settings_menu[#settings_menu].text_func(), "Version: 9.8.7")
@@ -1480,34 +1491,34 @@ test("root and default directory settings use KOReader's folder chooser", functi
     local owner = setmetatable({ daemon = daemon }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    equal(owner:settings_menu()[4].text_func(), "Home: /mnt/us")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us")
+    equal(owner:settings_menu()[2].text_func(), "Home: /mnt/us")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us")
 
-    owner:settings_menu()[4].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local root_chooser = shown[#shown]
     assert(root_chooser.select_directory and not root_chooser.select_file and not root_chooser.show_files)
     equal(root_chooser.path, "/mnt/us")
     root_chooser.onConfirm("/mnt/us/Library")
     equal(settings.values.custom_root, "/mnt/us/Library")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library")
     equal(menu_updates, 1)
 
-    owner:settings_menu()[5].callback(touchmenu)
+    owner:settings_menu()[3].callback(touchmenu)
     local default_chooser = shown[#shown]
     equal(default_chooser.path, "/mnt/us/Library")
     default_chooser.onConfirm("/mnt/us/Library/Books")
     equal(settings.values.default_directory, "/Books")
-    equal(owner:settings_menu()[5].text_func(), "Default directory: /mnt/us/Library/Books")
+    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library/Books")
     equal(menu_updates, 2)
 
-    owner:settings_menu()[5].callback(touchmenu)
+    owner:settings_menu()[3].callback(touchmenu)
     local outside_chooser = shown[#shown]
     outside_chooser.onConfirm("/mnt/us/Elsewhere")
     equal(settings.values.default_directory, "/Books")
     equal(menu_updates, 2)
     equal(shown[#shown].text, "Choose a folder within ZenFM Home.")
 
-    owner:settings_menu()[4].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local device_root_chooser = shown[#shown]
     device_root_chooser.onConfirm("/mnt/us")
     equal(settings.values.custom_root, "")
@@ -1607,7 +1618,7 @@ test("inactivity timeout label opens a number wheel and its checkbox only toggle
     local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    local item = owner:settings_menu()[6]
+    local item = owner:settings_menu()[4]
     equal(item.text_func(), "Inactivity timeout: 30 min")
     assert(not item.checked_func())
     item.callback(touchmenu)
@@ -1703,7 +1714,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         menu_refreshes = menu_refreshes + 1
         table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
     end }
-    local http_item = owner:settings_menu()[2]
+    local http_item = owner:settings_menu()[1]
     http_item.callback(touchmenu)
     equal(shown[1].ok_text, "Enable HTTP")
     shown[1].ok_callback()
@@ -1724,7 +1735,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         "menu:true,repaint:true,restart:true,menu:false,repaint:false,restart:false")
     contains(shown[3].text, "https://192.168.1.2:" .. port)
 
-    local advanced_item = owner:settings_menu()[3]
+    local advanced_item = owner:settings_menu()[5].sub_item_table[2]
     assert(not advanced_item.checked_func())
     advanced_item.callback({ updateItems = function() menu_refreshes = menu_refreshes + 1 end })
     equal(shown[4].ok_text, "Expose entire filesystem")
@@ -1795,7 +1806,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
         "ui/network/manager",
     }
-    local saved, scheduled, shown = {}, {}, nil
+    local saved, scheduled, ticks, shown = {}, {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -1809,6 +1820,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
                 if scheduled[index] == callback then table.remove(scheduled, index) end
             end
         end,
+        nextTick = function(_, callback) table.insert(ticks, callback) end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
@@ -1843,10 +1855,13 @@ test("Android toggle restarts the companion after an inactivity stop", function(
         },
     }, { __index = ZenFM })
     assert(owner:onToggleZenFM())
-    equal(begin_actions[1], "start")
-    equal(#begin_actions, 1)
+    equal(#begin_actions, 0)
     equal(checks, 0)
     equal(#scheduled, 0)
+    equal(#ticks, 1)
+    table.remove(ticks, 1)()
+    equal(begin_actions[1], "start")
+    equal(#begin_actions, 1)
 
     owner:onResume()
     equal(#scheduled, 1)
@@ -2286,9 +2301,10 @@ end)
 test("status notice reports stopped cleanly and shows the running device address", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
-        "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
+        "ui/uimanager", "ui/widget/container/widgetcontainer", "ui/widget/qrwidget", "device",
+        "gettext", "zenfm_daemon", "zenfm_updater",
     }
-    local saved, shown = {}, nil
+    local saved, shown, qr_options = {}, nil, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -2296,14 +2312,26 @@ test("status notice reports stopped cleanly and shows the running device address
     package.loaded["ui/widget/confirmbox"] = { new = function(_, options) return options end }
     package.loaded["ui/uimanager"] = { show = function(_, message) shown = message end }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
+    package.loaded["ui/widget/qrwidget"] = { new = function(_, options)
+        qr_options = options
+        return { image = "qr:" .. options.text }
+    end }
+    package.loaded["device"] = { screen = {
+        getWidth = function() return 600 end,
+        getHeight = function() return 800 end,
+    } }
     package.loaded["gettext"] = function(value) return value end
     package.loaded["zenfm_daemon"] = { new = function() return {} end }
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local settings = {
+        values = { advanced_root = false, show_qr_code = true },
+        set = function(self, key, value) self.values[key] = value return true end,
+    }
     local owner = setmetatable({
         daemon = {
-            settings = { values = { advanced_root = false } },
+            settings = settings,
             is_android = function() return false end,
             status_details = function()
                 return { running = false, detail = "connect failed" }
@@ -2319,7 +2347,23 @@ test("status notice reports stopped cleanly and shows the running device address
     end
     owner:onShowZenFMStatus()
     equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
+    equal(qr_options.text, "https://192.168.4.12:8443")
+    equal(qr_options.width, 210)
+    equal(qr_options.height, 210)
+    equal(shown.image, "qr:https://192.168.4.12:8443")
+    equal(shown.width, 540)
     assert(not shown.text:find("sha256:secret", 1, true))
+
+    local qr_item
+    for _, item in ipairs(owner:settings_menu()) do
+        if item.text == "Show QR code" then qr_item = item break end
+    end
+    assert(qr_item and qr_item.checked_func())
+    qr_item.callback()
+    assert(not qr_item.checked_func())
+    qr_options = nil
+    owner:onShowZenFMStatus()
+    assert(qr_options == nil and shown.image == nil and shown.width == nil)
 
     owner.daemon.status_details = function()
         return { running = true, scheme = "http", listen = "0.0.0.0:8080", port = "8080" }

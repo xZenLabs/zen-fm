@@ -323,7 +323,7 @@ function duplicateName(entry: FileEntry, existingNames: Set<string>) {
 
 type PathActionChoice = { overwrite: boolean; duplicate?: boolean }
 
-export function PathActionDialog({ action, entries, copyDestination, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; copyDestination?: string; onClose: () => void; onDone: () => void }) {
+export function PathActionDialog({ action, entries, copyDestination, startingDestination, onClose, onDone }: { action: PathAction | null; entries: FileEntry[]; copyDestination?: string; startingDestination?: string; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation()
   const [destination, setDestination] = useState('')
   const completed = useRef(new Set<string>())
@@ -343,8 +343,8 @@ export function PathActionDialog({ action, entries, copyDestination, onClose, on
   useEffect(() => {
     if (!entry || !action) return
     const parent = parentPath(entry.path)
-    setDestination(action === 'rename' ? entry.name : action === 'move' || multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`)
-  }, [action, entriesKey, entry, multiple])
+    setDestination(startingDestination ?? (action === 'rename' ? entry.name : action === 'move' || multiple ? parent : `${parent === '/' ? '' : parent}/${entry.name}`))
+  }, [action, entriesKey, entry, multiple, startingDestination])
 
   const sameFolderEntries = directCopy ? entries.filter((item) => joinPath(copyDestination, item.name) === item.path) : []
   const sameFolderEntry = sameFolderEntries[0]

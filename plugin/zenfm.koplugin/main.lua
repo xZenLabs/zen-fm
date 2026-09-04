@@ -19,12 +19,14 @@ local ZenFM = WidgetContainer:extend{
 local server_poll_seconds = 60
 local update_timeout_seconds = 120
 
-local function notice(text, warning, persistent)
+local function notice(text, warning, persistent, image, width)
     local timeout = warning and 6 or 3
     if persistent then timeout = false end
     local message = InfoMessage:new{
         text = text,
         icon = warning and "notice-warning" or nil,
+        image = image,
+        width = width,
         timeout = timeout,
     }
     UIManager:show(message)
@@ -159,17 +161,22 @@ function ZenFM:begin_android_action(action, complete)
         notice(_("Another ZenFM Android request is still pending."), true)
         return false
     end
-    local launched, result = self.daemon:begin_android(action)
-    if not launched then
-        notice(tostring(result), true)
-        return false
-    end
-    self.android_pending = {
+    local pending = {
         action = action,
-        request_id = result,
         attempts = self.daemon.android_poll_attempts or 300,
         complete = complete,
     }
+    self.android_pending = pending
+    UIManager:nextTick(function()
+        if self.android_pending ~= pending then return end
+        local launched, result = self.daemon:begin_android(action)
+        if not launched then
+            self.android_pending = nil
+            complete(false, result)
+            return
+        end
+        pending.request_id = result
+    end)
     return true
 end
 
@@ -262,7 +269,18 @@ function ZenFM:show_status(status)
     if self.daemon.settings.values.advanced_root then
         table.insert(lines, _("Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."))
     end
-    notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root, true)
+    local image, width
+    if status.url and self.daemon.settings.values.show_qr_code == true then
+        local has_qr, QRWidget = pcall(require, "ui/widget/qrwidget")
+        if has_qr then
+            local Screen = require("device").screen
+            local size = math.floor(math.min(Screen:getWidth(), Screen:getHeight()) * 0.35)
+            image = QRWidget:new{ text = status.url, width = size, height = size }.image
+            width = math.floor(Screen:getWidth() * 0.9)
+        end
+    end
+    notice(table.concat(lines, "\n\n"), status.scheme == "http" or self.daemon.settings.values.advanced_root,
+        true, image, width)
 end
 
 function ZenFM:onShowZenFMStatus()
@@ -679,22 +697,11 @@ function ZenFM:settings_menu()
     end
     return {
         {
-            text = _("Port: ") .. tostring(values.port),
-            keep_menu_open = true,
-            callback = function() self:show_port_dialog() end,
-        },
-        {
             text = _("Use unencrypted HTTP"),
             checked_func = function() return self.daemon.settings.values.insecure_http end,
             check_callback_updates_menu = true,
             keep_menu_open = true,
             callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
-        },
-        {
-            text = _("Advanced root: expose /"),
-            checked_func = function() return self.daemon.settings.values.advanced_root end,
-            keep_menu_open = true,
-            callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
         },
         {
             text_func = function()
@@ -738,8 +745,24 @@ function ZenFM:settings_menu()
             callback = function(touchmenu_instance) self:show_auto_stop_dialog(touchmenu_instance) end,
         },
         {
-            text = _("Reset owner login"),
-            callback = function() self:confirm_reset_login() end,
+            text = _("Advanced"),
+            sub_item_table = {
+                {
+                    text = _("Port: ") .. tostring(values.port),
+                    keep_menu_open = true,
+                    callback = function() self:show_port_dialog() end,
+                },
+                {
+                    text = _("Root: expose /"),
+                    checked_func = function() return self.daemon.settings.values.advanced_root end,
+                    keep_menu_open = true,
+                    callback = function(touchmenu_instance) self:confirm_advanced_root(touchmenu_instance) end,
+                },
+                {
+                    text = _("Reset owner login"),
+                    callback = function() self:confirm_reset_login() end,
+                },
+            },
         },
         {
             text = _("Beta updates"),
@@ -747,6 +770,14 @@ function ZenFM:settings_menu()
             keep_menu_open = true,
             callback = function()
                 self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
+            end,
+        },
+        {
+            text = _("Show QR code"),
+            checked_func = function() return self.daemon.settings.values.show_qr_code == true end,
+            keep_menu_open = true,
+            callback = function()
+                self.daemon.settings:set("show_qr_code", not self.daemon.settings.values.show_qr_code)
             end,
         },
         {
