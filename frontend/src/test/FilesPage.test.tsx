@@ -245,6 +245,28 @@ describe('file browser', () => {
     expect(await screen.findByText('chapter.txt')).toBeInTheDocument()
   })
 
+  it('renames the highlighted file or folder with F2', async () => {
+    server.use(http.get('http://localhost/api/v1/files', () => HttpResponse.json({
+      path: '/', advancedMode: false,
+      entries: [
+        { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+        { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })))
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    await user.click(await screen.findByRole('row', { name: /notes\.txt/ }))
+    await user.keyboard('{F2}')
+    expect(within(screen.getByRole('dialog', { name: 'Rename' })).getByRole('textbox', { name: 'Name' })).toHaveValue('notes.txt')
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await user.click(screen.getByRole('row', { name: /Books/ }))
+    await user.keyboard('{F2}')
+    expect(within(screen.getByRole('dialog', { name: 'Rename' })).getByRole('textbox', { name: 'Name' })).toHaveValue('Books')
+  })
+
   it('prompts to delete all highlighted files and folders with Delete', async () => {
     let deletions = 0
     server.use(
@@ -764,6 +786,50 @@ describe('file browser', () => {
     expect(moves).toEqual([])
     await user.click(screen.getByRole('button', { name: 'Move' }))
     await waitFor(() => expect(moves).toEqual([{ source: '/report.txt', destination: '/Archive/report.txt', overwrite: false }]))
+  })
+
+  it('moves every selected item when any selected row is dragged', async () => {
+    const moves: Array<{ source: string; destination: string; overwrite: boolean }> = []
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path')
+        return HttpResponse.json(path === '/Archive'
+          ? { path, advancedMode: false, entries: [] }
+          : {
+              path: '/', advancedMode: false,
+              entries: [
+                { name: 'alpha.txt', path: '/alpha.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+                { name: 'bravo.txt', path: '/bravo.txt', type: 'file', size: 1, modifiedAt: '2026-01-01T00:00:00Z' },
+                { name: 'Archive', path: '/Archive', type: 'directory', size: 0, modifiedAt: '2026-01-01T00:00:00Z' },
+              ],
+            })
+      }),
+      http.post('http://localhost/api/v1/files/move', async ({ request }) => {
+        moves.push(await request.json() as { source: string; destination: string; overwrite: boolean })
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/files')
+
+    const alpha = await screen.findByRole('row', { name: /alpha\.txt/ })
+    const bravo = screen.getByRole('row', { name: /bravo\.txt/ })
+    const folder = screen.getByRole('row', { name: /Archive/ })
+    fireEvent.click(alpha)
+    fireEvent.click(bravo, { ctrlKey: true })
+    const transfer = { types: [], files: [], effectAllowed: 'none', dropEffect: 'none', setData: vi.fn() }
+    fireEvent.dragStart(bravo, { dataTransfer: transfer })
+    fireEvent.dragOver(folder, { dataTransfer: transfer })
+    fireEvent.drop(folder, { dataTransfer: transfer })
+
+    const dialog = screen.getByRole('dialog', { name: 'Move 2 items' })
+    expect(dialog).toHaveTextContent('2 items selected')
+    expect(await within(dialog).findByText('/Archive')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(moves).toEqual([
+      { source: '/alpha.txt', destination: '/Archive/alpha.txt', overwrite: false },
+      { source: '/bravo.txt', destination: '/Archive/bravo.txt', overwrite: false },
+    ]))
   })
 
   it('sorts list entries from their table headers', async () => {
