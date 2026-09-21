@@ -591,7 +591,7 @@ public final class ZenFMService extends Service {
             if (peerSourceRoot == null) peerSourceRoot = root;
             return new Config(home, root, peerSourceRoot, defaultDirectory, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
                 intent.getBooleanExtra("debug", false),
-                intent.getStringExtra("device_name"), intent.getBooleanExtra("use_device_name_as_title", false),
+                intent.getStringExtra("device_name"), intent.getBooleanExtra("use_device_name_as_title", true),
                 intent.getStringExtra("auto_stop"), intent.getStringExtra("tls_cert"), intent.getStringExtra("tls_key"),
                 intent.getStringExtra("request_id"));
         }
@@ -611,7 +611,7 @@ public final class ZenFMService extends Service {
             if (home == null || root == null) return null;
             return new Config(home, root, p.getString("peer_source_root", root), p.getString("default_directory", "/"), p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
                 p.getBoolean("debug", false),
-                p.getString("device_name", Build.MODEL == null ? "Android" : Build.MODEL), p.getBoolean("use_device_name_as_title", false),
+                p.getString("device_name", Build.MODEL == null ? "Android" : Build.MODEL), p.getBoolean("use_device_name_as_title", true),
                 p.getString("auto_stop", "0"), p.getString("certificate", ""), p.getString("key", ""), "");
         }
     }

@@ -1142,7 +1142,7 @@ function ZenFM:settings_menu(include_status)
             callback = function() self:show_device_name_dialog() end,
         },
         {
-            text = _("Use device name as Browser tab title"),
+            text = _("Use device name as browser tab title"),
             checked_func = function() return self.daemon.settings.values.use_device_name_as_title end,
             keep_menu_open = true,
             callback = function()

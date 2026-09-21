@@ -107,7 +107,7 @@ local function sanitize(value, default_auto_stop_minutes)
         local device_name = Util.trim(value.device_name)
         if #device_name <= 256 and not device_name:find("%c") then result.device_name = device_name end
     end
-    result.use_device_name_as_title = value.use_device_name_as_title == true
+    result.use_device_name_as_title = value.use_device_name_as_title ~= false
     result.beta_updates = value.beta_updates == true
     result.show_qr_code = value.show_qr_code ~= false
     if type(value.tls_cert) == "string" and (value.tls_cert == "" or value.tls_cert:sub(1, 1) == "/") then
