@@ -433,7 +433,7 @@ end
 
 function Daemon:cached_android_status()
     local status = Util.trim(Util.read_all(self.state_dir .. "/android-companion.status", 1024) or "")
-    if status:match("^ok running ") then return true, status end
+    if status:match("^ok running ") or status:match("^ok peer ") then return true, status end
     return false, status ~= "" and status or "stopped"
 end
 

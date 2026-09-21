@@ -585,7 +585,7 @@ function ZenFM:wait_for_network_before_start()
     end)
 end
 
-function ZenFM:onToggleZenFM()
+function ZenFM:onToggleZenFM(touchmenu_instance)
     if self.daemon:is_android() then
         local running = self:android_cached_running()
         if not running and self:wait_for_network_before_start() then return true end
@@ -595,7 +595,15 @@ function ZenFM:onToggleZenFM()
             self.server_monitor = nil
             Daemon.stopped_notice_armed = false
         end
+        local function refresh_menu()
+            local menu = touchmenu_instance
+            if not menu and UIManager.getTopmostVisibleWidget then
+                menu = UIManager:getTopmostVisibleWidget()
+            end
+            if menu and menu.updateItems then menu:updateItems() end
+        end
         local started = self:begin_android_action(action, function(ok, detail)
+            refresh_menu()
             if not ok then
                 if action == "stop" then self:start_server_monitor(true) end
                 notice(tostring(detail), true)
@@ -1233,7 +1241,7 @@ function ZenFM:addToMainMenu(menu_items)
                 end,
                 keep_menu_open = true,
                 callback = function(touchmenu_instance)
-                    self:onToggleZenFM()
+                    self:onToggleZenFM(touchmenu_instance)
                     touchmenu_instance:updateItems()
                 end,
             },

@@ -205,7 +205,7 @@ test("fresh installations use the shared static high port", function()
     equal(settings.values.port, 54321)
     equal(settings.values.default_directory, "/")
     equal(settings.values.device_name, "")
-    assert(not settings.values.use_device_name_as_title)
+    assert(settings.values.use_device_name_as_title)
     assert(settings.values.show_qr_code)
     assert(settings:set("default_directory", "/Books/Unread"))
     assert(settings:set("device_name", "  Bedroom Kobo  "))
@@ -886,7 +886,7 @@ test("Android result check rejects stale persisted running state", function()
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
-test("Android cached status never launches the companion", function()
+test("Android cached running and peer status never launch the companion", function()
     local state = os.tmpname() .. ".status-live"
     assert(Util.ensure_dir(state))
     assert(Util.write_atomic(state .. "/android-companion.status",
@@ -905,6 +905,11 @@ test("Android cached status never launches the companion", function()
     assert(running, tostring(detail))
     equal(launches, 0)
     contains(detail, "sha256:fresh")
+    assert(Util.write_atomic(state .. "/android-companion.status",
+        "ok peer request=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n", "600"))
+    running, detail = daemon:status()
+    assert(running, tostring(detail))
+    equal(launches, 0)
     os.remove(state .. "/android-control.token")
     os.remove(state .. "/android-companion.status")
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
@@ -1503,7 +1508,7 @@ test("dispatcher exposes the server toggle and update settings", function()
     equal(settings_menu[2].text_func(), "Default directory: /mnt/us")
     equal(settings_menu[4].text_func(), "Device name: Kindle")
     equal(settings_menu[5].text, "Use device name as Browser tab title")
-    assert(not settings_menu[5].checked_func())
+    assert(settings_menu[5].checked_func())
     local advanced_menu = settings_menu[6].sub_item_table
     equal(settings_menu[6].text, "Advanced")
     equal(#advanced_menu, 4)
@@ -1894,7 +1899,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
         "ui/network/manager",
     }
-    local saved, scheduled, ticks, shown = {}, {}, {}, nil
+    local saved, scheduled, ticks, shown, menu_updates = {}, {}, {}, nil, 0
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) return options end }
@@ -1909,6 +1914,9 @@ test("Android toggle restarts the companion after an inactivity stop", function(
             end
         end,
         nextTick = function(_, callback) table.insert(ticks, callback) end,
+        getTopmostVisibleWidget = function()
+            return { updateItems = function() menu_updates = menu_updates + 1 end }
+        end,
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["gettext"] = function(value) return value end
@@ -1966,6 +1974,7 @@ test("Android toggle restarts the companion after an inactivity stop", function(
     equal(checks, 2)
     equal(#scheduled, 1)
     equal(shown.text, "ZenFM is running.\n\nhttps://192.168.4.12:8443")
+    equal(menu_updates, 1)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
