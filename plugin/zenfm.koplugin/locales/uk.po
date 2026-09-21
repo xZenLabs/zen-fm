@@ -27,6 +27,9 @@ msgstr "1 рік"
 msgid "30 days"
 msgstr "30 днів"
 
+msgid "A restart is required to take effect."
+msgstr "Для застосування змін потрібен перезапуск."
+
 msgid "About {{eta}} remaining"
 msgstr "Залишилося приблизно {{eta}}"
 
@@ -34,22 +37,28 @@ msgid "Accept"
 msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
-msgstr "Розширений режим root активний. Системні файли, шляхи до пристроїв і секрети ZenFM видимі та можуть бути змінені або видалені."
+msgstr "Розширений режим root активний. Системні файли, шляхи пристрою та секрети ZenFM видимі, їх можна змінювати або видаляти."
 
 msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
-msgstr "Розширений кореневий режим обслуговує /. Він відкриває /proc, /sys, /dev, базу даних ZenFM, сертифікати, журнали та кожен файл, до якого може отримати доступ процес. Редагування або видалення їх може пошкодити пристрій або заблокувати вас."
+msgstr "Розширений кореневий режим надає доступ до /. Він відкриває /proc, /sys, /dev, базу даних ZenFM, сертифікати, журнали та кожен файл, до якого може отримати доступ процес. Редагування або видалення цих файлів може пошкодити пристрій або позбавити вас доступу."
 
-msgid "Advanced root: expose /"
-msgstr "Розширений корінь: викрити /"
+msgid "Advanced"
+msgstr "Додатково"
 
 msgid "Android companion APK: opening updater…"
-msgstr "Додатковий файл APK для Android: відкриття програми оновлення…"
+msgstr "Android-компаньйон: відкриття засобу оновлення…"
 
 msgid "Android companion did not report a fresh %s result within 30 seconds."
-msgstr "Android companion не повідомив про новий результат %s протягом 30 секунд."
+msgstr "Android-компаньйон не повідомив про новий результат %s протягом 30 секунд."
 
 msgid "Another ZenFM Android request is still pending."
-msgstr "Інший запит ZenFM Android все ще очікує на розгляд."
+msgstr "Інший запит ZenFM для Android уже очікує на виконання."
+
+msgid "Are you sure you want to copy <filename>{{name}}</filename> to <path>{{destination}}</path>?"
+msgstr "Ви впевнені, що хочете скопіювати <filename>{{name}}</filename> до <path>{{destination}}</path>?"
+
+msgid "Are you sure you want to copy the files to <path>{{destination}}</path>?"
+msgstr "Ви впевнені, що хочете скопіювати файли до <path>{{destination}}</path>?"
 
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
 msgstr "Ви впевнені, що бажаєте перемістити <filename>{{name}}</filename> до <path>{{destination}}</path>?"
@@ -61,7 +70,7 @@ msgid "Calculating total size…"
 msgstr "Розрахунок загального розміру…"
 
 msgid "Cancel"
-msgstr "Відмінити"
+msgstr "Скасувати"
 
 msgid "Cancel transfer"
 msgstr ""
@@ -72,11 +81,14 @@ msgstr "Зміна пароля"
 msgid "Checking for a ZenFM update…"
 msgstr "Перевірка оновлення ZenFM…"
 
+msgid "Choose a folder within ZenFM Home."
+msgstr "Виберіть папку в межах домашньої папки ZenFM."
+
 msgid "Checksum"
 msgstr "Контрольна сума"
 
 msgid "Clear find"
-msgstr "Ясна знахідка"
+msgstr "Очистити пошук"
 
 msgid "Clear search"
 msgstr "Очистити"
@@ -91,25 +103,28 @@ msgid "Close file"
 msgstr "Закрити файл"
 
 msgid "Confirm"
-msgstr "ОК"
+msgstr "Підтвердити"
 
 msgid "Confirm password"
 msgstr "Підтвердження нового пароля"
 
+msgid "Configure ZenFM Home first."
+msgstr "Спочатку налаштуйте домашню папку ZenFM."
+
 msgid "Copied"
-msgstr "Посилання скопійоване!"
+msgstr "Скопійовано"
 
 msgid "Copy"
 msgstr "Копіювати"
 
 msgid "Copy link"
-msgstr "Скопіювати завантажувальне посилання в буфер обміну"
+msgstr "Скопіювати посилання в буфер обміну"
 
 msgid "Copy this token now. It will not be shown again."
-msgstr "Скопіюйте цей маркер зараз. Його більше не буде показано."
+msgstr "Скопіюйте цей токен зараз. Його більше не буде показано."
 
 msgid "Copy token"
-msgstr "Копіювати маркер"
+msgstr "Копіювати токен"
 
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Копіювання {{copied}} з {{total}} — {{progress}}%"
@@ -118,31 +133,31 @@ msgid "Could not create a secure ZenFM Send request."
 msgstr ""
 
 msgid "Could not read the Android companion result"
-msgstr "Не вдалося прочитати результат Android Companion"
+msgstr "Не вдалося прочитати результат роботи Android-компаньйона"
 
 msgid "Create"
 msgstr "Створити"
 
 msgid "Create share"
-msgstr "Створити спільний доступ"
+msgstr "Створити посилання"
 
 msgid "Create temporary links without exposing your owner session."
-msgstr "Створюйте тимчасові посилання, не відкриваючи сеанс власника."
+msgstr "Створюйте тимчасові посилання, не розкриваючи сеанс власника."
 
 msgid "Create token"
-msgstr "Створити маркер"
+msgstr "Створити токен"
 
 msgid "Current password"
 msgstr "Поточний пароль"
-
-msgid "Custom root (blank uses device default)"
-msgstr "Настроюваний корінь (порожній використовує параметри пристрою за замовчуванням)"
 
 msgid "Dark"
 msgstr "Темна"
 
 msgid "Date modified"
-msgstr "Останній раз змінено"
+msgstr "Дата зміни"
+
+msgid "Default directory: "
+msgstr "Папка за замовчуванням: "
 
 msgid "Decline"
 msgstr ""
@@ -151,7 +166,7 @@ msgid "Delete"
 msgstr "Видалити"
 
 msgid "Delete {{count}} items?"
-msgstr "Видалити елементи {{count}}?"
+msgstr "Видалити вибрані елементи ({{count}})?"
 
 msgid "Destination folder"
 msgstr "Папка призначення"
@@ -160,10 +175,13 @@ msgid "Destination path"
 msgstr "Шлях призначення"
 
 msgid "Discard"
-msgstr "Відкинути"
+msgstr "Не зберігати"
 
 msgid "Download"
 msgstr "Завантажити"
+
+msgid "Duplicate"
+msgstr "Створити дублікат"
 
 msgid "Edit"
 msgstr "Редагувати"
@@ -175,13 +193,13 @@ msgid "Enable HTTP"
 msgstr "Увімкнути HTTP"
 
 msgid "Expires"
-msgstr "Термін дії закінчується"
+msgstr "Термін дії"
 
 msgid "Expires after"
-msgstr "Термін дії закінчується після"
+msgstr "Діє протягом"
 
 msgid "Expose entire filesystem"
-msgstr "Викрити всю файлову систему"
+msgstr "Відкрити доступ до всієї файлової системи"
 
 msgid "File already exists"
 msgstr "Файл уже існує"
@@ -190,7 +208,7 @@ msgid "File name"
 msgstr "Ім'я файлу"
 
 msgid "File or folder path"
-msgstr "Шлях"
+msgstr "Шлях до файлу або папки"
 
 msgid "Files"
 msgstr "Файли"
@@ -205,7 +223,7 @@ msgid "Folder name"
 msgstr "Назва папки"
 
 msgid "General"
-msgstr "Загальний"
+msgstr "Загальні налаштування"
 
 msgid "Grid view"
 msgstr "Вигляд сітки"
@@ -213,14 +231,26 @@ msgstr "Вигляд сітки"
 msgid "Hide password"
 msgstr "Приховати пароль"
 
+msgid "Home"
+msgstr "Домашня папка"
+
+msgid "Home: "
+msgstr "Домашня папка: "
+
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
 msgstr "HTTP надсилає паролі, файли cookie сеансу та вміст файлів без шифрування. Все одно ввімкнути?"
 
 msgid "Inactivity timeout (minutes)"
-msgstr "Тайм-аут бездіяльності (хвилини)"
+msgstr "Час очікування бездіяльності (хвилини)"
 
 msgid "Inactivity timeout: %d min"
-msgstr "Час бездіяльності: %d хв"
+msgstr "Час очікування бездіяльності: %d хв"
+
+msgid "Install later"
+msgstr "Встановити пізніше"
+
+msgid "Install now"
+msgstr "Встановити зараз"
 
 msgid "Incoming ZenFM transfer ended."
 msgstr ""
@@ -232,7 +262,7 @@ msgid "Invalid value."
 msgstr "Недійсне значення."
 
 msgid "Keep editing"
-msgstr "Продовжуйте редагувати"
+msgstr "Продовжити редагування"
 
 msgid "KOReader plugin bundle:"
 msgstr "Набір плагінів KOReader:"
@@ -243,11 +273,8 @@ msgstr "Мітка"
 msgid "Language"
 msgstr "Мова"
 
-msgid "Later"
-msgstr "Пізніше"
-
 msgid "Lifetime"
-msgstr "Тривалість життя"
+msgstr "Термін дії"
 
 msgid "Light"
 msgstr "Світла"
@@ -259,10 +286,10 @@ msgid "Listening port:"
 msgstr "Порт прослуховування:"
 
 msgid "Loading…"
-msgstr "Завантаження..."
+msgstr "Завантаження…"
 
 msgid "Login reset. Use koreader123456789 and choose a new password."
-msgstr "Скидання входу. Використовуйте koreader123456789 і виберіть новий пароль."
+msgstr "Вхід скинуто. Використовуйте koreader123456789 і виберіть новий пароль."
 
 msgid "Looking for ZenFM devices…"
 msgstr ""
@@ -280,7 +307,7 @@ msgid "New file"
 msgstr "Новий файл"
 
 msgid "New folder"
-msgstr "Новий каталог"
+msgstr "Нова папка"
 
 msgid "New password"
 msgstr "Новий пароль"
@@ -289,7 +316,7 @@ msgid "New Password"
 msgstr "Новий пароль"
 
 msgid "Next match"
-msgstr "Наступний матч"
+msgstr "Наступний збіг"
 
 msgid "No matches"
 msgstr "Немає збігів"
@@ -312,11 +339,14 @@ msgstr "Попередній перегляд"
 msgid "Optional password"
 msgstr "Необов'язковий пароль"
 
+msgid "Overwrite"
+msgstr "Перезаписати"
+
 msgid "Password"
 msgstr "Пароль"
 
 msgid "Password changed; sessions and API tokens were revoked."
-msgstr "пароль змінено; сеансів і маркерів API було відкликано."
+msgstr "Пароль змінено; сеанси й токени API відкликано."
 
 msgid "Password protected"
 msgstr "Захищено паролем"
@@ -325,7 +355,7 @@ msgid "Paste"
 msgstr "Вставити"
 
 msgid "Personal API token"
-msgstr "Особистий маркер API"
+msgstr "Особистий токен API"
 
 msgid "Personal API tokens"
 msgstr "Персональні токени API"
@@ -334,13 +364,13 @@ msgid "Port must be between 1 and 65535."
 msgstr "Порт має бути від 1 до 65535."
 
 msgid "Port: "
-msgstr "Порт:"
+msgstr "Порт: "
 
 msgid "Preview is unavailable for this file."
 msgstr "Попередній перегляд для цього файлу недоступний."
 
 msgid "Previous match"
-msgstr "Попередній матч"
+msgstr "Попередній збіг"
 
 msgid "Received %s in %s"
 msgstr ""
@@ -361,16 +391,19 @@ msgid "Replace the temporary password before accessing your files."
 msgstr "Замініть тимчасовий пароль, перш ніж отримати доступ до файлів."
 
 msgid "Reset login"
-msgstr "Скинути логін"
+msgstr "Скинути вхід"
 
 msgid "Reset owner login"
-msgstr "Скинути логін власника"
+msgstr "Скинути вхід власника"
+
+msgid "Restart later"
+msgstr "Перезапустити пізніше"
 
 msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
-msgstr "Скинути обліковий запис власника на пароль лише для налаштування та відкликати кожен сеанс і маркер API?"
+msgstr "Скинути вхід власника до пароля лише для налаштування та відкликати всі сеанси й токени API?"
 
 msgid "Restart now"
-msgstr "Перезапустіть зараз"
+msgstr "Перезапустити зараз"
 
 msgid "Restarting…"
 msgstr "Перезапуск…"
@@ -381,14 +414,11 @@ msgstr ""
 msgid "Revoke"
 msgstr "Відкликати"
 
-msgid "Root"
-msgstr "Корінь"
-
-msgid "Root: "
-msgstr "Корінь:"
+msgid "Root: expose /"
+msgstr "Кореневий каталог: відкрити /"
 
 msgid "Save"
-msgstr "зберегти"
+msgstr "Зберегти"
 
 msgid "Save and close"
 msgstr "Зберегти та закрити"
@@ -404,6 +434,9 @@ msgstr "Зберегти"
 
 msgid "Saved. Restart ZenFM to apply the change."
 msgstr "Збережено. Перезапустіть ZenFM, щоб застосувати зміни."
+
+msgid "Saved. The default directory was reset to Home. Restart ZenFM to apply the change."
+msgstr "Збережено. Домашню папку відновлено як типову. Перезапустіть ZenFM, щоб застосувати зміни."
 
 msgid "Search results"
 msgstr "Результати пошуку"
@@ -430,16 +463,22 @@ msgid "Shared files"
 msgstr "Спільні файли"
 
 msgid "Shared links"
-msgstr "Управління спільними посиланнями"
+msgstr "Спільні посилання"
 
 msgid "Shared with ZenFM"
-msgstr "Спільно з ZenFM"
+msgstr "Спільний доступ через ZenFM"
 
 msgid "Shares"
-msgstr "акції"
+msgstr "Спільні посилання"
 
 msgid "Show hidden files"
 msgstr "Показати приховані файли"
+
+msgid "Show QR code"
+msgstr "Показати QR-код"
+
+msgid "Show address/QR code"
+msgstr "Показати адресу/QR-код"
 
 msgid "Show password"
 msgstr "Показати пароль"
@@ -463,22 +502,19 @@ msgid "Something went wrong"
 msgstr "Помилка"
 
 msgid "Start ZenFM"
-msgstr "Запустіть ZenFM"
-
-msgid "Status and address"
-msgstr "Статус і адреса"
+msgstr "Запустити ZenFM"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
-msgstr "Припиніть очікування звичайних запитів до сервера через стільки секунд."
+msgstr "Припиняти очікування звичайних запитів до сервера через вказану кількість секунд."
 
 msgid "Stop ZenFM"
-msgstr "Зупиніть ZenFM"
+msgstr "Зупинити ZenFM"
 
 msgid "Switch to dark mode"
-msgstr "Переключіться на темний режим"
+msgstr "Перейти в темний режим"
 
 msgid "Switch to light mode"
-msgstr "Переключіться на світлий режим"
+msgstr "Перейти у світлий режим"
 
 msgid "System"
 msgstr "За замовчуванням (системна)"
@@ -499,7 +535,7 @@ msgid "Theme"
 msgstr "Тема"
 
 msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
-msgstr "Це підключення використовує HTTP. Облікові дані та вміст файлу можуть бути видимими в мережі."
+msgstr "Це з'єднання використовує HTTP. Облікові дані та вміст файлів можуть бути видимими в мережі."
 
 msgid "This file has unsaved changes."
 msgstr "У цьому файлі є незбережені зміни."
@@ -511,7 +547,7 @@ msgid "This link is unavailable or has expired."
 msgstr "Це посилання недоступне або термін його дії закінчився."
 
 msgid "Token name"
-msgstr "Назва маркера"
+msgstr "Назва токена"
 
 msgid "Tokens are shown once and never stored by this browser."
 msgstr "Токени відображаються один раз і ніколи не зберігаються в цьому браузері."
@@ -520,37 +556,31 @@ msgid "Total copy progress"
 msgstr "Загальний прогрес копіювання"
 
 msgid "Total upload progress"
-msgstr "Загальний прогрес завантаження"
+msgstr "Загальний прогрес вивантаження"
 
 msgid "Unlock"
 msgstr "Розблокувати"
 
 msgid "Update"
-msgstr "оновлення"
+msgstr "Оновити"
 
 msgid "Upload"
 msgstr "Вивантажити"
 
 msgid "Upload a file or create one."
-msgstr "Завантажте файл або створіть його."
+msgstr "Вивантажте файл або створіть його."
 
 msgid "Upload files"
-msgstr "Завантажте файли"
+msgstr "Вивантажити файли"
 
 msgid "Upload folder"
-msgstr "Завантажити папку"
+msgstr "Вивантажити папку"
 
 msgid "Uploading {{name}} — {{progress}}%"
-msgstr "Завантаження {{name}} — {{progress}}%"
+msgstr "Вивантаження {{name}} — {{progress}}%"
 
 msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
-msgstr "Завантаження · {{completed}} з {{count}} файлів завершено · {{name}}"
-
-msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
-msgstr "Використовуйте розширений root, щоб відкрити /. Настроювані корені не можуть містити . або .. компоненти."
-
-msgid "Use an absolute path beginning with /."
-msgstr "Використовуйте абсолютний шлях, що починається з /."
+msgstr "Вивантаження · {{completed}} з {{count}} файлів завершено · {{name}}"
 
 msgid "Use at least 7 characters."
 msgstr "Використовуйте принаймні 7 символів."
@@ -586,7 +616,7 @@ msgid "ZenFM port"
 msgstr "Порт ZenFM"
 
 msgid "ZenFM request pending…"
-msgstr "Запит ZenFM очікує…"
+msgstr "Запит ZenFM очікує обробки…"
 
 msgid "ZenFM Send"
 msgstr ""
@@ -598,19 +628,22 @@ msgid "ZenFM Send requires HTTPS."
 msgstr ""
 
 msgid "ZenFM started."
-msgstr "ZenFM стартував."
+msgstr "ZenFM запущено."
 
 msgid "ZenFM stopped after inactivity."
-msgstr "ZenFM зупинився після бездіяльності."
+msgstr "ZenFM зупинено через бездіяльність."
 
 msgid "ZenFM stopped."
-msgstr "ZenFM зупинився."
+msgstr "ZenFM зупинено."
 
 msgid "ZenFM update cancelled."
 msgstr "Оновлення ZenFM скасовано."
 
 msgid "ZenFM update timed out."
 msgstr "Час очікування оновлення ZenFM минув."
+
+msgid "ZenFM update v%s is available."
+msgstr "Доступне оновлення ZenFM v%s."
 
 msgid "ZenFM: Status"
 msgstr "ZenFM: Статус"
@@ -619,16 +652,19 @@ msgid "ZenFM: Toggle server"
 msgstr "ZenFM: перемкнути сервер"
 
 msgid "{{action}} {{count}} items"
-msgstr "{{action}} {{count}} пунктів"
+msgstr "{{action}}: {{count}} елементів"
 
 msgid "{{count}} items selected"
-msgstr "Вибрано {{count}} елементів"
+msgstr "Вибрано елементів: {{count}}"
 
 msgid "{{current}} of {{total}}"
 msgstr "{{current}} з {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
 msgstr "{{name}} вже існує. Застосуйте цей вибір до всіх конфліктів у цьому завантаженні."
+
+msgid "{{name}} already exists in this folder. Do you want to overwrite it or create a duplicate?"
+msgstr "{{name}} уже існує в цій папці. Перезаписати його чи створити дублікат?"
 
 msgid "{{uploaded}} of {{total}} — {{progress}}%"
 msgstr "{{uploaded}} з {{total}} — {{progress}}%"

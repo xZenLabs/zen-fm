@@ -7,94 +7,109 @@ msgstr ""
 "Language: zh_HK\n"
 
 msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
-msgstr ""
+msgstr "%s 想要傳送 %s\n\n型別：%s\n檔案數：%d\n大小：%s\n指紋：…%s"
 
 msgid "%s — %d%%"
-msgstr ""
+msgstr "%s — %d%%"
 
 msgid "1 day"
-msgstr "1天"
+msgstr "1 天"
 
 msgid "1 hour"
-msgstr "1小時"
+msgstr "1 小時"
 
 msgid "1 week"
-msgstr "1週"
+msgstr "1 周"
 
 msgid "1 year"
-msgstr "1年"
+msgstr "1 年"
 
 msgid "30 days"
-msgstr "30天"
+msgstr "30 天"
+
+msgid "A restart is required to take effect."
+msgstr "需要重啟才能生效。"
 
 msgid "About {{eta}} remaining"
-msgstr "大約剩餘 {{eta}}"
+msgstr "大約還需 {{eta}}"
 
 msgid "Accept"
-msgstr ""
+msgstr "接受"
+
+msgid "Add to favorites"
+msgstr "加入收藏"
+
+msgid "Advanced"
+msgstr "高階"
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
-msgstr "高級 root 模式已啟動。系統檔案、裝置路徑和 ZenFM 機密都是可見的，並且可以更改或刪除。"
+msgstr "高階根模式已啟用。系統檔案、裝置路徑和 ZenFM 金鑰均可見，且可能被修改或刪除。"
 
 msgid "Advanced root mode serves /. It exposes /proc, /sys, /dev, ZenFM's database, certificates, logs, and every file the process can access. Editing or deleting them can damage the device or lock you out."
-msgstr "高級 root 模式服務 /。它公開 /proc、/sys、/dev、ZenFM 的資料庫、憑證、日誌以及行程可以存取的每個檔案。編輯或刪除它們可能會損壞設備或將您鎖定。"
+msgstr "高階根模式將以 / 作為服務根目錄，會暴露 /proc、/sys、/dev、ZenFM 的資料庫、證書、日誌，以及該程序能訪問的所有檔案。修改或刪除這些內容可能損壞裝置，或導致你無法訪問。"
 
 msgid "Advanced root: expose /"
-msgstr "高級root：暴露/"
+msgstr "高階根模式：暴露 /"
 
 msgid "Android companion APK: opening updater…"
-msgstr "Android 搭配 APK：開啟更新程式..."
+msgstr "Android 配套 APK：正在開啟更新程式…"
 
 msgid "Android companion did not report a fresh %s result within 30 seconds."
-msgstr "Android 伴侶在 30 秒內未回報新的 %s 結果。"
+msgstr "Android 配套應用在 30 秒內未返回新的 %s 結果。"
 
 msgid "Another ZenFM Android request is still pending."
-msgstr "另一個 ZenFM Android 請求仍待處理。"
+msgstr "另一個 ZenFM Android 請求仍在處理中。"
 
 msgid "Are you sure you want to move <filename>{{name}}</filename> to <path>{{destination}}</path>?"
-msgstr "您確定要將 <filename>{{name}}</filename> 移到 <path>{{destination}}</path> 嗎？"
+msgstr "確定要將 <filename>{{name}}</filename> 移動到 <path>{{destination}}</path> 嗎？"
 
 msgid "Beta updates"
 msgstr "測試版更新"
 
 msgid "Calculating total size…"
-msgstr "正在計算總大小..."
+msgstr "正在計算總大小…"
 
 msgid "Cancel"
 msgstr "取消"
 
 msgid "Cancel transfer"
-msgstr ""
+msgstr "取消傳輸"
 
 msgid "Change password"
-msgstr "更改密碼"
+msgstr "修改密碼"
 
 msgid "Checking for a ZenFM update…"
-msgstr "正在檢查 ZenFM 更新..."
+msgstr "正在檢查 ZenFM 更新…"
 
 msgid "Checksum"
 msgstr "校驗和"
 
+msgid "Choose a folder within ZenFM Home."
+msgstr "請在 ZenFM 主頁範圍內選擇一個資料夾。"
+
 msgid "Clear find"
-msgstr "明確尋找"
+msgstr "清除查詢內容"
 
 msgid "Clear search"
 msgstr "清除搜尋"
 
 msgid "Client timeout"
-msgstr "客戶端逾時"
+msgstr "客戶端超時"
 
 msgid "Close"
 msgstr "關閉"
 
 msgid "Close file"
-msgstr "關閉文件"
+msgstr "關閉檔案"
+
+msgid "Configure ZenFM Home first."
+msgstr "請先配置 ZenFM 主頁。"
 
 msgid "Confirm"
-msgstr "確認"
+msgstr "確定"
 
 msgid "Confirm password"
-msgstr "確認密碼"
+msgstr "確認新密碼"
 
 msgid "Copied"
 msgstr "已複製"
@@ -106,61 +121,64 @@ msgid "Copy link"
 msgstr "複製連結"
 
 msgid "Copy this token now. It will not be shown again."
-msgstr "立即複製此令牌。它將不會再次顯示。"
+msgstr "請立即複製此權杖，它不會再顯示。"
 
 msgid "Copy token"
-msgstr "複製令牌"
+msgstr "複製權杖"
 
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
-msgstr "正在複製 {{total}} 的 {{copied}} — {{progress}}%"
+msgstr "正在複製 {{copied}} / {{total}} — {{progress}}%"
 
 msgid "Could not create a secure ZenFM Send request."
-msgstr ""
+msgstr "無法建立安全的 ZenFM 傳送請求。"
 
 msgid "Could not read the Android companion result"
-msgstr "無法讀取 Android 配對結果"
+msgstr "無法讀取 Android 配套應用的返回結果"
 
 msgid "Create"
-msgstr "創造"
+msgstr "建立"
 
 msgid "Create share"
-msgstr "建立共享"
+msgstr "建立分享連結"
 
 msgid "Create temporary links without exposing your owner session."
-msgstr "建立臨時連結而不暴露您的所有者會話。"
+msgstr "建立臨時連結，無需暴露你的所有者會話。"
 
 msgid "Create token"
-msgstr "創建代幣"
+msgstr "建立權杖"
 
 msgid "Current password"
-msgstr "目前密碼"
+msgstr "當前密碼"
 
 msgid "Custom root (blank uses device default)"
-msgstr "自訂根（空白使用裝置預設值）"
+msgstr "自定義根目錄（留空則使用裝置預設值）"
 
 msgid "Dark"
-msgstr "黑暗的"
+msgstr "深色"
 
 msgid "Date modified"
 msgstr "修改日期"
 
 msgid "Decline"
-msgstr ""
+msgstr "拒絕"
+
+msgid "Default directory: "
+msgstr "預設目錄："
 
 msgid "Delete"
 msgstr "刪除"
 
 msgid "Delete {{count}} items?"
-msgstr "刪除 {{count}} 項目嗎？"
+msgstr "確定刪除 {{count}} 項？"
 
 msgid "Destination folder"
 msgstr "目標資料夾"
 
 msgid "Destination path"
-msgstr "目的地路徑"
+msgstr "目標路徑"
 
 msgid "Discard"
-msgstr "丟棄"
+msgstr "放棄更改"
 
 msgid "Download"
 msgstr "下載"
@@ -168,35 +186,41 @@ msgstr "下載"
 msgid "Edit"
 msgstr "編輯"
 
+msgid "Edit label"
+msgstr "編輯標籤"
+
 msgid "Editing {{name}}"
-msgstr "編輯{{name}}"
+msgstr "正在編輯 {{name}}"
 
 msgid "Enable HTTP"
 msgstr "啟用 HTTP"
 
 msgid "Expires"
-msgstr "過期"
+msgstr "過期時間"
 
 msgid "Expires after"
-msgstr "過期時間為"
+msgstr "有效期"
 
 msgid "Expose entire filesystem"
 msgstr "暴露整個檔案系統"
 
+msgid "Favorites"
+msgstr "收藏夾"
+
 msgid "File already exists"
-msgstr "文件已存在"
+msgstr "檔案已存在"
 
 msgid "File name"
-msgstr "檔案名稱"
+msgstr "檔名"
 
 msgid "File or folder path"
-msgstr "文件或資料夾路徑"
+msgstr "檔案或資料夾路徑"
 
 msgid "Files"
-msgstr "文件"
+msgstr "檔案"
 
 msgid "Find in file"
-msgstr "在文件中尋找"
+msgstr "在檔案中查詢"
 
 msgid "Finish setup"
 msgstr "完成設定"
@@ -205,37 +229,49 @@ msgid "Folder name"
 msgstr "資料夾名稱"
 
 msgid "General"
-msgstr "一般的"
+msgstr "一般"
 
 msgid "Grid view"
-msgstr "網格視圖"
+msgstr "網格檢視"
 
 msgid "Hide password"
 msgstr "隱藏密碼"
 
+msgid "Home"
+msgstr "主頁"
+
+msgid "Home: "
+msgstr "主頁："
+
 msgid "HTTP sends passwords, session cookies, and file contents without encryption. Enable it anyway?"
-msgstr "HTTP 傳送密碼、會話 cookie 和檔案內容而不加密。仍然啟用它嗎？"
+msgstr "HTTP 會以未加密的方式傳輸密碼、會話 Cookie 和檔案內容。仍要啟用嗎？"
 
 msgid "Inactivity timeout (minutes)"
-msgstr "不活動超時（分鐘）"
+msgstr "空閒超時（分鐘）"
 
 msgid "Inactivity timeout: %d min"
-msgstr "不活動逾時：%d 分鐘"
+msgstr "空閒超時：%d 分鐘"
 
 msgid "Incoming ZenFM transfer ended."
-msgstr ""
+msgstr "傳入的 ZenFM 傳輸已結束。"
+
+msgid "Install later"
+msgstr "稍後安裝"
+
+msgid "Install now"
+msgstr "立即安裝"
 
 msgid "Installing ZenFM update…"
-msgstr "正在安裝 ZenFM 更新..."
+msgstr "正在安裝 ZenFM 更新…"
 
 msgid "Invalid value."
-msgstr "無效值。"
+msgstr "無效的值。"
 
 msgid "Keep editing"
 msgstr "繼續編輯"
 
 msgid "KOReader plugin bundle:"
-msgstr "KOReader 插件包："
+msgstr "KOReader 外掛包："
 
 msgid "Label"
 msgstr "標籤"
@@ -244,40 +280,46 @@ msgid "Language"
 msgstr "語言"
 
 msgid "Later"
-msgstr "之後"
+msgstr "稍後"
+
+msgid "Leave blank to use the file or folder name."
+msgstr "留空則使用檔案或資料夾名。"
 
 msgid "Lifetime"
-msgstr "壽命"
+msgstr "有效時長"
 
 msgid "Light"
-msgstr "光"
+msgstr "淺色"
 
 msgid "List view"
-msgstr "清單視圖"
+msgstr "列表檢視"
 
 msgid "Listening port:"
-msgstr "監聽埠："
+msgstr "監聽連接埠："
 
 msgid "Loading…"
 msgstr "載入中…"
 
 msgid "Login reset. Use koreader123456789 and choose a new password."
-msgstr "登入重置。使用 koreader123456789 並選擇一個新密碼。"
+msgstr "登入已重置。請使用 koreader123456789 登入並設定新密碼。"
 
 msgid "Looking for ZenFM devices…"
-msgstr ""
+msgstr "正在查詢 ZenFM 裝置…"
+
+msgid "More favorites"
+msgstr "更多收藏"
 
 msgid "Move"
-msgstr "移動"
+msgstr "移動到"
 
 msgid "Name"
-msgstr "姓名"
+msgstr "名稱"
 
 msgid "Never"
-msgstr "絕不"
+msgstr "永不過期"
 
 msgid "New file"
-msgstr "新文件"
+msgstr "新建檔案"
 
 msgid "New folder"
 msgstr "新建資料夾"
@@ -289,34 +331,34 @@ msgid "New Password"
 msgstr "新密碼"
 
 msgid "Next match"
-msgstr "下一場比賽"
+msgstr "下一個匹配"
 
 msgid "No matches"
-msgstr "沒有匹配項"
+msgstr "沒有匹配結果"
 
 msgid "No shared links"
-msgstr "沒有共享連結"
+msgstr "暫無分享連結"
 
 msgid "No ZenFM devices found"
-msgstr ""
+msgstr "未找到 ZenFM 裝置"
 
 msgid "not configured"
 msgstr "未配置"
 
 msgid "Nothing here yet"
-msgstr "這裡還什麼都沒有"
+msgstr "這裡還沒有內容"
 
 msgid "Open"
-msgstr "打開"
+msgstr "開啟"
 
 msgid "Optional password"
-msgstr "可選密碼"
+msgstr "密碼（可選）"
 
 msgid "Password"
 msgstr "密碼"
 
 msgid "Password changed; sessions and API tokens were revoked."
-msgstr "密碼已更改；會話和 API 令牌已被撤銷。"
+msgstr "密碼已修改，所有會話和 API 權杖均已撤銷。"
 
 msgid "Password protected"
 msgstr "密碼保護"
@@ -328,94 +370,109 @@ msgid "Personal API token"
 msgstr "個人 API 權杖"
 
 msgid "Personal API tokens"
-msgstr "個人API令牌"
+msgstr "個人 API 權杖"
 
 msgid "Port must be between 1 and 65535."
-msgstr "連接埠必須介於 1 和 65535 之間。"
+msgstr "連接埠必須在 1 到 65535 之間。"
 
 msgid "Port: "
-msgstr "港口："
+msgstr "連接埠："
 
 msgid "Preview is unavailable for this file."
-msgstr "該文件無法預覽。"
+msgstr "此檔案無法預覽。"
 
 msgid "Previous match"
-msgstr "上一場比賽"
+msgstr "上一個匹配"
+
+msgid "Queued · {{name}}"
+msgstr "排隊中 · {{name}}"
 
 msgid "Received %s in %s"
-msgstr ""
+msgstr "已收到 %s，用時 %s"
 
 msgid "Refresh"
 msgstr "重新整理"
+
+msgid "Remove from favorites"
+msgstr "從收藏中移除"
 
 msgid "Rename"
 msgstr "重新命名"
 
 msgid "Replace"
-msgstr "代替"
+msgstr "替換"
 
 msgid "Replace all"
 msgstr "全部替換"
 
 msgid "Replace the temporary password before accessing your files."
-msgstr "在存取文件之前替換臨時密碼。"
+msgstr "請先修改臨時密碼，再訪問你的檔案。"
 
 msgid "Reset login"
-msgstr "重設登入"
+msgstr "重置登入"
 
 msgid "Reset owner login"
 msgstr "重置所有者登入"
 
 msgid "Reset the owner login to the setup-only password and revoke every session and API token?"
-msgstr "將所有者登入重設為僅用於設定的密碼並撤銷每個會話和 API 令牌？"
+msgstr "確定將所有者登入重置為初始密碼，並撤銷所有會話和 API 權杖？"
+
+msgid "Restart later"
+msgstr "稍後重啟"
 
 msgid "Restart now"
-msgstr "立即重新啟動"
+msgstr "立即重啟"
 
 msgid "Restarting…"
-msgstr "正在重新啟動..."
+msgstr "正在重啟…"
 
 msgid "Retry"
-msgstr ""
+msgstr "重試"
 
 msgid "Revoke"
 msgstr "撤銷"
 
 msgid "Root"
-msgstr "根"
+msgstr "根目錄"
 
 msgid "Root: "
-msgstr "根："
+msgstr "根目錄："
+
+msgid "Root: expose /"
+msgstr "根目錄：暴露 /"
 
 msgid "Save"
-msgstr "節省"
+msgstr "儲存"
 
 msgid "Save and close"
 msgstr "儲存並關閉"
 
 msgid "Save changes"
-msgstr "儲存變更"
+msgstr "儲存更改"
 
 msgid "Save changes before closing?"
-msgstr "關閉前已儲存變更嗎？"
+msgstr "關閉前儲存更改嗎？"
 
 msgid "Save settings"
 msgstr "儲存設定"
 
 msgid "Saved. Restart ZenFM to apply the change."
-msgstr "已儲存。重新啟動 ZenFM 以套用變更。"
+msgstr "已儲存。重啟 ZenFM 後生效。"
+
+msgid "Saved. The default directory was reset to Home. Restart ZenFM to apply the change."
+msgstr "已儲存。預設目錄已重置為主頁。重啟 ZenFM 後生效。"
 
 msgid "Search results"
 msgstr "搜尋結果"
 
 msgid "Search this folder"
-msgstr "搜尋該資料夾"
+msgstr "搜尋此資料夾"
 
 msgid "Send with ZenFM"
-msgstr ""
+msgstr "用 ZenFM 傳送"
 
 msgid "Sent %s to %s"
-msgstr ""
+msgstr "已將 %s 傳送給 %s"
 
 msgid "Settings"
 msgstr "設定"
@@ -427,49 +484,55 @@ msgid "Share"
 msgstr "分享"
 
 msgid "Shared files"
-msgstr "共享文件"
+msgstr "分享的檔案"
 
 msgid "Shared links"
-msgstr "共享連結"
+msgstr "分享連結"
 
 msgid "Shared with ZenFM"
-msgstr "與 ZenFM 分享"
+msgstr "透過 ZenFM 分享"
 
 msgid "Shares"
-msgstr "股份"
+msgstr "分享"
+
+msgid "Show address/QR code"
+msgstr "顯示地址/二維碼"
 
 msgid "Show hidden files"
-msgstr "顯示隱藏文件"
+msgstr "顯示隱藏檔案"
 
 msgid "Show password"
 msgstr "顯示密碼"
+
+msgid "Show QR code"
+msgstr "顯示二維碼"
 
 msgid "Sign in"
 msgstr "登入"
 
 msgid "Sign out"
-msgstr "登出"
+msgstr "退出登入"
 
 msgid "Signing in…"
-msgstr "正在登入..."
+msgstr "正在登入…"
 
 msgid "Size"
-msgstr "尺寸"
+msgstr "大小"
 
 msgid "Skip all"
 msgstr "全部跳過"
 
 msgid "Something went wrong"
-msgstr "出了點問題"
+msgstr "出錯了"
 
 msgid "Start ZenFM"
-msgstr "啟動ZenFM"
+msgstr "啟動 ZenFM"
 
 msgid "Status and address"
-msgstr "狀態和地址"
+msgstr "狀態與地址"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
-msgstr "經過這麼多秒後停止等待普通伺服器請求。"
+msgstr "普通伺服器請求等待超過此秒數後即放棄。"
 
 msgid "Stop ZenFM"
 msgstr "停止 ZenFM"
@@ -478,10 +541,10 @@ msgid "Switch to dark mode"
 msgstr "切換到深色模式"
 
 msgid "Switch to light mode"
-msgstr "切換到燈光模式"
+msgstr "切換到淺色模式"
 
 msgid "System"
-msgstr "系統"
+msgstr "跟隨系統"
 
 msgid "Temporary password"
 msgstr "臨時密碼"
@@ -493,64 +556,64 @@ msgid "The password is incorrect."
 msgstr "密碼不正確。"
 
 msgid "The receiver declined the ZenFM transfer."
-msgstr ""
+msgstr "接收方拒絕了 ZenFM 傳輸。"
 
 msgid "Theme"
 msgstr "主題"
 
 msgid "This connection is using HTTP. Credentials and file contents may be visible on the network."
-msgstr "此連線使用 HTTP。憑證和文件內容可能在網路上可見。"
+msgstr "當前連線使用 HTTP，賬號資訊和檔案內容可能被網絡中的其他人看到。"
 
 msgid "This file has unsaved changes."
-msgstr "該文件有未儲存的變更。"
+msgstr "該檔案有未儲存的更改。"
 
 msgid "This file is too large or unsupported for safe editing."
-msgstr "此文件太大或不支援安全編輯。"
+msgstr "該檔案過大或格式不受支援，無法安全編輯。"
 
 msgid "This link is unavailable or has expired."
-msgstr "該連結不可用或已過期。"
+msgstr "此連結不可用或已過期。"
 
 msgid "Token name"
-msgstr "代幣名稱"
+msgstr "權杖名稱"
 
 msgid "Tokens are shown once and never stored by this browser."
-msgstr "令牌僅顯示一次，並且不會被該瀏覽器儲存。"
+msgstr "權杖僅顯示一次，瀏覽器不會儲存。"
 
 msgid "Total copy progress"
-msgstr "總複製進度"
+msgstr "複製總進度"
 
 msgid "Total upload progress"
-msgstr "總上傳進度"
+msgstr "上載總進度"
 
 msgid "Unlock"
-msgstr "開鎖"
+msgstr "解鎖"
 
 msgid "Update"
 msgstr "更新"
 
 msgid "Upload"
-msgstr "上傳"
+msgstr "上載"
 
 msgid "Upload a file or create one."
-msgstr "上傳文件或建立文件。"
+msgstr "上載檔案，或新建一個。"
 
 msgid "Upload files"
-msgstr "上傳文件"
+msgstr "上載檔案"
 
 msgid "Upload folder"
-msgstr "上傳資料夾"
+msgstr "上載資料夾"
 
 msgid "Uploading {{name}} — {{progress}}%"
-msgstr "上傳 {{name}} — {{progress}}%"
+msgstr "正在上載 {{name}} — {{progress}}%"
 
 msgid "Uploading · {{completed}} of {{count}} files complete · {{name}}"
-msgstr "正在上傳 {{completed}} 個文件，共 {{count}} 個文件已完成 · {{name}}"
+msgstr "正在上載 · 已完成 {{completed}} / {{count}} 個檔案 · {{name}}"
 
 msgid "Use Advanced root to expose /. Custom roots cannot contain . or .. components."
-msgstr "使用高級 root 來公開 /。自訂根不能包含 .或..組件。"
+msgstr "如需暴露 /，請使用高階根模式。自定義根目錄不能包含 . 或 .. 路徑片段。"
 
 msgid "Use an absolute path beginning with /."
-msgstr "使用以/開頭的絕對路徑。"
+msgstr "請使用以 / 開頭的絕對路徑。"
 
 msgid "Use at least 7 characters."
 msgstr "至少使用 7 個字元。"
@@ -562,22 +625,22 @@ msgid "Version"
 msgstr "版本"
 
 msgid "Warning: advanced root mode exposes the entire filesystem, including ZenFM state and certificates."
-msgstr "警告：進階根模式會公開整個檔案系統，包括 ZenFM 狀態和憑證。"
+msgstr "警告：高階根模式會暴露整個檔案系統，包括 ZenFM 的狀態和證書。"
 
 msgid "Warning: unencrypted HTTP is enabled."
 msgstr "警告：未加密的 HTTP 已啟用。"
 
 msgid "Your files, easily accessible."
-msgstr "您的文件，輕鬆存取。"
+msgstr "你的檔案，隨手可得。"
 
 msgid "ZenFM"
-msgstr "禪調FM"
+msgstr "ZenFM"
 
 msgid "ZenFM device discovery failed."
-msgstr ""
+msgstr "ZenFM 裝置查詢失敗。"
 
 msgid "ZenFM is running."
-msgstr "ZenFM 正在運作。"
+msgstr "ZenFM 正在執行。"
 
 msgid "ZenFM is stopped."
 msgstr "ZenFM 已停止。"
@@ -586,49 +649,52 @@ msgid "ZenFM port"
 msgstr "ZenFM 連接埠"
 
 msgid "ZenFM request pending…"
-msgstr "ZenFM 請求待處理..."
+msgstr "ZenFM 請求處理中…"
 
 msgid "ZenFM Send"
-msgstr ""
+msgstr "ZenFM 傳送"
 
 msgid "ZenFM Send failed."
-msgstr ""
+msgstr "ZenFM 傳送失敗。"
 
 msgid "ZenFM Send requires HTTPS."
-msgstr ""
+msgstr "ZenFM 傳送需要 HTTPS。"
 
 msgid "ZenFM started."
-msgstr "ZenFM 啟動。"
+msgstr "ZenFM 已啟動。"
 
 msgid "ZenFM stopped after inactivity."
-msgstr "ZenFM 在不活動後停止。"
+msgstr "ZenFM 因空閒超時而停止。"
 
 msgid "ZenFM stopped."
-msgstr "ZenFM 停止了。"
+msgstr "ZenFM 已停止。"
 
 msgid "ZenFM update cancelled."
-msgstr "ZenFM 更新已取消。"
+msgstr "已取消 ZenFM 更新。"
 
 msgid "ZenFM update timed out."
-msgstr "ZenFM 更新逾時。"
+msgstr "ZenFM 更新超時。"
+
+msgid "ZenFM update v%s is available."
+msgstr "發現 ZenFM 新版本 v%s。"
 
 msgid "ZenFM: Status"
 msgstr "ZenFM：狀態"
 
 msgid "ZenFM: Toggle server"
-msgstr "ZenFM：切換伺服器"
+msgstr "ZenFM：開關伺服器"
 
 msgid "{{action}} {{count}} items"
-msgstr "{{action}} {{count}} 項目"
+msgstr "{{action}} {{count}} 項"
 
 msgid "{{count}} items selected"
-msgstr "已選擇 {{count}} 項目"
+msgstr "已選擇 {{count}} 項"
 
 msgid "{{current}} of {{total}}"
-msgstr "{{current}} 共 {{total}}"
+msgstr "{{current}} / {{total}}"
 
 msgid "{{name}} already exists. Apply this choice to all conflicts in this upload."
-msgstr "{{name}} 已存在。將此選擇套用至此上傳中的所有衝突。"
+msgstr "{{name}} 已存在。是否將此選擇應用到本次上載的所有衝突？"
 
 msgid "{{uploaded}} of {{total}} — {{progress}}%"
-msgstr "{{total}} 的 {{uploaded}} — {{progress}}%"
+msgstr "已上載 {{uploaded}} / {{total}} — {{progress}}%"
