@@ -1199,7 +1199,7 @@ func discoveryBroadcasts() []*net.UDPAddr {
 	}
 	seen := map[string]bool{net.IPv4bcast.String(): true}
 	for _, networkInterface := range interfaces {
-		if networkInterface.Flags&net.FlagUp == 0 || networkInterface.Flags&net.FlagLoopback != 0 || networkInterface.Flags&net.FlagBroadcast == 0 {
+		if !usableDiscoveryInterface(networkInterface.Flags) {
 			continue
 		}
 		values, _ := networkInterface.Addrs()
@@ -1223,6 +1223,10 @@ func discoveryBroadcasts() []*net.UDPAddr {
 		}
 	}
 	return addresses
+}
+
+func usableDiscoveryInterface(flags net.Flags) bool {
+	return flags&net.FlagUp != 0 && flags&net.FlagLoopback == 0
 }
 
 func (m *peerManager) refreshDiscoveryLocked(status, message string) {

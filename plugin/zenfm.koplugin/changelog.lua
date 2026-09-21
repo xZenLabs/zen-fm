@@ -51,7 +51,10 @@ return {
         "Queue multiple uploads",
     },
     ["1.2.0"] = {
-        "Direct p2p sharing over https locally (like localsend)"
+        "Direct p2p sharing over https locally (like localsend)",
+        "Add scroll to bottom button for long files",
+        "Allow changing device name",
+        "Show device name in browser tab",
     },
 
 }

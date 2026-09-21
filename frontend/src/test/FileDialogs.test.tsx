@@ -121,6 +121,24 @@ it('places preview close in the title bar and download in the footer', () => {
   expect(download.closest('.MuiDialogActions-root')).toBeInTheDocument()
 })
 
+it('scrolls fullscreen text files over 500 lines to the bottom', async () => {
+  const source = Array.from({ length: 501 }, (_, index) => `Line ${index + 1}`).join('\n')
+  server.use(http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text(source)))
+  const entry: FileEntry = { name: 'long.txt', path: '/long.txt', type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} fullScreen onClose={() => undefined} /></QueryClientProvider>)
+
+  const button = await screen.findByRole('button', { name: 'Scroll to bottom' })
+  await waitFor(() => expect(document.querySelector('.cm-scroller')).toBeInTheDocument())
+  const scroller = document.querySelector<HTMLElement>('.cm-scroller')!
+  Object.defineProperty(scroller, 'scrollHeight', { value: 1200 })
+  await user.click(button)
+
+  expect(scroller.scrollTop).toBe(1200)
+  expect(button.closest('.MuiDialogActions-root')?.firstElementChild).toBe(button)
+})
+
 it('shows a text preview with Open as the primary action and keeps Edit explicit', async () => {
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('Readable text', { headers: { 'Content-Type': 'text/plain' } })))
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }

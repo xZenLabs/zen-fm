@@ -151,6 +151,15 @@ func TestPeerDiscoveryListenerRespondsAndLogs(t *testing.T) {
 	}
 }
 
+func TestPeerDiscoveryDoesNotRequireBroadcastInterfaceFlag(t *testing.T) {
+	if !usableDiscoveryInterface(net.FlagUp) {
+		t.Fatal("an up Android interface without the broadcast flag was rejected")
+	}
+	if usableDiscoveryInterface(0) || usableDiscoveryInterface(net.FlagUp|net.FlagLoopback) {
+		t.Fatal("a down or loopback interface was accepted")
+	}
+}
+
 func TestPinnedPeerClientRejectsFingerprintSubstitutionAndRedirects(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/redirect" {
