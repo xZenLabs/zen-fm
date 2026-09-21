@@ -920,8 +920,8 @@ func TestGHSA_pp88MoveRevokesDescendantShares(t *testing.T) {
 
 func TestStaticCSPAndCaching(t *testing.T) {
 	a := newTestAPI(t)
-	server, err := New(Config{Store: a.store, Files: a.files, StaticFS: fstest.MapFS{
-		"index.html":               &fstest.MapFile{Data: []byte("<html><head></head><body></body></html>")},
+	server, err := New(Config{Store: a.store, Files: a.files, HTMLTitle: "ZenFM - Reader & <Tablet>", StaticFS: fstest.MapFS{
+		"index.html":               &fstest.MapFile{Data: []byte("<html><head><title>ZenFM</title></head><body></body></html>")},
 		"manifest.webmanifest":     &fstest.MapFile{Data: []byte(`{"name":"ZenFM"}`)},
 		"apple-touch-icon-120.png": &fstest.MapFile{Data: []byte("png")},
 		"assets/app-abcdef12.js":   &fstest.MapFile{Data: []byte("ok")},
@@ -933,7 +933,7 @@ func TestStaticCSPAndCaching(t *testing.T) {
 	defer server.Close()
 	r := httptest.NewRecorder()
 	server.Handler().ServeHTTP(r, httptest.NewRequest(http.MethodGet, "/", nil))
-	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "csp-nonce") || strings.Contains(r.Header().Get("Content-Security-Policy"), "unsafe-inline") || !strings.Contains(r.Header().Get("Content-Security-Policy"), "frame-src 'self' blob:") {
+	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "<title>ZenFM - Reader &amp; &lt;Tablet&gt;</title>") || !strings.Contains(r.Body.String(), "csp-nonce") || strings.Contains(r.Header().Get("Content-Security-Policy"), "unsafe-inline") || !strings.Contains(r.Header().Get("Content-Security-Policy"), "frame-src 'self' blob:") {
 		t.Fatalf("index security: %d %#v %s", r.Code, r.Header(), r.Body.String())
 	}
 	r = httptest.NewRecorder()

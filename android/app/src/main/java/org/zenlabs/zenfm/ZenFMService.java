@@ -33,6 +33,8 @@ public final class ZenFMService extends Service {
     private static final String CHANNEL = "zenfm-server";
     private static final int NOTIFICATION = 4197;
     private static final int DEFAULT_PORT = 54321;
+    private static final String PEER_PENDING = "ZenFM peer incoming pending";
+    private static final String PEER_CLEAR = "ZenFM peer incoming clear";
     private Process process;
     private Thread worker;
     private Config config;
@@ -42,6 +44,7 @@ public final class ZenFMService extends Service {
     private boolean recoveryRequired;
     private boolean stopRequested;
     private boolean resetInProgress;
+    private volatile boolean peerOfferPending;
     private WifiManager.MulticastLock peerDiscoveryLock;
     private String pendingLifecycleAction;
     private String pendingLifecycleRequestId;
@@ -176,16 +179,28 @@ public final class ZenFMService extends Service {
     }
 
     private void foreground() {
-        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-            ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
-        Notification notification = builder.setContentTitle("ZenFM")
-            .setContentText("Serving files in the background")
-            .setSmallIcon(android.R.drawable.stat_sys_upload).setOngoing(true).build();
+        Notification notification = serverNotification();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIFICATION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
         } else {
             startForeground(NOTIFICATION, notification);
         }
+    }
+
+    private Notification serverNotification() {
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
+        return builder.setContentTitle("ZenFM")
+            .setContentText(peerOfferPending ? "Incoming transfer waiting; open KOReader" : "Serving files in the background")
+            .setSmallIcon(android.R.drawable.stat_sys_upload).setOngoing(true).build();
+    }
+
+    private synchronized void updatePeerNotification(boolean pending) {
+        peerOfferPending = pending;
+        if (process == null) return;
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        try { manager.notify(NOTIFICATION, serverNotification()); }
+        catch (RuntimeException ignored) {}
     }
 
     private synchronized void startBackend(final int startId) {
@@ -225,7 +240,11 @@ public final class ZenFMService extends Service {
                             try {
                                 BufferedReader reader = new BufferedReader(new InputStreamReader(launched.getInputStream()));
                                 String line;
-                                while ((line = reader.readLine()) != null) CompanionLog.write(ZenFMService.this, launchedConfig.home, line);
+                                while ((line = reader.readLine()) != null) {
+                                    Boolean pending = peerNotification(line);
+                                    if (pending != null) updatePeerNotification(pending.booleanValue());
+                                    CompanionLog.write(ZenFMService.this, launchedConfig.home, line);
+                                }
                             } catch (Exception ignored) {}
                         }
                     }, "ZenFMLogs");
@@ -337,10 +356,11 @@ public final class ZenFMService extends Service {
         command.add("--data-dir"); command.add(getFilesDir().getAbsolutePath());
         command.add("--listen"); command.add("0.0.0.0:" + value.port);
         command.add("--control-socket"); command.add(socketPath());
-        command.add("--peer-name"); command.add(Build.MODEL == null ? "Android" : Build.MODEL);
+        command.add("--peer-name"); command.add(value.deviceName);
         command.add("--peer-events"); command.add(new File(value.home, "peer-events.json").getAbsolutePath());
         command.add("--auto-stop"); command.add(value.autoStop);
         if (value.debug) command.add("--debug");
+        if (value.useDeviceNameAsTitle) command.add("--use-device-name-as-title");
         if (value.insecure) command.add("--insecure-http");
         else if (!value.certificate.isEmpty()) {
             command.add("--tls-cert"); command.add(value.certificate);
@@ -445,6 +465,12 @@ public final class ZenFMService extends Service {
             || command.matches("peer-send " + id + " [A-Fa-f0-9]{64} [A-Za-z0-9_-]{1,6000}");
     }
 
+    static Boolean peerNotification(String line) {
+        if (PEER_PENDING.equals(line)) return Boolean.TRUE;
+        if (PEER_CLEAR.equals(line)) return Boolean.FALSE;
+        return null;
+    }
+
     private synchronized void stopBackend() {
         control("stop");
         final Process current = process;
@@ -537,14 +563,16 @@ public final class ZenFMService extends Service {
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private static final class Config {
-        final String home, root, peerSourceRoot, defaultDirectory, autoStop, certificate, key, requestId;
+        final String home, root, peerSourceRoot, defaultDirectory, deviceName, autoStop, certificate, key, requestId;
         final int port;
-        final boolean insecure, debug;
-        Config(String home, String root, String peerSourceRoot, String defaultDirectory, int port, boolean insecure, boolean debug, String autoStop,
+        final boolean insecure, debug, useDeviceNameAsTitle;
+        Config(String home, String root, String peerSourceRoot, String defaultDirectory, int port, boolean insecure, boolean debug,
+            String deviceName, boolean useDeviceNameAsTitle, String autoStop,
             String certificate, String key, String requestId) {
             this.home = home; this.root = root; this.port = port; this.insecure = insecure; this.debug = debug;
             this.peerSourceRoot = peerSourceRoot;
             this.defaultDirectory = defaultDirectory;
+            this.deviceName = deviceName; this.useDeviceNameAsTitle = useDeviceNameAsTitle;
             this.autoStop = autoStop; this.certificate = certificate; this.key = key;
             this.requestId = requestId == null ? "" : requestId;
         }
@@ -552,6 +580,7 @@ public final class ZenFMService extends Service {
             return other != null && home.equals(other.home) && root.equals(other.root) && peerSourceRoot.equals(other.peerSourceRoot)
                 && defaultDirectory.equals(other.defaultDirectory) && port == other.port
                 && insecure == other.insecure && debug == other.debug && autoStop.equals(other.autoStop)
+                && deviceName.equals(other.deviceName) && useDeviceNameAsTitle == other.useDeviceNameAsTitle
                 && certificate.equals(other.certificate) && key.equals(other.key);
         }
         static Config from(Intent intent) {
@@ -562,6 +591,7 @@ public final class ZenFMService extends Service {
             if (peerSourceRoot == null) peerSourceRoot = root;
             return new Config(home, root, peerSourceRoot, defaultDirectory, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
                 intent.getBooleanExtra("debug", false),
+                intent.getStringExtra("device_name"), intent.getBooleanExtra("use_device_name_as_title", false),
                 intent.getStringExtra("auto_stop"), intent.getStringExtra("tls_cert"), intent.getStringExtra("tls_key"),
                 intent.getStringExtra("request_id"));
         }
@@ -571,6 +601,7 @@ public final class ZenFMService extends Service {
             service.getSharedPreferences("server", MODE_PRIVATE).edit().putString("home", home).putString("root", root)
                 .putString("peer_source_root", peerSourceRoot)
                 .putString("default_directory", defaultDirectory)
+                .putString("device_name", deviceName).putBoolean("use_device_name_as_title", useDeviceNameAsTitle)
                 .putInt("port", port).putBoolean("insecure", insecure).putBoolean("debug", debug).putString("auto_stop", autoStop)
                 .putString("certificate", certificate).putString("key", key).commit();
         }
@@ -580,6 +611,7 @@ public final class ZenFMService extends Service {
             if (home == null || root == null) return null;
             return new Config(home, root, p.getString("peer_source_root", root), p.getString("default_directory", "/"), p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
                 p.getBoolean("debug", false),
+                p.getString("device_name", Build.MODEL == null ? "Android" : Build.MODEL), p.getBoolean("use_device_name_as_title", false),
                 p.getString("auto_stop", "0"), p.getString("certificate", ""), p.getString("key", ""), "");
         }
     }

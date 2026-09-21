@@ -50,11 +50,13 @@ function ZenFM:init()
     self.peer_replay = true
     self.ui.menu:registerToMainMenu(self)
     self:register_peer_send()
+    if self.peer_enabled and UIManager.event_hook then
+        UIManager.event_hook:registerWidget("InputEvent", self)
+    end
     self:onDispatcherRegisterActions()
     local healthy, health_err = Updater.finalize_pending(self.daemon)
     if not healthy then notice(tostring(health_err), true) end
     if healthy then self:start_server_monitor() end
-    self:start_peer_poll()
 end
 
 function ZenFM:android_cached_running()
@@ -126,10 +128,18 @@ function ZenFM:onResume()
     self:start_peer_poll()
 end
 
+function ZenFM:onInputEvent()
+    local second = os.time()
+    if self.peer_input_poll_second == second then return end
+    self.peer_input_poll_second = second
+    self:check_peer_events()
+end
+
 function ZenFM:onExit()
     self.android_pending = nil
     self.android_running = false
     self.server_monitor = nil
+    self:stop_peer_receive()
     if self.peer_poll_scheduled then UIManager:unschedule(self.peer_poll_callback) end
     self.peer_poll_scheduled = false
     local ok, FileManager = pcall(require, "apps/filemanager/filemanager")
@@ -151,10 +161,12 @@ function ZenFM:check_server_monitor(monitor)
     local running, detail = self.daemon:status()
     if running then
         self:schedule_server_monitor(monitor)
+        self:check_peer_events()
         return
     end
     self.server_monitor = nil
     self.android_running = false
+    self:stop_peer_receive()
     if not Daemon.stopped_notice_armed then return end
     Daemon.stopped_notice_armed = false
     notice(type(detail) == "string" and detail:match("^idle_stopped")
@@ -170,7 +182,7 @@ function ZenFM:start_server_monitor(running)
     monitor.callback = function() self:check_server_monitor(monitor) end
     self.server_monitor = monitor
     self:schedule_server_monitor(monitor)
-    self:start_peer_poll()
+    self:check_peer_events()
 end
 
 function ZenFM:begin_android_action(action, complete, fields)
@@ -249,6 +261,30 @@ function ZenFM:peer_command(action, arguments, fields, complete)
     return ok
 end
 
+function ZenFM:ensure_peer_server(ready)
+    local function finish()
+        ready()
+        if not self.server_monitor then self:start_server_monitor(true) end
+    end
+    if self.daemon:is_android() then
+        if self:android_cached_running() then
+            finish()
+            return true
+        end
+        return self:begin_android_action("start", function(ok, detail)
+            if not ok then notice(tostring(detail), true) return end
+            self.android_running = true
+            finish()
+        end)
+    end
+    if not self.daemon:status() then
+        local ok, detail = self.daemon:start()
+        if not ok then notice(tostring(detail), true) return false end
+    end
+    finish()
+    return true
+end
+
 function ZenFM:begin_peer_send(file)
     if self.daemon.settings.values.insecure_http then
         notice(_("ZenFM Send requires HTTPS."), true)
@@ -262,35 +298,51 @@ function ZenFM:begin_peer_send(file)
             return
         end
         self:show_peer_picker({}, "searching")
-        self:peer_command("peer-discover", { self.peer_discovery_id },
+        self:start_peer_poll()
+        local issued = self:peer_command("peer-discover", { self.peer_discovery_id },
             { peer_request = self.peer_discovery_id }, function(ok, detail)
-                if not ok then notice(tostring(detail or _("ZenFM device discovery failed.")), true) end
+                if not ok then
+                    self.peer_discovery_id = nil
+                    notice(tostring(detail or _("ZenFM device discovery failed.")), true)
+                end
             end)
+        if issued == false then self.peer_discovery_id = nil end
     end
-    local function ensure_peer_polling()
-        if self.server_monitor then self:start_peer_poll() else self:start_server_monitor(true) end
+    self:ensure_peer_server(discover)
+end
+
+function ZenFM:stop_peer_receive()
+    self.peer_receive_mode = nil
+    if self.peer_receive_dialog then
+        UIManager:close(self.peer_receive_dialog)
+        self.peer_receive_dialog = nil
     end
-    if self.daemon:is_android() then
-        if self:android_cached_running() then
-            ensure_peer_polling()
-            discover()
-            return
-        end
-        self:begin_android_action("start", function(ok, detail)
-            if not ok then notice(tostring(detail), true) return end
-            self.android_running = true
-            self:start_server_monitor(true)
-            discover()
-        end)
+    if self.peer_poll_scheduled
+        and not (self.peer_discovery_id or self.peer_transition_id or self.peer_progress_dialog) then
+        UIManager:unschedule(self.peer_poll_callback)
+        self.peer_poll_scheduled = false
+    end
+end
+
+function ZenFM:begin_peer_receive()
+    if self.daemon.settings.values.insecure_http then
+        notice(_("ZenFM Send requires HTTPS."), true)
         return
     end
-    local running = self.daemon:status()
-    if not running then
-        local ok, detail = self.daemon:start()
-        if not ok then notice(tostring(detail), true) return end
-    end
-    ensure_peer_polling()
-    discover()
+    self.peer_enabled = true
+    self:ensure_peer_server(function()
+        local ButtonDialog = require("ui/widget/buttondialog")
+        self:stop_peer_receive()
+        local dialog
+        dialog = ButtonDialog:new{
+            title = _("Waiting for a ZenFM sender…"),
+            buttons = {{{ text = _("Cancel"), callback = function() self:stop_peer_receive() end }}},
+        }
+        self.peer_receive_mode = true
+        self.peer_receive_dialog = dialog
+        UIManager:show(dialog)
+        self:start_peer_poll()
+    end)
 end
 
 function ZenFM:show_peer_picker(peers, status)
@@ -331,19 +383,33 @@ function ZenFM:send_to_peer(peer)
     if self.peer_dialog then UIManager:close(self.peer_dialog) self.peer_dialog = nil end
     local encoded = Util.base64url(self.peer_send_path)
     local item = tostring(self.peer_send_path):match("([^/]+)/*$") or self.peer_send_path
-    self:peer_command("peer-send", { request_id, peer.fingerprint, encoded }, {
+    self.peer_transition_id = request_id
+    self:start_peer_poll()
+    local issued = self:peer_command("peer-send", { request_id, peer.fingerprint, encoded }, {
         peer_request = request_id, fingerprint = peer.fingerprint, path = encoded, item = item,
     }, function(ok, detail)
-        if not ok then notice(tostring(detail or _("ZenFM Send failed.")), true) end
+        if not ok then
+            self.peer_transition_id = nil
+            notice(tostring(detail or _("ZenFM Send failed.")), true)
+        end
     end)
+    if issued == false then self.peer_transition_id = nil end
 end
 
 function ZenFM:start_peer_poll()
     if not self.peer_enabled or not self.server_monitor or self.daemon.settings.values.insecure_http
-        or self.suspended or self.peer_poll_scheduled then return end
+        or self.suspended or self.peer_poll_scheduled
+        or not (self.peer_receive_mode or self.peer_discovery_id
+            or self.peer_transition_id or self.peer_progress_dialog) then return end
     self.peer_poll_callback = self.peer_poll_callback or function() self:poll_peer_events() end
     self.peer_poll_scheduled = true
     UIManager:scheduleIn(peer_poll_seconds, self.peer_poll_callback)
+end
+
+function ZenFM:check_peer_events()
+    if not self.peer_enabled or not self.server_monitor or self.daemon.settings.values.insecure_http
+        or self.suspended or self.peer_poll_scheduled then return end
+    self:poll_peer_events()
 end
 
 function ZenFM:poll_peer_events()
@@ -403,11 +469,15 @@ function ZenFM:handle_peer_events(events, replay)
 end
 
 function ZenFM:handle_incoming_peer(incoming, replay)
+    if self.peer_transition_id == incoming.id and incoming.status ~= "pending" then
+        self.peer_transition_id = nil
+    end
     local state = incoming.id .. ":" .. tostring(incoming.status) .. ":" .. tostring(incoming.receivedBytes)
     if self.peer_seen.incoming == state then return end
     self.peer_seen.incoming = state
     if replay and incoming.status ~= "pending" and incoming.status ~= "accepted" then return end
     if incoming.status == "pending" then
+        self:stop_peer_receive()
         local details = string.format(_("%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"),
             incoming.sender, incoming.name, incoming.type, tonumber(incoming.fileCount) or 0,
             peer_size(incoming.bytes), incoming.fingerprint:sub(-8))
@@ -415,8 +485,16 @@ function ZenFM:handle_incoming_peer(incoming, replay)
             text = details, ok_text = _("Accept"), cancel_text = _("Decline"),
             dismissable = false,
             ok_callback = function()
-                self:peer_command("peer-accept", { incoming.id }, { offer_id = incoming.id, item = incoming.name },
-                    function(ok, detail) if not ok then notice(tostring(detail), true) end end)
+                self.peer_transition_id = incoming.id
+                self:start_peer_poll()
+                local issued = self:peer_command("peer-accept", { incoming.id }, { offer_id = incoming.id, item = incoming.name },
+                    function(ok, detail)
+                        if not ok then
+                            self.peer_transition_id = nil
+                            notice(tostring(detail), true)
+                        end
+                    end)
+                if issued == false then self.peer_transition_id = nil end
             end,
             cancel_callback = function()
                 self:peer_command("peer-decline", { incoming.id }, { offer_id = incoming.id })
@@ -437,6 +515,7 @@ function ZenFM:handle_incoming_peer(incoming, replay)
 end
 
 function ZenFM:handle_outgoing_peer(outgoing, replay)
+    if self.peer_transition_id == outgoing.id then self.peer_transition_id = nil end
     local state = outgoing.id .. ":" .. tostring(outgoing.status) .. ":" .. tostring(outgoing.sentBytes)
     if self.peer_seen.outgoing == state then return end
     self.peer_seen.outgoing = state
@@ -512,6 +591,7 @@ function ZenFM:onToggleZenFM()
         if not running and self:wait_for_network_before_start() then return true end
         local action = running and "stop" or "start"
         if running then
+            self:stop_peer_receive()
             self.server_monitor = nil
             Daemon.stopped_notice_armed = false
         end
@@ -538,6 +618,7 @@ function ZenFM:onToggleZenFM()
     if not running and self:wait_for_network_before_start() then return true end
     local ok, detail
     if running then
+        self:stop_peer_receive()
         Daemon.stopped_notice_armed = false
         ok, detail = self.daemon:stop()
     else
@@ -630,6 +711,14 @@ function ZenFM:show_port_dialog()
             return false, _("Port must be between 1 and 65535.")
         end
         return self.daemon.settings:set("port", port)
+    end)
+end
+
+function ZenFM:show_device_name_dialog()
+    input_dialog(self, _("Device name"), self.daemon:peer_name(), "text", function(raw)
+        local name = Util.trim(raw)
+        if #name > 256 or name:find("%c") then return false, _("Device name is invalid.") end
+        return self.daemon.settings:set("device_name", name)
     end)
 end
 
@@ -999,13 +1088,6 @@ function ZenFM:settings_menu(include_status)
     end
     local items = {
         {
-            text = _("Use unencrypted HTTP"),
-            checked_func = function() return self.daemon.settings.values.insecure_http end,
-            check_callback_updates_menu = true,
-            keep_menu_open = true,
-            callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
-        },
-        {
             text_func = function()
                 return _("Home: ") .. (self.daemon:root() or _("not configured"))
             end,
@@ -1047,8 +1129,33 @@ function ZenFM:settings_menu(include_status)
             callback = function(touchmenu_instance) self:show_auto_stop_dialog(touchmenu_instance) end,
         },
         {
+            text_func = function() return _("Device name: ") .. self.daemon:peer_name() end,
+            keep_menu_open = true,
+            callback = function() self:show_device_name_dialog() end,
+        },
+        {
+            text = _("Use device name as Browser tab title"),
+            checked_func = function() return self.daemon.settings.values.use_device_name_as_title end,
+            keep_menu_open = true,
+            callback = function()
+                local settings = self.daemon.settings
+                if not settings:set("use_device_name_as_title", not settings.values.use_device_name_as_title) then
+                    notice(_("Invalid value."), true)
+                    return
+                end
+                self:restart_after_server_setting_change()
+            end,
+        },
+        {
             text = _("Advanced"),
             sub_item_table = {
+                {
+                    text = _("Use unencrypted HTTP"),
+                    checked_func = function() return self.daemon.settings.values.insecure_http end,
+                    check_callback_updates_menu = true,
+                    keep_menu_open = true,
+                    callback = function(touchmenu_instance) self:confirm_http(touchmenu_instance) end,
+                },
                 {
                     text = _("Port: ") .. tostring(values.port),
                     keep_menu_open = true,
@@ -1067,14 +1174,6 @@ function ZenFM:settings_menu(include_status)
             },
         },
         {
-            text = _("Beta updates"),
-            checked_func = function() return self.daemon.settings.values.beta_updates end,
-            keep_menu_open = true,
-            callback = function()
-                self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
-            end,
-        },
-        {
             text = _("Show QR code"),
             checked_func = function() return self.daemon.settings.values.show_qr_code == true end,
             keep_menu_open = true,
@@ -1083,20 +1182,36 @@ function ZenFM:settings_menu(include_status)
             end,
         },
         {
-            text = _("Update"),
-            keep_menu_open = true,
-            callback = function() self:update() end,
+            text = _("Receive with ZenFM"),
+            callback = function() self:begin_peer_receive() end,
         },
         {
-            text_func = function()
-                return _("Version") .. ": " .. self.daemon:installed_backend_version()
-            end,
-            enabled_func = function() return false end,
+            text = _("Updates"),
+            sub_item_table = {
+                {
+                    text_func = function()
+                        return _("Version") .. ": " .. self.daemon:installed_backend_version()
+                    end,
+                },
+                {
+                    text = _("Beta updates"),
+                    checked_func = function() return self.daemon.settings.values.beta_updates end,
+                    keep_menu_open = true,
+                    callback = function()
+                        self.daemon.settings:set("beta_updates", not self.daemon.settings.values.beta_updates)
+                    end,
+                },
+                {
+                    text = _("Update"),
+                    keep_menu_open = true,
+                    callback = function() self:update() end,
+                },
+            },
         },
     }
     if include_status ~= false then
-        table.insert(items, #items - 1, {
-            text = _("Show address/QR code"),
+        table.insert(items, #items, {
+            text = _("View address/QR code"),
             keep_menu_open = true,
             callback = function() self:onShowZenFMStatus() end,
         })
@@ -1123,7 +1238,7 @@ function ZenFM:addToMainMenu(menu_items)
                 end,
             },
             {
-                text = _("Show address/QR code"),
+                text = _("View address/QR code"),
                 keep_menu_open = true,
                 callback = function() self:onShowZenFMStatus() end,
             },

@@ -34,6 +34,7 @@ type Config struct {
 	PeerFiles          *zenfiles.Root
 	StaticFS           fs.FS
 	Version            string
+	HTMLTitle          string
 	DefaultDirectory   string
 	SecureTransport    bool
 	SessionIdle        time.Duration
@@ -52,6 +53,7 @@ type Config struct {
 	PeerAddress        string
 	PeerEvents         string
 	PeerDiscoveryPort  int
+	PeerNotification   func(bool)
 	Logger             *log.Logger
 	Now                func() time.Time
 }

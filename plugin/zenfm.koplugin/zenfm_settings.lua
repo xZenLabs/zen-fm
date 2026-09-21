@@ -16,6 +16,8 @@ local defaults = {
     default_directory = "/", -- Browser-relative / is the configured Home folder.
     auto_stop_minutes = 0,
     auto_stop_last_minutes = 30,
+    device_name = "",
+    use_device_name_as_title = false,
     beta_updates = false,
     show_qr_code = true,
     tls_cert = "",
@@ -101,6 +103,11 @@ local function sanitize(value, default_auto_stop_minutes)
     elseif result.auto_stop_minutes > 0 then
         result.auto_stop_last_minutes = result.auto_stop_minutes
     end
+    if type(value.device_name) == "string" then
+        local device_name = Util.trim(value.device_name)
+        if #device_name <= 256 and not device_name:find("%c") then result.device_name = device_name end
+    end
+    result.use_device_name_as_title = value.use_device_name_as_title == true
     result.beta_updates = value.beta_updates == true
     result.show_qr_code = value.show_qr_code ~= false
     if type(value.tls_cert) == "string" and (value.tls_cert == "" or value.tls_cert:sub(1, 1) == "/") then
@@ -113,7 +120,7 @@ local function sanitize(value, default_auto_stop_minutes)
 end
 
 local function serialize(value)
-    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "beta_updates", "show_qr_code", "tls_cert", "tls_key" }
+    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "device_name", "use_device_name_as_title", "beta_updates", "show_qr_code", "tls_cert", "tls_key" }
     local lines = { "return {" }
     for _, key in ipairs(keys) do
         local item = value[key]

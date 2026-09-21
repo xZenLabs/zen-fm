@@ -84,6 +84,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	keyFile := flags.String("tls-key", "", "TLS private key path")
 	controlSocket := flags.String("control-socket", "", "local plugin control socket")
 	peerName := flags.String("peer-name", "", "local peer display name")
+	useDeviceNameAsTitle := flags.Bool("use-device-name-as-title", false, "use the peer display name in the Web UI title")
 	peerEvents := flags.String("peer-events", "", "peer event state file")
 	autoStop := flags.Duration("auto-stop", 0, "stop after this duration without authenticated activity")
 	sessionIdle := flags.Duration("session-idle", 2*time.Hour, "browser session idle lifetime")
@@ -118,6 +119,10 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	}
 	if *peerName == "" {
 		*peerName, _ = os.Hostname()
+	}
+	htmlTitle := ""
+	if *useDeviceNameAsTitle {
+		htmlTitle = "ZenFM - " + *peerName
 	}
 	var diagnosticOutput io.Writer = io.Discard
 	if *debugLogging {
@@ -175,7 +180,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	}
 	address := scheme + "://" + listener.Addr().String()
 	api, err := server.New(server.Config{
-		Store: store, Files: root, PeerFiles: peerFiles, StaticFS: webui.FS(), Version: version, SecureTransport: !*insecureHTTP,
+		Store: store, Files: root, PeerFiles: peerFiles, StaticFS: webui.FS(), Version: version, HTMLTitle: htmlTitle, SecureTransport: !*insecureHTTP,
 		DefaultDirectory: *defaultDirectory,
 		SessionIdle:      *sessionIdle, SessionAbsolute: *sessionAbsolute,
 		ModeLessFilesystem: *modeLessFilesystem,
@@ -185,7 +190,14 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		PeerAddress:        listener.Addr().String(),
 		PeerEvents:         *peerEvents,
 		PeerDiscoveryPort:  defaultPort,
-		Logger:             diagnostics,
+		PeerNotification: func(pending bool) {
+			status := "clear"
+			if pending {
+				status = "pending"
+			}
+			fmt.Fprintf(stdout, "ZenFM peer incoming %s\n", status)
+		},
+		Logger: diagnostics,
 	})
 	if err != nil {
 		return fmt.Errorf("initialize HTTP API: %w", err)
@@ -273,24 +285,24 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 type activitySource interface{ LastActivity() time.Time }
 
 func watchIdle(ctx context.Context, stop context.CancelFunc, activity activitySource, timeout time.Duration) {
-	interval := timeout / 4
-	if interval < 50*time.Millisecond {
-		interval = 50 * time.Millisecond
+	remaining := time.Until(activity.LastActivity().Add(timeout))
+	if remaining <= 0 {
+		stop()
+		return
 	}
-	if interval > time.Second {
-		interval = time.Second
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	timer := time.NewTimer(remaining)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case now := <-ticker.C:
-			if now.Sub(activity.LastActivity()) >= timeout {
+		case <-timer.C:
+			remaining = time.Until(activity.LastActivity().Add(timeout))
+			if remaining <= 0 {
 				stop()
 				return
 			}
+			timer.Reset(remaining)
 		}
 	}
 }

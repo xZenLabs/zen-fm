@@ -56,21 +56,22 @@ type peerManager struct {
 	stage       *os.Root
 	limiter     *attemptLimiter
 
-	mu                sync.Mutex
-	revision          uint64
-	discovery         *peerDiscoveryEvent
-	incoming          string
-	incomingEvent     *peerIncomingEvent
-	offers            map[string]*peerOffer
-	outgoing          *peerOutgoing
-	peers             map[string]peerDevice
-	discoveryNonce    string
-	discoveryRequest  string
-	discoveryDeadline time.Time
-	discoveryError    string
-	udp               *net.UDPConn
-	closed            chan struct{}
-	wg                sync.WaitGroup
+	mu                  sync.Mutex
+	revision            uint64
+	discovery           *peerDiscoveryEvent
+	incoming            string
+	incomingEvent       *peerIncomingEvent
+	notificationPending bool
+	offers              map[string]*peerOffer
+	outgoing            *peerOutgoing
+	peers               map[string]peerDevice
+	discoveryNonce      string
+	discoveryRequest    string
+	discoveryDeadline   time.Time
+	discoveryError      string
+	udp                 *net.UDPConn
+	closed              chan struct{}
+	wg                  sync.WaitGroup
 }
 
 type peerIdentity struct {
@@ -1001,7 +1002,17 @@ func (m *peerManager) publishEventsLocked() (result error) {
 	if err != nil {
 		return err
 	}
-	return os.Rename(temporaryName, m.eventPath)
+	if err := os.Rename(temporaryName, m.eventPath); err != nil {
+		return err
+	}
+	pending := m.incomingEvent != nil && m.incomingEvent.Status == "pending"
+	if pending != m.notificationPending {
+		m.notificationPending = pending
+		if m.server.cfg.PeerNotification != nil {
+			m.server.cfg.PeerNotification(pending)
+		}
+	}
+	return nil
 }
 
 func (m *peerManager) startDiscovery(port int) {

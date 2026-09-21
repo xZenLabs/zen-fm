@@ -204,12 +204,18 @@ test("fresh installations use the shared static high port", function()
     local settings = Settings:new(state)
     equal(settings.values.port, 54321)
     equal(settings.values.default_directory, "/")
+    equal(settings.values.device_name, "")
+    assert(not settings.values.use_device_name_as_title)
     assert(settings.values.show_qr_code)
     assert(settings:set("default_directory", "/Books/Unread"))
+    assert(settings:set("device_name", "  Bedroom Kobo  "))
+    assert(settings:set("use_device_name_as_title", true))
     assert(settings:set("show_qr_code", false))
     local reloaded = Settings:new(state)
     equal(reloaded.values.port, 54321)
     equal(reloaded.values.default_directory, "/Books/Unread")
+    equal(reloaded.values.device_name, "Bedroom Kobo")
+    assert(reloaded.values.use_device_name_as_title)
     assert(not reloaded.values.show_qr_code)
 
     os.remove(state .. "/settings.lua")
@@ -416,6 +422,7 @@ test("advanced HTTP arguments", function()
     local values = Settings.defaults()
     values.advanced_root, values.insecure_http, values.auto_stop_minutes = true, true, 45
     values.default_directory = "/Books"
+    values.device_name, values.use_device_name_as_title = "Bedroom Kobo", true
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = "/state", platform = "kindle",
         settings = fake_settings(values), path_exists = function() return false end,
@@ -424,6 +431,8 @@ test("advanced HTTP arguments", function()
     contains(command, "--root / --peer-source-root /mnt/us --default-directory / --data-dir /state")
     contains(command, "--listen 0.0.0.0:" .. tostring(values.port))
     contains(command, "--auto-stop 45m")
+    contains(command, "--peer-name Bedroom Kobo")
+    contains(command, "--use-device-name-as-title")
     contains(command, "--insecure-http")
 end)
 
@@ -659,6 +668,7 @@ test("Android handoff carries paired token and validated settings", function()
     local state = os.tmpname() .. ".d"
     local values = Settings.defaults()
     values.port, values.auto_stop_minutes, values.default_directory = 9443, 45, "/Books/Unread"
+    values.device_name, values.use_device_name_as_title = "Android Reader", true
     local daemon = Daemon:new{
         plugin_dir = "/plugin", state_dir = state, platform = "android",
         settings = fake_settings(values), path_exists = function() return false end,
@@ -673,6 +683,8 @@ test("Android handoff carries paired token and validated settings", function()
     contains(uri, "default_directory=%2FBooks%2FUnread")
     contains(uri, "port=9443")
     contains(uri, "debug=0")
+    contains(uri, "device_name=Android%20Reader")
+    contains(uri, "use_device_name_as_title=1")
     contains(uri, "auto_stop=45m")
     assert(not uri:find("beta=", 1, true))
     values.beta_updates = true
@@ -1433,7 +1445,7 @@ test("opening the Android menu uses cached state and exit preserves the service"
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("dispatcher exposes the server toggle and settings end with the version", function()
+test("dispatcher exposes the server toggle and update settings", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext", "zenfm_daemon", "zenfm_updater",
@@ -1459,10 +1471,15 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     assert(actions.zenfm_toggle.general)
     assert(type(ZenFM["on" .. actions.zenfm_toggle.event]) == "function")
 
+    local values = Settings.defaults()
     local owner = setmetatable({
         daemon = {
-            settings = { values = Settings.defaults() },
+            settings = {
+                values = values,
+                set = function(self, key, value) self.values[key] = value return true end,
+            },
             root = function() return "/mnt/us" end,
+            peer_name = function() return values.device_name ~= "" and values.device_name or "Kindle" end,
             installed_backend_version = function() return "9.8.7" end,
         },
     }, { __index = ZenFM })
@@ -1471,9 +1488,10 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     local root_menu = main_menu.zenfm.sub_item_table
     assert(root_menu[1].keep_menu_open)
     assert(root_menu[2].keep_menu_open)
-    equal(root_menu[2].text, "Show address/QR code")
-    local toggles, statuses, menu_updates = 0, 0, 0
+    equal(root_menu[2].text, "View address/QR code")
+    local toggles, receives, statuses, menu_updates = 0, 0, 0, 0
     owner.onToggleZenFM = function() toggles = toggles + 1 end
+    owner.begin_peer_receive = function() receives = receives + 1 end
     owner.onShowZenFMStatus = function() statuses = statuses + 1 end
     root_menu[1].callback({ updateItems = function() menu_updates = menu_updates + 1 end })
     root_menu[2].callback()
@@ -1482,26 +1500,38 @@ test("dispatcher exposes the server toggle and settings end with the version", f
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
     equal(#settings_menu, 9)
-    equal(settings_menu[3].text_func(), "Default directory: /mnt/us")
-    local advanced_menu = settings_menu[5].sub_item_table
-    equal(settings_menu[5].text, "Advanced")
-    equal(#advanced_menu, 3)
-    equal(advanced_menu[1].text, "Port: 54321")
-    equal(advanced_menu[2].text, "Root: expose /")
-    equal(advanced_menu[3].text, "Reset owner login")
-    equal(settings_menu[#settings_menu - 3].text, "Beta updates")
-    assert(not settings_menu[#settings_menu - 3].checked_func())
+    equal(settings_menu[2].text_func(), "Default directory: /mnt/us")
+    equal(settings_menu[4].text_func(), "Device name: Kindle")
+    equal(settings_menu[5].text, "Use device name as Browser tab title")
+    assert(not settings_menu[5].checked_func())
+    local advanced_menu = settings_menu[6].sub_item_table
+    equal(settings_menu[6].text, "Advanced")
+    equal(#advanced_menu, 4)
+    equal(advanced_menu[1].text, "Use unencrypted HTTP")
+    equal(advanced_menu[2].text, "Port: 54321")
+    equal(advanced_menu[3].text, "Root: expose /")
+    equal(advanced_menu[4].text, "Reset owner login")
     equal(settings_menu[#settings_menu - 2].text, "Show QR code")
     assert(settings_menu[#settings_menu - 2].checked_func())
-    equal(settings_menu[#settings_menu - 1].text, "Update")
-    assert(settings_menu[#settings_menu - 1].keep_menu_open)
-    equal(settings_menu[#settings_menu].text_func(), "Version: 9.8.7")
-    assert(not settings_menu[#settings_menu].enabled_func())
+    local receive_item = settings_menu[#settings_menu - 1]
+    equal(receive_item.text, "Receive with ZenFM")
+    assert(receive_item.checked_func == nil)
+    receive_item.callback()
+    equal(receives, 1)
+    local updates_menu = settings_menu[#settings_menu].sub_item_table
+    equal(settings_menu[#settings_menu].text, "Updates")
+    equal(#updates_menu, 3)
+    equal(updates_menu[1].text_func(), "Version: 9.8.7")
+    assert(updates_menu[1].enabled_func == nil)
+    equal(updates_menu[2].text, "Beta updates")
+    assert(not updates_menu[2].checked_func())
+    equal(updates_menu[3].text, "Update")
+    assert(updates_menu[3].keep_menu_open)
 
     local zenos_menu = owner:settings_menu()
     local status_item
     for _, item in ipairs(zenos_menu) do
-        if item.text == "Show address/QR code" then status_item = item break end
+        if item.text == "View address/QR code" then status_item = item break end
     end
     assert(status_item and status_item.keep_menu_open)
     status_item.callback()
@@ -1543,34 +1573,34 @@ test("root and default directory settings use KOReader's folder chooser", functi
     local owner = setmetatable({ daemon = daemon }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    equal(owner:settings_menu()[2].text_func(), "Home: /mnt/us")
-    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us")
+    equal(owner:settings_menu()[1].text_func(), "Home: /mnt/us")
+    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us")
 
-    owner:settings_menu()[2].callback(touchmenu)
+    owner:settings_menu()[1].callback(touchmenu)
     local root_chooser = shown[#shown]
     assert(root_chooser.select_directory and not root_chooser.select_file and not root_chooser.show_files)
     equal(root_chooser.path, "/mnt/us")
     root_chooser.onConfirm("/mnt/us/Library")
     equal(settings.values.custom_root, "/mnt/us/Library")
-    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library")
+    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us/Library")
     equal(menu_updates, 1)
 
-    owner:settings_menu()[3].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local default_chooser = shown[#shown]
     equal(default_chooser.path, "/mnt/us/Library")
     default_chooser.onConfirm("/mnt/us/Library/Books")
     equal(settings.values.default_directory, "/Books")
-    equal(owner:settings_menu()[3].text_func(), "Default directory: /mnt/us/Library/Books")
+    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us/Library/Books")
     equal(menu_updates, 2)
 
-    owner:settings_menu()[3].callback(touchmenu)
+    owner:settings_menu()[2].callback(touchmenu)
     local outside_chooser = shown[#shown]
     outside_chooser.onConfirm("/mnt/us/Elsewhere")
     equal(settings.values.default_directory, "/Books")
     equal(menu_updates, 2)
     equal(shown[#shown].text, "Choose a folder within ZenFM Home.")
 
-    owner:settings_menu()[2].callback(touchmenu)
+    owner:settings_menu()[1].callback(touchmenu)
     local device_root_chooser = shown[#shown]
     device_root_chooser.onConfirm("/mnt/us")
     equal(settings.values.custom_root, "")
@@ -1670,7 +1700,7 @@ test("inactivity timeout label opens a number wheel and its checkbox only toggle
     local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    local item = owner:settings_menu()[4]
+    local item = owner:settings_menu()[3]
     equal(item.text_func(), "Inactivity timeout: 30 min")
     assert(not item.checked_func())
     item.callback(touchmenu)
@@ -1766,7 +1796,8 @@ test("changing server settings while running restarts and refreshes the menu", f
         menu_refreshes = menu_refreshes + 1
         table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
     end }
-    local http_item = owner:settings_menu()[1]
+    local advanced_menu = owner:settings_menu()[6].sub_item_table
+    local http_item = advanced_menu[1]
     http_item.callback(touchmenu)
     equal(shown[1].ok_text, "Enable HTTP")
     shown[1].ok_callback()
@@ -1787,7 +1818,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         "menu:true,repaint:true,restart:true,menu:false,repaint:false,restart:false")
     contains(shown[3].text, "https://192.168.1.2:" .. port)
 
-    local advanced_item = owner:settings_menu()[5].sub_item_table[2]
+    local advanced_item = advanced_menu[3]
     assert(not advanced_item.checked_func())
     advanced_item.callback({ updateItems = function() menu_refreshes = menu_refreshes + 1 end })
     equal(shown[4].ok_text, "Expose entire filesystem")
@@ -1800,6 +1831,11 @@ test("changing server settings while running restarts and refreshes the menu", f
     assert(owner:confirm_advanced_root())
     assert(not advanced_item.checked_func())
     equal(restarts, 4)
+
+    local title_item = owner:settings_menu()[5]
+    title_item.callback()
+    assert(title_item.checked_func())
+    equal(restarts, 5)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
@@ -2435,7 +2471,7 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
         "apps/filemanager/filemanager", "gettext", "zenfm_daemon", "zenfm_updater",
         "json",
     }
-    local saved, shown, scheduled, rows, commands = {}, {}, {}, {}, {}
+    local saved, shown, scheduled, delays, rows, commands, hooked = {}, {}, {}, {}, {}, {}, nil
     for _, name in ipairs(module_names) do saved[name] = package.loaded[name] end
     package.loaded["dispatcher"] = { registerAction = function() end }
     package.loaded["ui/widget/infomessage"] = { new = function(_, options) options.kind = "info" return options end }
@@ -2445,12 +2481,19 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
     package.loaded["ui/uimanager"] = {
         show = function(_, widget) table.insert(shown, widget) end,
         close = function(_, widget) widget.closed = true end,
-        scheduleIn = function(_, _, callback) table.insert(scheduled, callback) end,
+        scheduleIn = function(_, delay, callback)
+            table.insert(delays, delay)
+            table.insert(scheduled, callback)
+        end,
         unschedule = function(_, callback)
             for index, value in ipairs(scheduled) do
                 if value == callback then table.remove(scheduled, index) return end
             end
         end,
+        event_hook = { registerWidget = function(_, name, widget)
+            equal(name, "InputEvent")
+            hooked = widget
+        end },
     }
     package.loaded["ui/widget/container/widgetcontainer"] = { extend = function(_, definition) return definition end }
     package.loaded["apps/filemanager/filemanager"] = {
@@ -2469,10 +2512,16 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
         assert(raw == "peer event")
         return decoded_peer_event
     end }
-    package.loaded["zenfm_daemon"] = { new = function() return {} end }
+    package.loaded["zenfm_daemon"] = { new = function() return {
+        settings = { values = { insecure_http = false } },
+        status = function() return false end,
+    } end }
     package.loaded["zenfm_updater"] = { finalize_pending = function() return true end }
 
     local ZenFM = assert(loadfile(root .. "/plugin/zenfm.koplugin/main.lua"))()
+    local initialized = setmetatable({ ui = { menu = { registerToMainMenu = function() end } } }, { __index = ZenFM })
+    initialized:init()
+    equal(hooked, initialized)
     local peer_event_path = "/missing"
     local insecure = false
     local started = 0
@@ -2509,7 +2558,7 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
     equal(monitored, 2)
     owner:begin_peer_send("/books/book.epub")
     equal(monitored, 2)
-    equal(peer_polls, 1)
+    equal(peer_polls, 3)
     insecure = true
     owner:begin_peer_send("/books/book.epub")
     equal(shown[#shown].text, "ZenFM Send requires HTTPS.")
@@ -2540,12 +2589,21 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
         table.insert(commands, action .. " " .. table.concat(arguments, " "))
         return true
     end
+    owner:begin_peer_receive()
+    local waiting = shown[#shown]
+    equal(waiting.title, "Waiting for a ZenFM sender…")
+    assert(owner.peer_receive_mode)
+    waiting.buttons[1][1].callback()
+    assert(owner.peer_receive_mode == nil and waiting.closed)
+    owner:begin_peer_receive()
+    waiting = shown[#shown]
     local incoming = {
         id = "0123456789abcdef", sender = "Kindle", name = "Books", type = "directory",
         bytes = 4096, fileCount = 2, entryCount = 3, fingerprint = string.rep("B", 64), status = "pending",
         expiresAt = os.time() + 60,
     }
     owner:handle_incoming_peer(incoming)
+    assert(owner.peer_receive_mode == nil and waiting.closed)
     local confirm = shown[#shown]
     equal(confirm.kind, "confirm")
     contains(confirm.text, "Kindle wants to send Books")
@@ -2591,19 +2649,33 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
     decoded_peer_event.outgoing.id = "live-transfer-id"
     owner:poll_peer_events()
     equal(shown[#shown].text, "Sent book.epub to Kindle")
-    os.remove(peer_event_path)
-
     owner.start_peer_poll = ZenFM.start_peer_poll
     owner.peer_enabled = true
     owner.server_monitor = {}
+    owner.peer_discovery_id = nil
+    owner:start_peer_poll()
+    equal(#scheduled, 0)
+    decoded_peer_event.revision = 10
+    owner:onInputEvent()
+    equal(owner.peer_revision, 10)
+    equal(#scheduled, 0)
+    owner.peer_receive_mode = true
     owner:start_peer_poll()
     equal(#scheduled, 1)
+    equal(delays[#delays], 0.5)
+    owner:stop_peer_receive()
+    equal(#scheduled, 0)
+    owner.peer_receive_mode = true
+    owner:start_peer_poll()
     owner:onSuspend()
     equal(#scheduled, 0)
     owner:onResume()
     equal(#scheduled, 1)
+    equal(delays[#delays], 0.5)
     owner:onExit()
+    equal(#scheduled, 0)
     assert(rows.zenfm_send == nil)
+    os.remove(peer_event_path)
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)

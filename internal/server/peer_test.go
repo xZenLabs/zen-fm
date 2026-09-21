@@ -352,6 +352,31 @@ func TestPeerPublishCreatesReceiveDirectory(t *testing.T) {
 	}
 }
 
+func TestPeerNotificationReportsOnlyPendingTransitions(t *testing.T) {
+	peer := newPeerTestServer(t, "Receiver", true)
+	var notifications []bool
+	peer.api.cfg.PeerNotification = func(pending bool) { notifications = append(notifications, pending) }
+	peer.api.peer.mu.Lock()
+	peer.api.peer.incomingEvent = &peerIncomingEvent{Status: "pending"}
+	if err := peer.api.peer.publishEventsLocked(); err != nil {
+		peer.api.peer.mu.Unlock()
+		t.Fatal(err)
+	}
+	if err := peer.api.peer.publishEventsLocked(); err != nil {
+		peer.api.peer.mu.Unlock()
+		t.Fatal(err)
+	}
+	peer.api.peer.incomingEvent.Status = "accepted"
+	if err := peer.api.peer.publishEventsLocked(); err != nil {
+		peer.api.peer.mu.Unlock()
+		t.Fatal(err)
+	}
+	peer.api.peer.mu.Unlock()
+	if len(notifications) != 2 || !notifications[0] || notifications[1] {
+		t.Fatalf("peer notifications = %v", notifications)
+	}
+}
+
 func waitPeerStatus(t *testing.T, manager *peerManager, wanted string) {
 	t.Helper()
 	deadline := time.Now().Add(8 * time.Second)

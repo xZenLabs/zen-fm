@@ -375,6 +375,9 @@ public final class ZenFMActivity extends Activity {
         int port = integer(uri.getQueryParameter("port"), 1, 65535, "port");
         boolean insecure = "1".equals(uri.getQueryParameter("insecure"));
         boolean debug = "1".equals(uri.getQueryParameter("debug"));
+        String deviceName = display(uri.getQueryParameter("device_name"));
+        if (deviceName.isEmpty()) throw new IllegalArgumentException("device name");
+        boolean useDeviceNameAsTitle = "1".equals(uri.getQueryParameter("use_device_name_as_title"));
         String autoStop = CommandRequest.requireAutoStop(uri.getQueryParameter("auto_stop"));
         String certificate = optionalAbsolute(uri.getQueryParameter("tls_cert"), "certificate");
         String key = optionalAbsolute(uri.getQueryParameter("tls_key"), "private key");
@@ -389,6 +392,8 @@ public final class ZenFMActivity extends Activity {
         service.putExtra("port", port);
         service.putExtra("insecure", insecure);
         service.putExtra("debug", debug);
+        service.putExtra("device_name", deviceName);
+        service.putExtra("use_device_name_as_title", useDeviceNameAsTitle);
         service.putExtra("auto_stop", autoStop);
         service.putExtra("tls_cert", certificate);
         service.putExtra("tls_key", key);

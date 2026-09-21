@@ -287,6 +287,8 @@ function Daemon:debug_logging_enabled()
 end
 
 function Daemon:peer_name()
+    local configured = self.settings.values.device_name
+    if type(configured) == "string" and configured ~= "" then return configured end
     local ok, device = pcall(require, "device")
     return ok and type(device.model) == "string" and device.model or "ZenFM Device"
 end
@@ -307,6 +309,7 @@ function Daemon:serve_arguments()
         "--auto-stop", auto_stop_duration(values.auto_stop_minutes),
     }
     if self:debug_logging_enabled() then table.insert(arguments, "--debug") end
+    if values.use_device_name_as_title then table.insert(arguments, "--use-device-name-as-title") end
     if self:platform() == "kobo" then table.insert(arguments, "--show-hidden-by-default") end
     if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
@@ -373,11 +376,13 @@ function Daemon:android_uri(action, request_id, fields)
             port = tostring(values.port),
             insecure = values.insecure_http and "1" or "0",
             debug = self:debug_logging_enabled() and "1" or "0",
+            device_name = self:peer_name(),
+            use_device_name_as_title = values.use_device_name_as_title and "1" or "0",
             auto_stop = auto_stop_duration(values.auto_stop_minutes),
             tls_cert = values.tls_cert,
             tls_key = values.tls_key,
         }
-        for _, key in ipairs({ "root", "peer_source_root", "default_directory", "port", "insecure", "debug", "auto_stop", "tls_cert", "tls_key" }) do
+        for _, key in ipairs({ "root", "peer_source_root", "default_directory", "port", "insecure", "debug", "device_name", "use_device_name_as_title", "auto_stop", "tls_cert", "tls_key" }) do
             table.insert(query, key .. "=" .. Util.url_encode(fields[key]))
         end
     elseif action == "update" and self.settings.values.beta_updates then
