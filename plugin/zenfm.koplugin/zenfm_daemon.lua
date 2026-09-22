@@ -60,6 +60,10 @@ function Daemon:new(options)
     object.state_dir = options.state_dir or object:default_state_dir()
     object.settings = options.settings
         or Settings:new(object.state_dir, object:platform() == "android" and 30 or 0)
+    if not options.settings and object.settings.values.default_directory == "/" then
+        local startup_directory = object:koreader_startup_directory()
+        if startup_directory ~= "/" then object.settings:set("default_directory", startup_directory) end
+    end
     return object
 end
 
@@ -268,6 +272,28 @@ function Daemon:device_root()
     return self.settings:device_root(self:platform(), self:android_storage())
 end
 
+function Daemon:koreader_startup_directory()
+    local reader_settings = rawget(_G, "G_reader_settings")
+    local home
+    if reader_settings and type(reader_settings.readSetting) == "function" then
+        local ok, value = pcall(reader_settings.readSetting, reader_settings, "home_dir")
+        if ok then home = value end
+    end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then
+        local ok, device = pcall(require, "device")
+        if ok and type(device) == "table" then home = device.home_dir end
+    end
+    local root = self:root()
+    if type(root) ~= "string" or type(home) ~= "string" then return "/" end
+    root, home = root:gsub("/+$", ""), home:gsub("/+$", "")
+    if root == "" then root = "/" end
+    if home == "" then home = "/" end
+    if home == root then return "/" end
+    if root == "/" then return home end
+    if home:sub(1, #root + 1) == root .. "/" then return home:sub(#root + 1) end
+    return "/"
+end
+
 function Daemon:peer_source_path(path)
     if self:platform() == "kindle" and type(path) == "string"
         and (path == "/mnt/base-us" or path:sub(1, 13) == "/mnt/base-us/") then
@@ -467,7 +493,7 @@ function Daemon:start()
     local default_path = root .. values.default_directory
     if not values.advanced_root and values.default_directory ~= "/" and not Util.is_directory(default_path)
         and not self.settings:set("default_directory", "/") then
-        return false, "could not reset the missing default directory to Home"
+        return false, "could not reset the missing startup directory to Home"
     end
     if not values.insecure_http and ((values.tls_cert == "") ~= (values.tls_key == "")) then
         return false, "custom TLS requires both a certificate and private-key path"

@@ -22,7 +22,7 @@ describe('authentication flow', () => {
       http.post('http://localhost/api/v1/session', () => HttpResponse.json({
         authenticated: true,
         setupRequired: false,
-        defaultDirectory: '/Fallback',
+        startupDirectory: '/Fallback',
         csrfToken: 'return-location-csrf-value-123456',
       })),
       http.get('http://localhost/api/v1/files', ({ request }) => {
@@ -39,14 +39,14 @@ describe('authentication flow', () => {
     await waitFor(() => expect(listedPath).toBe('/Books'))
   })
 
-  it('opens the configured default directory on a fresh login', async () => {
+  it('opens the configured startup directory on a fresh login', async () => {
     let listedPath = ''
     server.use(
       http.get('http://localhost/api/v1/session', () => HttpResponse.json({ title: 'Unauthorized', status: 401 }, { status: 401 })),
       http.post('http://localhost/api/v1/session', () => HttpResponse.json({
         authenticated: true,
         setupRequired: false,
-        defaultDirectory: '/Books/Unread',
+        startupDirectory: '/Books/Unread',
         csrfToken: 'default-directory-csrf-value-12345',
       })),
       http.get('http://localhost/api/v1/files', ({ request }) => {
@@ -172,13 +172,13 @@ describe('authentication flow', () => {
     }
   })
 
-  it('opens the configured default directory for an existing fresh session', async () => {
+  it('opens the configured startup directory for an existing fresh session', async () => {
     let listedPath = ''
     server.use(
       http.get('http://localhost/api/v1/session', () => HttpResponse.json({
         authenticated: true,
         setupRequired: false,
-        defaultDirectory: '/Books/Current',
+        startupDirectory: '/Books/Current',
         csrfToken: 'existing-session-csrf-value-123456',
       })),
       http.get('http://localhost/api/v1/files', ({ request }) => {
@@ -291,5 +291,44 @@ describe('responsive and accessible shell', () => {
 
     expect(await screen.findByRole('heading', { name: 'General' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Show hidden files' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Choose startup directory' })).toHaveTextContent('/mnt/us')
+  })
+
+  it('chooses and saves the startup directory from a folder list', async () => {
+    let saved: Record<string, unknown> | undefined
+    server.use(
+      http.get('http://localhost/api/v1/files', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path') ?? '/'
+        return HttpResponse.json({ path, advancedMode: false, entries: path === '/' ? [
+          { name: 'Books', path: '/Books', type: 'directory', size: 0, modifiedAt: '2025-01-01T00:00:00Z' },
+          { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 4, modifiedAt: '2025-01-01T00:00:00Z' },
+        ] : [] })
+      }),
+      http.put('http://localhost/api/v1/settings', async ({ request }) => {
+        saved = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ ...saved, advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend' })
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/settings')
+
+    await user.click(await screen.findByRole('button', { name: 'Choose startup directory' }))
+    const chooser = screen.getByRole('dialog', { name: 'Choose startup directory' })
+    expect(within(chooser).getByText('Current folder')).toBeInTheDocument()
+    expect(within(chooser).getByText('/', { selector: 'span' })).toBeInTheDocument()
+    expect(within(chooser).getByRole('button', { name: 'us' })).toHaveAttribute('title', '/mnt/us')
+    expect(within(chooser).queryByRole('button', { name: 'notes.txt' })).not.toBeInTheDocument()
+    await user.click(within(chooser).getByRole('button', { name: 'Books' }))
+    const breadcrumbs = within(chooser).getByRole('navigation', { name: 'Current folder' })
+    expect(within(breadcrumbs).getByRole('button', { name: 'Books' })).toBeInTheDocument()
+    await user.click(within(breadcrumbs).getByRole('button', { name: 'us' }))
+    expect(within(breadcrumbs).queryByRole('button', { name: 'Books' })).not.toBeInTheDocument()
+    await user.click(within(chooser).getByRole('button', { name: 'Books' }))
+    await user.click(within(chooser).getByRole('button', { name: 'Select this folder' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Choose startup directory' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Choose startup directory' })).toHaveTextContent('/mnt/us/Books')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    await waitFor(() => expect(saved).toEqual(expect.objectContaining({ startupDirectory: '/Books' })))
   })
 })

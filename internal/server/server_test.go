@@ -139,15 +139,81 @@ func TestHealthIsRedactedAndHardened(t *testing.T) {
 	}
 }
 
-func TestSessionReportsConfiguredDefaultDirectory(t *testing.T) {
+func TestWebSettingChangesStartupDirectory(t *testing.T) {
 	a := newTestAPI(t)
-	a.server.cfg.DefaultDirectory = "/Books"
-	r := a.request(http.MethodPost, "/api/v1/session", strings.NewReader(`{"password":"`+state.SetupPassword+`"}`), nil, "", "")
-	if r.Code != http.StatusOK {
-		t.Fatalf("login: %d %s", r.Code, r.Body.String())
+	cookie, csrf := a.finishSetup()
+	if _, err := a.files.Mkdir("/Books"); err != nil {
+		t.Fatal(err)
 	}
-	if got := decodeMap(t, r)["defaultDirectory"]; got != "/Books" {
-		t.Fatalf("defaultDirectory = %#v", got)
+	r := a.request(http.MethodPut, "/api/v1/settings", strings.NewReader(`{"startupDirectory":"/Books"}`), cookie, csrf, "")
+	if r.Code != http.StatusOK {
+		t.Fatalf("settings: %d %s", r.Code, r.Body.String())
+	}
+	if got := decodeMap(t, r)["startupDirectory"]; got != "/Books" {
+		t.Fatalf("startupDirectory = %#v", got)
+	}
+	r = a.request(http.MethodGet, "/api/v1/session", nil, cookie, "", "")
+	if got := decodeMap(t, r)["startupDirectory"]; got != "/Books" {
+		t.Fatalf("session startupDirectory = %#v", got)
+	}
+	settings, err := a.store.Settings()
+	if err != nil || settings.StartupDirectory != "/Books" {
+		t.Fatalf("saved startupDirectory = %q, %v", settings.StartupDirectory, err)
+	}
+	restarted, err := New(Config{Store: a.store, Files: a.files, DefaultDirectory: "/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	if restarted.startupDirectory() != "/Books" {
+		t.Fatalf("restart replaced web startup directory with %q", restarted.startupDirectory())
+	}
+	for _, value := range []string{"Books", "/missing", "/Books/../private"} {
+		r = a.request(http.MethodPut, "/api/v1/settings", strings.NewReader(`{"startupDirectory":"`+value+`"}`), cookie, csrf, "")
+		if r.Code != http.StatusBadRequest {
+			t.Fatalf("accepted startupDirectory %q: %d", value, r.Code)
+		}
+	}
+}
+
+func TestUntouchedStartupDirectoryMigratesOnce(t *testing.T) {
+	a := newTestAPI(t)
+	if _, err := a.files.Mkdir("/Books"); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := a.store.Settings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.StartupDirectory = "/"
+	settings.StartupDirectoryInitialized = false
+	if err := a.store.SaveSettings(settings); err != nil {
+		t.Fatal(err)
+	}
+	migrated, err := New(Config{Store: a.store, Files: a.files, DefaultDirectory: "/Books"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if migrated.startupDirectory() != "/Books" {
+		t.Fatalf("untouched startup directory = %q", migrated.startupDirectory())
+	}
+	migrated.Close()
+
+	settings, err = a.store.Settings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.StartupDirectory = "/"
+	if err := a.store.SaveSettings(settings); err != nil {
+		t.Fatal(err)
+	}
+	preserved, err := New(Config{Store: a.store, Files: a.files, DefaultDirectory: "/Books"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preserved.Close()
+	if preserved.startupDirectory() != "/" {
+		t.Fatalf("manual startup directory replaced with %q", preserved.startupDirectory())
 	}
 }
 

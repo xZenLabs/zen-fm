@@ -71,6 +71,7 @@ type Server struct {
 	archiveMu    sync.Mutex
 	archiveLinks map[string]archiveTicket
 	peer         *peerManager
+	startupDir   atomic.Value
 	lastActivity atomic.Int64
 	lastPrune    atomic.Int64
 }
@@ -115,6 +116,42 @@ func New(cfg Config) (*Server, error) {
 	if !defaultEntry.Directory {
 		return nil, errors.New("default directory is not a directory")
 	}
+	if !cfg.Files.Advanced() {
+		settings, err := cfg.Store.Settings()
+		if err != nil {
+			return nil, fmt.Errorf("load startup directory: %w", err)
+		}
+		changed := false
+		if settings.StartupDirectory == "" || (!settings.StartupDirectoryInitialized && settings.StartupDirectory == "/") {
+			settings.StartupDirectory = cfg.DefaultDirectory
+			changed = true
+		}
+		if !settings.StartupDirectoryInitialized {
+			settings.StartupDirectoryInitialized = true
+			changed = true
+		}
+		stored, normalizeErr := zenfiles.Normalize(settings.StartupDirectory)
+		if normalizeErr == nil {
+			storedPath := zenfiles.PublicPath(stored)
+			storedEntry, entryErr := cfg.Files.Entry(storedPath)
+			if entryErr == nil && storedEntry.Directory {
+				cfg.DefaultDirectory = storedPath
+			} else if entryErr == nil {
+				normalizeErr = errors.New("startup directory is not a directory")
+			} else {
+				normalizeErr = entryErr
+			}
+		}
+		if normalizeErr != nil {
+			settings.StartupDirectory = cfg.DefaultDirectory
+			changed = true
+		}
+		if changed {
+			if err := cfg.Store.SaveSettings(settings); err != nil {
+				return nil, fmt.Errorf("save startup directory: %w", err)
+			}
+		}
+	}
 	if cfg.SessionIdle <= 0 {
 		cfg.SessionIdle = 2 * time.Hour
 	}
@@ -141,6 +178,7 @@ func New(cfg Config) (*Server, error) {
 		heavySlots:   make(chan struct{}, cfg.HeavyConcurrency),
 		archiveLinks: make(map[string]archiveTicket),
 	}
+	s.startupDir.Store(cfg.DefaultDirectory)
 	uploads, err := newUploadManager(s, cfg.UploadDir, cfg.MaxUploadBytes, cfg.UploadExpiry, cfg.UploadConcurrency, cfg.MaxActiveUploads)
 	if err != nil {
 		return nil, fmt.Errorf("initialize uploads: %w", err)
@@ -183,6 +221,8 @@ func New(cfg Config) (*Server, error) {
 }
 
 func (s *Server) Handler() http.Handler { return s.securityHeaders(s.mux) }
+
+func (s *Server) startupDirectory() string { return s.startupDir.Load().(string) }
 
 func (s *Server) Close() {
 	if s.peer != nil {
@@ -578,7 +618,7 @@ func sessionCookieName(secure bool) string {
 func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
 		"authenticated": true, "setupRequired": setup,
-		"defaultDirectory": s.cfg.DefaultDirectory,
+		"startupDirectory": s.startupDirectory(),
 		"csrfToken":        v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }

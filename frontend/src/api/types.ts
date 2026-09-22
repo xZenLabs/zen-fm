@@ -6,7 +6,7 @@ export type FileKind = 'file' | 'directory' | 'symlink' | 'special'
 export interface Session {
   authenticated: boolean
   setupRequired: boolean
-  defaultDirectory?: string
+  startupDirectory?: string
   csrfToken?: string
   idleExpiresAt?: string
   absoluteExpiresAt?: string
@@ -17,6 +17,7 @@ export interface Settings {
   locale: string
   showHidden: boolean
   clientTimeoutSeconds: number
+  startupDirectory: string
   favorites?: string[]
   favoriteLabels?: Record<string, string>
   favoriteTypes?: Record<string, 'file' | 'directory'>

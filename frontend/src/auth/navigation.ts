@@ -16,9 +16,9 @@ export function currentPrivateLocation(location: Location): string | null {
   return privateLocation(`${location.pathname}${location.search}${location.hash}`)
 }
 
-export function postAuthenticationLocation(state: unknown, defaultDirectory?: string): string {
+export function postAuthenticationLocation(state: unknown, startupDirectory?: string): string {
   const returnTo = typeof state === 'object' && state !== null
     ? privateLocation((state as ReturnLocationState).returnTo)
     : null
-  return returnTo ?? filesRoute(defaultDirectory || '/')
+  return returnTo ?? filesRoute(startupDirectory || '/')
 }

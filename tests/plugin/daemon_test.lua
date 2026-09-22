@@ -199,6 +199,32 @@ test("non-Android platforms keep auto-stop disabled by default", function()
     os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
 end)
 
+test("new and untouched legacy installs use KOReader Home without replacing manual values", function()
+    local state = os.tmpname() .. ".home-default"
+    local previous = rawget(_G, "G_reader_settings")
+    _G.G_reader_settings = { readSetting = function(_, key)
+        equal(key, "home_dir")
+        return "/mnt/onboard/Books"
+    end }
+    local fresh = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
+    equal(fresh.settings.values.default_directory, "/Books")
+    local after_fresh = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
+    equal(after_fresh.settings.values.default_directory, "/Books")
+    assert(Util.write_atomic(state .. "/settings.lua",
+        "return { settings_version = 4, port = 54321, default_directory = '/' }\n", "600"))
+    local untouched = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
+    equal(untouched.settings.values.default_directory, "/Books")
+    assert(Util.write_atomic(state .. "/settings.lua",
+        "return { settings_version = 4, port = 54321, default_directory = '/Manual' }\n", "600"))
+    local legacy = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
+    equal(legacy.settings.values.default_directory, "/Manual")
+    local after_legacy = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
+    equal(after_legacy.settings.values.default_directory, "/Manual")
+    _G.G_reader_settings = previous
+    os.remove(state .. "/settings.lua")
+    os.execute("rmdir " .. Util.sh_quote(state) .. " >/dev/null 2>&1")
+end)
+
 test("fresh installations use the shared static high port", function()
     local state = os.tmpname() .. ".static-port"
     local settings = Settings:new(state)
@@ -207,13 +233,12 @@ test("fresh installations use the shared static high port", function()
     equal(settings.values.device_name, "")
     assert(settings.values.use_device_name_as_title)
     assert(settings.values.show_qr_code)
-    assert(settings:set("default_directory", "/Books/Unread"))
     assert(settings:set("device_name", "  Bedroom Kobo  "))
     assert(settings:set("use_device_name_as_title", true))
     assert(settings:set("show_qr_code", false))
     local reloaded = Settings:new(state)
     equal(reloaded.values.port, 54321)
-    equal(reloaded.values.default_directory, "/Books/Unread")
+    equal(reloaded.values.default_directory, "/")
     equal(reloaded.values.device_name, "Bedroom Kobo")
     assert(reloaded.values.use_device_name_as_title)
     assert(not reloaded.values.show_qr_code)
@@ -992,7 +1017,7 @@ test("start fails closed before launch when no safe root exists", function()
     equal(launches, 0)
 end)
 
-test("start preserves the saved default directory while exposing root", function()
+test("start preserves the saved startup directory while exposing root", function()
     local missing = os.tmpname()
     os.remove(missing)
     local values = Settings.defaults()
@@ -1506,13 +1531,12 @@ test("dispatcher exposes the server toggle and update settings", function()
     equal(statuses, 1)
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
-    equal(#settings_menu, 9)
-    equal(settings_menu[2].text_func(), "Default directory: /mnt/us")
-    equal(settings_menu[4].text_func(), "Device name: Kindle")
-    equal(settings_menu[5].text, "Use device name as browser tab title")
-    assert(settings_menu[5].checked_func())
-    local advanced_menu = settings_menu[6].sub_item_table
-    equal(settings_menu[6].text, "Advanced")
+    equal(#settings_menu, 8)
+    equal(settings_menu[3].text_func(), "Device name: Kindle")
+    equal(settings_menu[4].text, "Use device name as browser tab title")
+    assert(settings_menu[4].checked_func())
+    local advanced_menu = settings_menu[5].sub_item_table
+    equal(settings_menu[5].text, "Advanced")
     equal(#advanced_menu, 4)
     equal(advanced_menu[1].text, "Use unencrypted HTTP")
     equal(advanced_menu[2].text, "Port: 54321")
@@ -1547,7 +1571,7 @@ test("dispatcher exposes the server toggle and update settings", function()
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
 
-test("root and default directory settings use KOReader's folder chooser", function()
+test("Home uses KOReader's folder chooser and resets an invalid startup directory", function()
     local module_names = {
         "dispatcher", "ui/widget/infomessage", "ui/widget/inputdialog", "ui/widget/confirmbox",
         "ui/widget/pathchooser", "ui/uimanager", "ui/widget/container/widgetcontainer", "gettext",
@@ -1581,7 +1605,6 @@ test("root and default directory settings use KOReader's folder chooser", functi
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
     equal(owner:settings_menu()[1].text_func(), "Home: /mnt/us")
-    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us")
 
     owner:settings_menu()[1].callback(touchmenu)
     local root_chooser = shown[#shown]
@@ -1589,31 +1612,16 @@ test("root and default directory settings use KOReader's folder chooser", functi
     equal(root_chooser.path, "/mnt/us")
     root_chooser.onConfirm("/mnt/us/Library")
     equal(settings.values.custom_root, "/mnt/us/Library")
-    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us/Library")
     equal(menu_updates, 1)
 
-    owner:settings_menu()[2].callback(touchmenu)
-    local default_chooser = shown[#shown]
-    equal(default_chooser.path, "/mnt/us/Library")
-    default_chooser.onConfirm("/mnt/us/Library/Books")
-    equal(settings.values.default_directory, "/Books")
-    equal(owner:settings_menu()[2].text_func(), "Default directory: /mnt/us/Library/Books")
-    equal(menu_updates, 2)
-
-    owner:settings_menu()[2].callback(touchmenu)
-    local outside_chooser = shown[#shown]
-    outside_chooser.onConfirm("/mnt/us/Elsewhere")
-    equal(settings.values.default_directory, "/Books")
-    equal(menu_updates, 2)
-    equal(shown[#shown].text, "Choose a folder within ZenFM Home.")
-
+    settings.values.default_directory = "/Books"
     owner:settings_menu()[1].callback(touchmenu)
     local device_root_chooser = shown[#shown]
     device_root_chooser.onConfirm("/mnt/us")
     equal(settings.values.custom_root, "")
     equal(settings.values.default_directory, "/")
-    equal(menu_updates, 3)
-    contains(shown[#shown].text, "default directory was reset to Home")
+    equal(menu_updates, 2)
+    contains(shown[#shown].text, "startup directory was reset to Home")
 
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
 end)
@@ -1707,7 +1715,7 @@ test("inactivity timeout label opens a number wheel and its checkbox only toggle
     local owner = setmetatable({ daemon = { settings = settings } }, { __index = ZenFM })
     local menu_updates = 0
     local touchmenu = { updateItems = function() menu_updates = menu_updates + 1 end }
-    local item = owner:settings_menu()[3]
+    local item = owner:settings_menu()[2]
     equal(item.text_func(), "Inactivity timeout: 30 min")
     assert(not item.checked_func())
     item.callback(touchmenu)
@@ -1803,7 +1811,7 @@ test("changing server settings while running restarts and refreshes the menu", f
         menu_refreshes = menu_refreshes + 1
         table.insert(events, "menu:" .. tostring(settings.values.insecure_http))
     end }
-    local advanced_menu = owner:settings_menu()[6].sub_item_table
+    local advanced_menu = owner:settings_menu()[5].sub_item_table
     local http_item = advanced_menu[1]
     http_item.callback(touchmenu)
     equal(shown[1].ok_text, "Enable HTTP")
@@ -1839,7 +1847,7 @@ test("changing server settings while running restarts and refreshes the menu", f
     assert(not advanced_item.checked_func())
     equal(restarts, 4)
 
-    local title_item = owner:settings_menu()[5]
+    local title_item = owner:settings_menu()[4]
     title_item.callback()
     assert(title_item.checked_func())
     equal(restarts, 5)

@@ -1239,12 +1239,14 @@ components:
     Session:
       type: object
       additionalProperties: false
-      required: [authenticated, setupRequired]
+      required: [authenticated, setupRequired, startupDirectory]
       properties:
         authenticated:
           type: boolean
         setupRequired:
           type: boolean
+        startupDirectory:
+          $ref: '#/components/schemas/Path'
         csrfToken:
           type: string
           description: Kept only in browser memory by the official client.
@@ -1304,6 +1306,9 @@ components:
           type: integer
           minimum: 0
           maximum: 86400
+        startupDirectory:
+          type: string
+          description: Directory opened after sign-in. Must identify an accessible directory and cannot be changed in advanced-root mode.
         favorites:
           type: array
           description: Ordered file or folder paths relative to Home. New favorites must be existing regular files or directories. Send an empty array to clear favorites.
@@ -1319,7 +1324,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/PreferenceUpdate'
         - type: object
-          required: [theme, locale, showHidden, clientTimeoutSeconds, advancedMode, root, secureTransport]
+          required: [theme, locale, showHidden, clientTimeoutSeconds, startupDirectory, advancedMode, root, secureTransport]
           properties:
             favoriteTypes:
               type: object

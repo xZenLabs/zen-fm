@@ -776,15 +776,6 @@ local function canonical_directory_path(path)
     return path
 end
 
-local function directory_within_root(path, root)
-    path, root = canonical_directory_path(path), canonical_directory_path(root)
-    if not path or not root then return nil end
-    if path == root then return "/" end
-    if root == "/" then return path end
-    if path:sub(1, #root + 1) == root .. "/" then return path:sub(#root + 1) end
-    return nil
-end
-
 local function directory_from_root(root, relative)
     root = clean_directory_path(root)
     if not root then return nil end
@@ -833,31 +824,8 @@ function ZenFM:show_root_chooser(touchmenu_instance)
         end
         if touchmenu_instance then touchmenu_instance:updateItems() end
         notice(default_reset
-            and _("Saved. The default directory was reset to Home. Restart ZenFM to apply the change.")
+            and _("Saved. The startup directory was reset to Home. Restart ZenFM to apply the change.")
             or _("Saved. Restart ZenFM to apply the change."))
-    end)
-end
-
-function ZenFM:show_default_directory_chooser(touchmenu_instance)
-    local root = canonical_directory_path(self.daemon:root())
-    if not root then
-        notice(_("Configure ZenFM Home first."), true)
-        return
-    end
-    local current = directory_from_root(root, self.daemon.settings.values.default_directory or "/")
-    if not Util.is_directory(current) then current = root end
-    self:show_directory_chooser(current, function(selected)
-        local relative = directory_within_root(selected, root)
-        if not relative then
-            notice(_("Choose a folder within ZenFM Home."), true)
-            return
-        end
-        if not self.daemon.settings:set("default_directory", relative) then
-            notice(_("Invalid value."), true)
-            return
-        end
-        if touchmenu_instance then touchmenu_instance:updateItems() end
-        notice(_("Saved. Restart ZenFM to apply the change."))
     end)
 end
 
@@ -1101,17 +1069,6 @@ function ZenFM:settings_menu(include_status)
             end,
             keep_menu_open = true,
             callback = function(touchmenu_instance) self:show_root_chooser(touchmenu_instance) end,
-        },
-        {
-            text_func = function()
-                local directory = directory_from_root(
-                    self.daemon:root(),
-                    self.daemon.settings.values.default_directory or "/"
-                )
-                return _("Default directory: ") .. (directory or _("not configured"))
-            end,
-            keep_menu_open = true,
-            callback = function(touchmenu_instance) self:show_default_directory_chooser(touchmenu_instance) end,
         },
         {
             text_func = function()
