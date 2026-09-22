@@ -55,6 +55,8 @@ return {
         "Add scroll to bottom button for long files",
         "Allow changing device name",
         "Show device name in browser tab",
+        "Move startup directory to web ui settings",
+        "Default startup directory to koreader home"
     },
 
 }
