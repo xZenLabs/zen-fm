@@ -371,6 +371,8 @@ public final class ZenFMActivity extends Activity {
         String root = absolute(uri.getQueryParameter("root"), true, "root");
         String peerSource = uri.getQueryParameter("peer_source_root");
         String peerSourceRoot = peerSource == null ? root : absolute(peerSource, true, "peer source root");
+        String peerReceive = uri.getQueryParameter("peer_receive_root");
+        String peerReceiveRoot = peerReceive == null ? root : absolute(peerReceive, true, "peer receive root");
         String defaultDirectory = virtualDirectory(uri.getQueryParameter("default_directory"));
         int port = integer(uri.getQueryParameter("port"), 1, 65535, "port");
         boolean insecure = "1".equals(uri.getQueryParameter("insecure"));
@@ -388,6 +390,7 @@ public final class ZenFMActivity extends Activity {
         service.putExtra("home", home);
         service.putExtra("root", root);
         service.putExtra("peer_source_root", peerSourceRoot);
+        service.putExtra("peer_receive_root", peerReceiveRoot);
         service.putExtra("default_directory", defaultDirectory);
         service.putExtra("port", port);
         service.putExtra("insecure", insecure);

@@ -208,6 +208,8 @@ test("new and untouched legacy installs use KOReader Home without replacing manu
     end }
     local fresh = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
     equal(fresh.settings.values.default_directory, "/Books")
+    equal(fresh:peer_receive_root(), "/mnt/onboard/Books")
+    equal(fresh:zenfm_receive_root(), "/mnt/onboard/Books/ZenFM Received")
     local after_fresh = Daemon:new{ plugin_dir = "/plugin", state_dir = state, platform = "kobo" }
     equal(after_fresh.settings.values.default_directory, "/Books")
     assert(Util.write_atomic(state .. "/settings.lua",
@@ -453,7 +455,7 @@ test("advanced HTTP arguments", function()
         settings = fake_settings(values), path_exists = function() return false end,
     }
     local command = table.concat(daemon:serve_arguments(), " ")
-    contains(command, "--root / --peer-source-root /mnt/us --default-directory / --data-dir /state")
+    contains(command, "--root / --peer-source-root /mnt/us --peer-receive-root /mnt/us --default-directory / --data-dir /state")
     contains(command, "--listen 0.0.0.0:" .. tostring(values.port))
     contains(command, "--auto-stop 45m")
     contains(command, "--peer-name Bedroom Kobo")
@@ -705,6 +707,7 @@ test("Android handoff carries paired token and validated settings", function()
     contains(uri, "home=" .. Util.url_encode(state))
     contains(uri, "root=%2Fstorage%2Femulated%2F0")
     contains(uri, "peer_source_root=%2Fstorage%2Femulated%2F0")
+    contains(uri, "peer_receive_root=%2Fstorage%2Femulated%2F0")
     contains(uri, "default_directory=%2FBooks%2FUnread")
     contains(uri, "port=9443")
     contains(uri, "debug=0")
@@ -963,12 +966,14 @@ end)
 test("settings validation", function()
     local values = Settings.sanitize{
         port = 70000, advanced_root = true, insecure_http = true,
-        custom_root = "relative", default_directory = "/Books/../private", auto_stop_minutes = 45, beta_updates = "yes",
+        custom_root = "relative", peer_receive_directory = "/mnt/us/Inbox",
+        default_directory = "/Books/../private", auto_stop_minutes = 45, beta_updates = "yes",
         tls_cert = "/cert", tls_key = "relative",
     }
     equal(values.port, 54321)
     assert(values.advanced_root and values.insecure_http)
     equal(values.custom_root, "")
+    equal(values.peer_receive_directory, "/mnt/us/Inbox")
     equal(values.default_directory, "/")
     equal(values.auto_stop_minutes, 45)
     assert(not values.beta_updates)
@@ -982,6 +987,7 @@ test("settings validation", function()
     equal(values.tls_key, "")
     equal(Settings.sanitize{ custom_root = "/" }.custom_root, "")
     equal(Settings.sanitize{ custom_root = "/safe/../" }.custom_root, "")
+    equal(Settings.sanitize{ peer_receive_directory = "relative" }.peer_receive_directory, "")
     equal(Settings.sanitize{ default_directory = "/Books" }.default_directory, "/Books")
     equal(Settings.sanitize{ default_directory = "/Books/" }.default_directory, "/")
 end)
@@ -1511,6 +1517,8 @@ test("dispatcher exposes the server toggle and update settings", function()
                 set = function(self, key, value) self.values[key] = value return true end,
             },
             root = function() return "/mnt/us" end,
+            peer_receive_root = function() return "/mnt/us" end,
+            zenfm_receive_root = function() return "/mnt/us/ZenFM Received" end,
             peer_name = function() return values.device_name ~= "" and values.device_name or "Kindle" end,
             installed_backend_version = function() return "9.8.7" end,
         },
@@ -1531,7 +1539,7 @@ test("dispatcher exposes the server toggle and update settings", function()
     equal(statuses, 1)
     equal(menu_updates, 1)
     local settings_menu = root_menu[3].sub_item_table
-    equal(#settings_menu, 8)
+    equal(#settings_menu, 9)
     equal(settings_menu[3].text_func(), "Device name: Kindle")
     equal(settings_menu[4].text, "Use device name as browser tab title")
     assert(settings_menu[4].checked_func())
@@ -1542,8 +1550,13 @@ test("dispatcher exposes the server toggle and update settings", function()
     equal(advanced_menu[2].text, "Port: 54321")
     equal(advanced_menu[3].text, "Root: expose /")
     equal(advanced_menu[4].text, "Reset owner login")
-    equal(settings_menu[#settings_menu - 2].text, "Show QR code")
-    assert(settings_menu[#settings_menu - 2].checked_func())
+    equal(settings_menu[#settings_menu - 3].text, "Show QR code")
+    assert(settings_menu[#settings_menu - 3].checked_func())
+    local receive_settings = settings_menu[#settings_menu - 2]
+    equal(receive_settings.text_func(), "Peer receive folder: /mnt/us")
+    equal(receive_settings.sub_item_table[1].text, "Use ZenFM Received folder")
+    assert(not receive_settings.sub_item_table[1].checked_func())
+    equal(receive_settings.sub_item_table[2].text, "Choose receive folder")
     local receive_item = settings_menu[#settings_menu - 1]
     equal(receive_item.text, "Receive with ZenFM")
     assert(receive_item.checked_func == nil)
@@ -1595,8 +1608,19 @@ test("Home uses KOReader's folder chooser and resets an invalid startup director
         values = Settings.defaults(),
         set = function(self, key, value) self.values[key] = value return true end,
     }
+    local peer_home = os.tmpname() .. ".peer-home"
+    local custom_receive = peer_home .. "/Inbox"
+    assert(Util.ensure_dir(custom_receive))
     local daemon = { settings = settings }
     function daemon:device_root() return "/mnt/us" end
+    function daemon:koreader_home_directory() return peer_home end
+    function daemon:peer_receive_root()
+        return self.settings.values.peer_receive_directory ~= ""
+            and self.settings.values.peer_receive_directory or self:koreader_home_directory()
+    end
+    function daemon:zenfm_receive_root() return self:koreader_home_directory() .. "/ZenFM Received" end
+    function daemon:is_android() return false end
+    function daemon:status() return false end
     function daemon:root()
         if self.settings.values.advanced_root then return "/" end
         return self.settings.values.custom_root ~= "" and self.settings.values.custom_root or self:device_root()
@@ -1623,7 +1647,26 @@ test("Home uses KOReader's folder chooser and resets an invalid startup director
     equal(menu_updates, 2)
     contains(shown[#shown].text, "startup directory was reset to Home")
 
+    local receive_settings = owner:settings_menu()[7]
+    equal(receive_settings.text_func(), "Peer receive folder: " .. peer_home)
+    local quick_folder = receive_settings.sub_item_table[1]
+    assert(not quick_folder.checked_func())
+    quick_folder.callback(touchmenu)
+    equal(settings.values.peer_receive_directory, peer_home .. "/ZenFM Received")
+    assert(Util.is_directory(settings.values.peer_receive_directory))
+    assert(quick_folder.checked_func())
+    quick_folder.callback(touchmenu)
+    equal(settings.values.peer_receive_directory, "")
+
+    receive_settings.sub_item_table[2].callback(touchmenu)
+    local receive_chooser = shown[#shown]
+    equal(receive_chooser.path, peer_home)
+    receive_chooser.onConfirm(custom_receive)
+    equal(settings.values.peer_receive_directory, custom_receive)
+    equal(menu_updates, 5)
+
     for _, name in ipairs(module_names) do package.loaded[name] = saved[name] end
+    assert(Util.remove_tree(peer_home, peer_home:match("^(.*)/[^/]+$")))
 end)
 
 test("starting waits for KOReader network connection but stopping does not", function()
@@ -2556,6 +2599,7 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
             status = function() return started > 0 end,
             start = function() started = started + 1 return true end,
             peer_source_path = function(_, path) return path end,
+            peer_receive_root = function() return "/mnt/us/Inbox" end,
             peer_command = function(_, command) table.insert(commands, command) return true, "ok" end,
             peer_events_path = function() return peer_event_path end,
         },
@@ -2637,6 +2681,10 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
     contains(progress.title, "50%")
     progress.buttons[1][1].callback()
     contains(commands[#commands], "peer-cancel 0123456789abcdef")
+
+    incoming.status, incoming.destination = "complete", "/Books"
+    owner:handle_incoming_peer(incoming)
+    equal(shown[#shown].text, "Received Books in /mnt/us/Inbox/Books")
 
     local shown_before = #shown
     owner:handle_peer_events({ incoming = { id = "../../forged", status = "pending" } })

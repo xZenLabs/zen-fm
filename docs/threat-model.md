@@ -34,7 +34,7 @@
 | Upload/archive exhaustion | Streaming I/O, declared-length enforcement, quotas, entry/count/depth limits, cancellation. |
 | Share escalation | High-entropy hashed capabilities, body-based password exchange, scoped public sessions, expiry. |
 | Local lifecycle abuse | Mode-0700 native runtime directory plus mode-0600 control socket, exact process identity checks, and an Android pairing secret established only after a native, overlay-resistant first-start confirmation. Sensitive Android commands require confirmation because KOReader state can reside on shared storage. |
-| Peer impersonation or unauthorized transfer | HTTPS-only peer routes, bidirectional public-key pinning, source-IP-bound random capabilities, sender selection plus receiver approval, bounded metadata, device-storage-rooted source manifests, and atomic no-overwrite publication beneath the receiver's configured Home. |
+| Peer impersonation or unauthorized transfer | HTTPS-only peer routes, bidirectional public-key pinning, source-IP-bound random capabilities, sender selection plus receiver approval, bounded metadata, device-storage-rooted source manifests, and atomic no-overwrite publication beneath the receiver's configured peer receive root. |
 | Malicious update | Trusted GitHub release URLs, bounded downloads, redirect validation, and GitHub-recorded SHA-256. Plugin trees activate atomically with rollback; APK replacements are journaled, package/version/signature revalidated, and health-gated through Android's Package Installer. |
 
 ## Accepted risks

@@ -43,18 +43,18 @@ const (
 	peerDiscoveryRetry  = 250 * time.Millisecond
 	peerDiscoveryProbes = 3
 	peerInternalDir     = ".zenfm-internal-peer"
-	peerReceivedDir     = "/ZenFM Received"
 	peerService         = "zenfm-peer"
 )
 
 type peerManager struct {
-	server      *Server
-	name        string
-	fingerprint string
-	port        int
-	eventPath   string
-	stage       *os.Root
-	limiter     *attemptLimiter
+	server       *Server
+	name         string
+	fingerprint  string
+	port         int
+	eventPath    string
+	receiveFiles *zenfiles.Root
+	stage        *os.Root
+	limiter      *attemptLimiter
 
 	mu                  sync.Mutex
 	revision            uint64
@@ -202,7 +202,7 @@ type peerDatagram struct {
 	Port        int    `json:"port,omitempty"`
 }
 
-func newPeerManager(server *Server) (*peerManager, error) {
+func newPeerManager(server *Server, receiveFiles *zenfiles.Root) (*peerManager, error) {
 	port, err := addressPort(server.cfg.PeerAddress)
 	if err != nil {
 		return nil, err
@@ -210,14 +210,14 @@ func newPeerManager(server *Server) (*peerManager, error) {
 	if !validPeerFingerprint(server.cfg.PeerFingerprint) {
 		return nil, errors.New("peer fingerprint is invalid")
 	}
-	stage, _, err := server.cfg.Files.OpenInternalDirectory(peerInternalDir)
+	stage, _, err := receiveFiles.OpenInternalDirectory(peerInternalDir)
 	if err != nil {
 		return nil, err
 	}
 	m := &peerManager{
 		server: server, name: cleanPeerName(server.cfg.PeerName),
 		fingerprint: strings.ToUpper(server.cfg.PeerFingerprint), port: port,
-		eventPath: server.cfg.PeerEvents, stage: stage,
+		eventPath: server.cfg.PeerEvents, receiveFiles: receiveFiles, stage: stage,
 		limiter: newAttemptLimiter(8, time.Minute, server.cfg.Now),
 		offers:  make(map[string]*peerOffer), peers: make(map[string]peerDevice), closed: make(chan struct{}),
 	}
@@ -700,7 +700,7 @@ func (m *peerManager) putTransferFile(w http.ResponseWriter, r *http.Request) {
 	m.mu.Unlock()
 
 	if entry.Size > 0 {
-		if err := ensureFilesystemSpace(m.server.cfg.Files, uint64(entry.Size)); err != nil {
+		if err := ensureFilesystemSpace(m.receiveFiles, uint64(entry.Size)); err != nil {
 			m.abortIncoming(offer.ID, "insufficient storage")
 			mapError(w, r, err)
 			return
@@ -832,14 +832,7 @@ func (m *peerManager) cancelTransfer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *peerManager) publishReceived(stageName string, item peerItem) (string, error) {
-	m.logf("peer receive destination: home=%q directory=%q", m.server.cfg.Files.Name(), peerReceivedDir)
-	if _, err := m.server.cfg.Files.Entry(peerReceivedDir); errors.Is(err, fs.ErrNotExist) {
-		if _, err := m.server.cfg.Files.Mkdir(peerReceivedDir); err != nil && !errors.Is(err, zenfiles.ErrConflict) {
-			return "", err
-		}
-	} else if err != nil {
-		return "", err
-	}
+	m.logf("peer receive destination: root=%q", m.receiveFiles.Name())
 	sessionRoot, err := m.stage.OpenRoot(stageName)
 	if err != nil {
 		return "", err
@@ -850,10 +843,10 @@ func (m *peerManager) publishReceived(stageName string, item peerItem) (string, 
 		return "", err
 	}
 	if item.Type == "directory" {
-		err = m.server.cfg.Files.PublishTemporaryDirectory(sessionRoot, "payload", destination)
+		err = m.receiveFiles.PublishTemporaryDirectory(sessionRoot, "payload", destination)
 	} else {
 		var moved bool
-		moved, err = m.server.cfg.Files.PublishTemporary(sessionRoot, "payload", destination, false)
+		moved, err = m.receiveFiles.PublishTemporary(sessionRoot, "payload", destination, false)
 		if err == nil && !moved {
 			err = errors.New("peer staging unexpectedly crossed filesystems")
 		}
@@ -879,8 +872,8 @@ func (m *peerManager) uniqueDestination(name, kind string) (string, error) {
 		if index > 0 {
 			candidate = fmt.Sprintf("%s (%d)%s", stem, index, extension)
 		}
-		destination := path.Join(peerReceivedDir, candidate)
-		if _, err := m.server.cfg.Files.Entry(destination); errors.Is(err, fs.ErrNotExist) {
+		destination := path.Join("/", candidate)
+		if _, err := m.receiveFiles.Entry(destination); errors.Is(err, fs.ErrNotExist) {
 			return destination, nil
 		} else if err != nil {
 			return "", err
@@ -1252,10 +1245,10 @@ func (m *peerManager) accept(offerID string) error {
 	if offer == nil || offer.Status != "pending" || m.incoming != offerID || !m.server.cfg.Now().Before(offer.ExpiresAt) {
 		return errors.New("offer is unavailable")
 	}
-	if offer.Request.Item.Bytes > m.server.cfg.Files.MaxWriteBytes() {
+	if offer.Request.Item.Bytes > m.receiveFiles.MaxWriteBytes() {
 		return zenfiles.ErrTooLarge
 	}
-	if err := ensureFilesystemSpace(m.server.cfg.Files, uint64(offer.Request.Item.Bytes)); err != nil {
+	if err := ensureFilesystemSpace(m.receiveFiles, uint64(offer.Request.Item.Bytes)); err != nil {
 		return err
 	}
 	sessionID, err := auth.RandomToken("zfm_peer_session_", 128)

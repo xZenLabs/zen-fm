@@ -272,7 +272,7 @@ function Daemon:device_root()
     return self.settings:device_root(self:platform(), self:android_storage())
 end
 
-function Daemon:koreader_startup_directory()
+function Daemon:koreader_home_directory()
     local reader_settings = rawget(_G, "G_reader_settings")
     local home
     if reader_settings and type(reader_settings.readSetting) == "function" then
@@ -283,6 +283,26 @@ function Daemon:koreader_startup_directory()
         local ok, device = pcall(require, "device")
         if ok and type(device) == "table" then home = device.home_dir end
     end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then home = self:device_root() end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then return nil end
+    home = home:gsub("/+$", "")
+    return self:peer_source_path(home == "" and "/" or home)
+end
+
+function Daemon:peer_receive_root()
+    local configured = self.settings.values.peer_receive_directory
+    if type(configured) == "string" and configured ~= "" then return self:peer_source_path(configured) end
+    return self:koreader_home_directory() or self:device_root() or self:root()
+end
+
+function Daemon:zenfm_receive_root()
+    local home = self:koreader_home_directory()
+    if not home then return nil end
+    return home == "/" and "/ZenFM Received" or home .. "/ZenFM Received"
+end
+
+function Daemon:koreader_startup_directory()
+    local home = self:koreader_home_directory()
     local root = self:root()
     if type(root) ~= "string" or type(home) ~= "string" then return "/" end
     root, home = root:gsub("/+$", ""), home:gsub("/+$", "")
@@ -326,6 +346,7 @@ function Daemon:serve_arguments()
         "serve",
         "--root", self:root(),
         "--peer-source-root", self:device_root() or self:root(),
+        "--peer-receive-root", self:peer_receive_root(),
         "--default-directory", default_directory,
         "--data-dir", self.state_dir,
         "--listen", "0.0.0.0:" .. tostring(values.port),
@@ -398,6 +419,7 @@ function Daemon:android_uri(action, request_id, fields)
         local fields = {
             root = self:root(),
             peer_source_root = self:device_root() or self:root(),
+            peer_receive_root = self:peer_receive_root(),
             default_directory = values.default_directory,
             port = tostring(values.port),
             insecure = values.insecure_http and "1" or "0",
@@ -408,7 +430,7 @@ function Daemon:android_uri(action, request_id, fields)
             tls_cert = values.tls_cert,
             tls_key = values.tls_key,
         }
-        for _, key in ipairs({ "root", "peer_source_root", "default_directory", "port", "insecure", "debug", "device_name", "use_device_name_as_title", "auto_stop", "tls_cert", "tls_key" }) do
+        for _, key in ipairs({ "root", "peer_source_root", "peer_receive_root", "default_directory", "port", "insecure", "debug", "device_name", "use_device_name_as_title", "auto_stop", "tls_cert", "tls_key" }) do
             table.insert(query, key .. "=" .. Util.url_encode(fields[key]))
         end
     elseif action == "update" and self.settings.values.beta_updates then
@@ -489,6 +511,10 @@ function Daemon:start()
     local root = self:root()
     if type(root) ~= "string" or root:sub(1, 1) ~= "/" then
         return false, "could not determine a safe storage root; configure an absolute custom root"
+    end
+    local peer_receive_root = self:peer_receive_root()
+    if type(peer_receive_root) ~= "string" or peer_receive_root:sub(1, 1) ~= "/" then
+        return false, "could not determine a safe peer receive folder"
     end
     local default_path = root .. values.default_directory
     if not values.advanced_root and values.default_directory ~= "/" and not Util.is_directory(default_path)

@@ -77,6 +77,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	rootPath := flags.String("root", platform.DefaultRoot(), "filesystem root")
 	peerSourceRoot := flags.String("peer-source-root", "", "local peer-send source root")
+	peerReceiveRoot := flags.String("peer-receive-root", "", "local peer-receive destination root")
 	defaultDirectory := flags.String("default-directory", "/", "initial directory within the filesystem root")
 	dataDir := flags.String("data-dir", platform.DefaultDataDir(), "private ZenFM state directory")
 	listenAddress := flags.String("listen", "", "TCP listen address")
@@ -104,6 +105,9 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	}
 	if *peerSourceRoot == "" {
 		*peerSourceRoot = *rootPath
+	}
+	if *peerReceiveRoot == "" {
+		*peerReceiveRoot = *rootPath
 	}
 	if *controlSocket == "" {
 		*controlSocket = filepath.Join(*dataDir, "zenfm.sock")
@@ -133,8 +137,8 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	if *insecureHTTP {
 		transport = "http"
 	}
-	diagnostics.Printf("server setup started: version=%s root=%q peer-source-root=%q default-directory=%q data-dir=%q listen=%q transport=%s control-socket=%q auto-stop=%s",
-		version, *rootPath, *peerSourceRoot, *defaultDirectory, *dataDir, *listenAddress, transport, *controlSocket, autoStop.String())
+	diagnostics.Printf("server setup started: version=%s root=%q peer-source-root=%q peer-receive-root=%q default-directory=%q data-dir=%q listen=%q transport=%s control-socket=%q auto-stop=%s",
+		version, *rootPath, *peerSourceRoot, *peerReceiveRoot, *defaultDirectory, *dataDir, *listenAddress, transport, *controlSocket, autoStop.String())
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
@@ -159,6 +163,11 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("open peer source root: %w", err)
 	}
 	defer peerFiles.Close()
+	peerReceiveFiles, err := zenfiles.Open(*peerReceiveRoot, zenfiles.Options{})
+	if err != nil {
+		return fmt.Errorf("open peer receive root: %w", err)
+	}
+	defer peerReceiveFiles.Close()
 	listener, err := net.Listen(listenNetwork(*listenAddress), *listenAddress)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -180,7 +189,7 @@ func runServe(args []string, stdout, stderr io.Writer) error {
 	}
 	address := scheme + "://" + listener.Addr().String()
 	api, err := server.New(server.Config{
-		Store: store, Files: root, PeerFiles: peerFiles, StaticFS: webui.FS(), Version: version, HTMLTitle: htmlTitle, SecureTransport: !*insecureHTTP,
+		Store: store, Files: root, PeerFiles: peerFiles, PeerReceiveFiles: peerReceiveFiles, StaticFS: webui.FS(), Version: version, HTMLTitle: htmlTitle, SecureTransport: !*insecureHTTP,
 		DefaultDirectory: *defaultDirectory,
 		SessionIdle:      *sessionIdle, SessionAbsolute: *sessionAbsolute,
 		ModeLessFilesystem: *modeLessFilesystem,

@@ -13,6 +13,7 @@ local defaults = {
     insecure_http = false,
     advanced_root = false,
     custom_root = "",
+    peer_receive_directory = "",
     default_directory = "/", -- Internal launch seed; configure the startup directory in the Web UI.
     auto_stop_minutes = 0,
     auto_stop_last_minutes = 30,
@@ -90,6 +91,9 @@ local function sanitize(value, default_auto_stop_minutes)
     if safe_custom_root(value.custom_root) then
         result.custom_root = value.custom_root
     end
+    if safe_custom_root(value.peer_receive_directory) then
+        result.peer_receive_directory = value.peer_receive_directory
+    end
     if safe_default_directory(value.default_directory) then
         result.default_directory = value.default_directory
     end
@@ -120,7 +124,7 @@ local function sanitize(value, default_auto_stop_minutes)
 end
 
 local function serialize(value)
-    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "device_name", "use_device_name_as_title", "beta_updates", "show_qr_code", "tls_cert", "tls_key" }
+    local keys = { "settings_version", "port", "insecure_http", "advanced_root", "custom_root", "peer_receive_directory", "default_directory", "auto_stop_minutes", "auto_stop_last_minutes", "device_name", "use_device_name_as_title", "beta_updates", "show_qr_code", "tls_cert", "tls_key" }
     local lines = { "return {" }
     for _, key in ipairs(keys) do
         local item = value[key]

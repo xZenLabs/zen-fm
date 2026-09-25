@@ -197,6 +197,10 @@ type peerTestServer struct {
 }
 
 func newPeerTestServer(t *testing.T, name string, setup bool, sourceFiles ...*zenfiles.Root) *peerTestServer {
+	return newPeerTestServerWithReceive(t, name, setup, nil, sourceFiles...)
+}
+
+func newPeerTestServerWithReceive(t *testing.T, name string, setup bool, receiveFiles *zenfiles.Root, sourceFiles ...*zenfiles.Root) *peerTestServer {
 	t.Helper()
 	rootPath := t.TempDir()
 	store, err := state.Open(filepath.Join(rootPath, ".state", "zenfm.db"), state.Options{PasswordParams: fastPassword})
@@ -233,6 +237,7 @@ func newPeerTestServer(t *testing.T, name string, setup bool, sourceFiles ...*ze
 	if len(sourceFiles) > 0 {
 		config.PeerFiles = sourceFiles[0]
 	}
+	config.PeerReceiveFiles = receiveFiles
 	api, err := New(config)
 	if err != nil {
 		httpServer.Close()
@@ -277,7 +282,7 @@ func TestPeerDirectoryTransferIsAtomicAndCollisionSafe(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(sourcePath, "Books", "book.epub"), []byte("book-data"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(receiver.rootPath, "ZenFM Received", "Books"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(receiver.rootPath, "Books"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	sender.api.peer.mu.Lock()
@@ -308,7 +313,7 @@ func TestPeerDirectoryTransferIsAtomicAndCollisionSafe(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitPeerStatus(t, sender.api.peer, "complete")
-	received := filepath.Join(receiver.rootPath, "ZenFM Received", "Books (1)")
+	received := filepath.Join(receiver.rootPath, "Books (1)")
 	data, err := os.ReadFile(filepath.Join(received, "book.epub"))
 	if err != nil || string(data) != "book-data" {
 		t.Fatalf("received file = %q, %v", data, err)
@@ -316,7 +321,7 @@ func TestPeerDirectoryTransferIsAtomicAndCollisionSafe(t *testing.T) {
 	if info, err := os.Stat(filepath.Join(received, "empty")); err != nil || !info.IsDir() {
 		t.Fatalf("empty directory was not preserved: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(receiver.rootPath, "ZenFM Received", "Books", "book.epub")); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(receiver.rootPath, "Books", "book.epub")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal("existing destination was overwritten")
 	}
 	eventData, err := os.ReadFile(sender.events)
@@ -328,8 +333,14 @@ func TestPeerDirectoryTransferIsAtomicAndCollisionSafe(t *testing.T) {
 	}
 }
 
-func TestPeerPublishCreatesReceiveDirectory(t *testing.T) {
-	receiver := newPeerTestServer(t, "Receiver", true)
+func TestPeerPublishUsesConfiguredReceiveRoot(t *testing.T) {
+	receivePath := t.TempDir()
+	receiveFiles, err := zenfiles.Open(receivePath, zenfiles.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = receiveFiles.Close() })
+	receiver := newPeerTestServerWithReceive(t, "Receiver", true, receiveFiles)
 	var logs lockedBuffer
 	receiver.api.cfg.Logger = log.New(&logs, "", 0)
 	stageName := "zfm_peer_test"
@@ -348,16 +359,18 @@ func TestPeerPublishCreatesReceiveDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	destination, err := receiver.api.peer.publishReceived(stageName, peerItem{Name: "book.epub", Type: "file"})
-	if err != nil || destination != "/ZenFM Received/book.epub" {
+	if err != nil || destination != "/book.epub" {
 		t.Fatalf("publish = %q, %v", destination, err)
 	}
-	if output := logs.String(); !strings.Contains(output, fmt.Sprintf("home=%q", receiver.root.Name())) ||
-		!strings.Contains(output, `directory="/ZenFM Received"`) {
+	if output := logs.String(); !strings.Contains(output, fmt.Sprintf("root=%q", receiveFiles.Name())) {
 		t.Fatalf("receive mapping was not logged: %s", output)
 	}
-	data, err := os.ReadFile(filepath.Join(receiver.rootPath, "ZenFM Received", "book.epub"))
+	data, err := os.ReadFile(filepath.Join(receivePath, "book.epub"))
 	if err != nil || string(data) != "book" {
 		t.Fatalf("received file = %q, %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(receiver.rootPath, "book.epub")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("received file was published under the web Home")
 	}
 }
 
@@ -482,7 +495,7 @@ func TestInterruptedPeerFolderIsCleanedAndNeverPublished(t *testing.T) {
 	if retained || incoming != "" {
 		t.Fatal("interrupted offer or staging state was retained")
 	}
-	if _, err := os.Stat(filepath.Join(receiver.rootPath, "ZenFM Received", "Books")); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(receiver.rootPath, "Books")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal("interrupted folder became visible")
 	}
 }

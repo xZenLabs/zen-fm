@@ -149,8 +149,10 @@ documented under `docs/` and in [SECURITY.md](SECURITY.md).
 Tap and hold a file or folder in KOReader and choose **ZenFM Send**. ZenFM
 discovers HTTPS receivers on UDP port `54321`; choose a device, then accept or
 decline the offer on its active KOReader screen. Accepted content is placed in
-`ZenFM Received` under the receiver's configured Home, with numbered names used
-instead of overwriting a collision. The sender may select content anywhere
+the receiver's configured peer receive folder, which defaults to KOReader Home;
+the plugin can instead create and use a `ZenFM Received` folder or choose
+another directory. Numbered names are used instead of overwriting a collision.
+The sender may select content anywhere
 under its platform device-storage root, independently of its web Home.
 
 Both devices must have completed owner setup, use HTTPS, remain on the same

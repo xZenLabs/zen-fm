@@ -52,7 +52,7 @@ zero size. Summary bytes and counts must exactly match the manifest.
 
 The receiver stages content in a hidden internal directory, verifies every
 declared length while streaming, and exposes nothing until completion. It then
-atomically publishes under `/ZenFM Received` within its configured Home. Existing names are never
+atomically publishes within its configured peer receive root. Existing names are never
 overwritten; collisions become `name (1)`, `name (2)`, and so on. Staging is
 removed on decline, cancellation, timeout, interruption, restart, validation
 failure, or successful publication.

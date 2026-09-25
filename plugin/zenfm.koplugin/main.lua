@@ -504,7 +504,10 @@ function ZenFM:handle_incoming_peer(incoming, replay)
         self:show_peer_progress(incoming.id, incoming.name, incoming.receivedBytes, incoming.bytes, true)
     elseif incoming.status == "complete" then
         self:close_peer_progress()
-        local destination = peer_text(incoming.destination) and incoming.destination or "/ZenFM Received"
+        local destination = self.daemon:peer_receive_root() or "/"
+        if peer_text(incoming.destination) and incoming.destination ~= "/" then
+            destination = (destination == "/" and "" or destination:gsub("/+$", "")) .. incoming.destination
+        end
         notice(string.format(_("Received %s in %s"), incoming.name, destination))
     elseif incoming.status == "error" or incoming.status == "expired" then
         self:close_peer_progress()
@@ -829,6 +832,40 @@ function ZenFM:show_root_chooser(touchmenu_instance)
     end)
 end
 
+function ZenFM:set_peer_receive_directory(directory, touchmenu_instance)
+    directory = canonical_directory_path(directory)
+    if not directory or directory == "/" or not Util.is_directory(directory) then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    local home = canonical_directory_path(self.daemon:koreader_home_directory())
+    if not self.daemon.settings:set("peer_receive_directory", directory == home and "" or directory) then
+        notice(_("Invalid value."), true)
+        return false
+    end
+    if touchmenu_instance then touchmenu_instance:updateItems() end
+    return self:restart_after_server_setting_change()
+end
+
+function ZenFM:show_peer_receive_chooser(touchmenu_instance)
+    self:show_directory_chooser(self.daemon:peer_receive_root() or self.daemon:device_root() or "/", function(selected)
+        self:set_peer_receive_directory(selected, touchmenu_instance)
+    end)
+end
+
+function ZenFM:toggle_zenfm_receive_folder(touchmenu_instance)
+    local target = self.daemon:zenfm_receive_root()
+    local current = canonical_directory_path(self.daemon:peer_receive_root())
+    if current == canonical_directory_path(target) then
+        return self:set_peer_receive_directory(self.daemon:koreader_home_directory(), touchmenu_instance)
+    end
+    if not target or not Util.ensure_dir(target) then
+        notice(_("Could not create the ZenFM Received folder."), true)
+        return false
+    end
+    return self:set_peer_receive_directory(target, touchmenu_instance)
+end
+
 function ZenFM:restart_after_server_setting_change()
     if self.daemon:is_android() then
         if not self:android_cached_running() then return true end
@@ -1145,6 +1182,28 @@ function ZenFM:settings_menu(include_status)
             callback = function()
                 self.daemon.settings:set("show_qr_code", not self.daemon.settings.values.show_qr_code)
             end,
+        },
+        {
+            text_func = function()
+                return _("Peer receive folder: ") .. (self.daemon:peer_receive_root() or _("not configured"))
+            end,
+            sub_item_table = {
+                {
+                    text = _("Use ZenFM Received folder"),
+                    checked_func = function()
+                        return canonical_directory_path(self.daemon:peer_receive_root())
+                            == canonical_directory_path(self.daemon:zenfm_receive_root())
+                    end,
+                    check_callback_updates_menu = true,
+                    keep_menu_open = true,
+                    callback = function(touchmenu_instance) self:toggle_zenfm_receive_folder(touchmenu_instance) end,
+                },
+                {
+                    text = _("Choose receive folder"),
+                    keep_menu_open = true,
+                    callback = function(touchmenu_instance) self:show_peer_receive_chooser(touchmenu_instance) end,
+                },
+            },
         },
         {
             text = _("Receive with ZenFM"),

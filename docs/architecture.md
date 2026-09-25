@@ -24,8 +24,8 @@ service's TLS public-key fingerprint before an offer is displayed or sent.
 KOReader supplies approval and reads a versioned metadata-only event file;
 capability tokens remain in Go memory and HTTPS messages.
 Peer sends read only from a separate platform device-storage root, so a narrow
-web Home does not block a KOReader-selected source. Receivers always choose the
-destination beneath their own configured Home.
+web Home does not block a KOReader-selected source. Peer receives use a separate
+root that defaults to KOReader Home and can be changed in plugin settings.
 
 Android uses the same Go service as a native executable inside a foreground
 service. The KOReader plugin sends in-process, explicit-component authenticated

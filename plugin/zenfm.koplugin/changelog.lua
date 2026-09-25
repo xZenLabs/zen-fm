@@ -56,7 +56,8 @@ return {
         "Allow changing device name",
         "Show device name in browser tab",
         "Move startup directory to web ui settings",
-        "Default startup directory to koreader home"
+        "Default startup directory and peer receives to KOReader Home",
+        "Allow choosing a peer receive folder",
     },
 
 }

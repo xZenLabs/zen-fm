@@ -352,6 +352,7 @@ public final class ZenFMService extends Service {
         command.add(executable); command.add("serve");
         command.add("--root"); command.add(value.root);
         command.add("--peer-source-root"); command.add(value.peerSourceRoot);
+        command.add("--peer-receive-root"); command.add(value.peerReceiveRoot);
         command.add("--default-directory"); command.add(value.defaultDirectory);
         command.add("--data-dir"); command.add(getFilesDir().getAbsolutePath());
         command.add("--listen"); command.add("0.0.0.0:" + value.port);
@@ -563,14 +564,15 @@ public final class ZenFMService extends Service {
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private static final class Config {
-        final String home, root, peerSourceRoot, defaultDirectory, deviceName, autoStop, certificate, key, requestId;
+        final String home, root, peerSourceRoot, peerReceiveRoot, defaultDirectory, deviceName, autoStop, certificate, key, requestId;
         final int port;
         final boolean insecure, debug, useDeviceNameAsTitle;
-        Config(String home, String root, String peerSourceRoot, String defaultDirectory, int port, boolean insecure, boolean debug,
+        Config(String home, String root, String peerSourceRoot, String peerReceiveRoot, String defaultDirectory, int port, boolean insecure, boolean debug,
             String deviceName, boolean useDeviceNameAsTitle, String autoStop,
             String certificate, String key, String requestId) {
             this.home = home; this.root = root; this.port = port; this.insecure = insecure; this.debug = debug;
             this.peerSourceRoot = peerSourceRoot;
+            this.peerReceiveRoot = peerReceiveRoot;
             this.defaultDirectory = defaultDirectory;
             this.deviceName = deviceName; this.useDeviceNameAsTitle = useDeviceNameAsTitle;
             this.autoStop = autoStop; this.certificate = certificate; this.key = key;
@@ -578,6 +580,7 @@ public final class ZenFMService extends Service {
         }
         boolean sameAs(Config other) {
             return other != null && home.equals(other.home) && root.equals(other.root) && peerSourceRoot.equals(other.peerSourceRoot)
+                && peerReceiveRoot.equals(other.peerReceiveRoot)
                 && defaultDirectory.equals(other.defaultDirectory) && port == other.port
                 && insecure == other.insecure && debug == other.debug && autoStop.equals(other.autoStop)
                 && deviceName.equals(other.deviceName) && useDeviceNameAsTitle == other.useDeviceNameAsTitle
@@ -586,10 +589,12 @@ public final class ZenFMService extends Service {
         static Config from(Intent intent) {
             String home = intent.getStringExtra("home"), root = intent.getStringExtra("root");
             String peerSourceRoot = intent.getStringExtra("peer_source_root");
+            String peerReceiveRoot = intent.getStringExtra("peer_receive_root");
             String defaultDirectory = intent.getStringExtra("default_directory");
             if (home == null || root == null || defaultDirectory == null) return null;
             if (peerSourceRoot == null) peerSourceRoot = root;
-            return new Config(home, root, peerSourceRoot, defaultDirectory, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
+            if (peerReceiveRoot == null) peerReceiveRoot = root;
+            return new Config(home, root, peerSourceRoot, peerReceiveRoot, defaultDirectory, intent.getIntExtra("port", DEFAULT_PORT), intent.getBooleanExtra("insecure", false),
                 intent.getBooleanExtra("debug", false),
                 intent.getStringExtra("device_name"), intent.getBooleanExtra("use_device_name_as_title", true),
                 intent.getStringExtra("auto_stop"), intent.getStringExtra("tls_cert"), intent.getStringExtra("tls_key"),
@@ -600,6 +605,7 @@ public final class ZenFMService extends Service {
             // A command may immediately kill this process; the service config must be durable first.
             service.getSharedPreferences("server", MODE_PRIVATE).edit().putString("home", home).putString("root", root)
                 .putString("peer_source_root", peerSourceRoot)
+                .putString("peer_receive_root", peerReceiveRoot)
                 .putString("default_directory", defaultDirectory)
                 .putString("device_name", deviceName).putBoolean("use_device_name_as_title", useDeviceNameAsTitle)
                 .putInt("port", port).putBoolean("insecure", insecure).putBoolean("debug", debug).putString("auto_stop", autoStop)
@@ -609,7 +615,7 @@ public final class ZenFMService extends Service {
             SharedPreferences p = service.getSharedPreferences("server", MODE_PRIVATE);
             String home = p.getString("home", null), root = p.getString("root", null);
             if (home == null || root == null) return null;
-            return new Config(home, root, p.getString("peer_source_root", root), p.getString("default_directory", "/"), p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
+            return new Config(home, root, p.getString("peer_source_root", root), p.getString("peer_receive_root", root), p.getString("default_directory", "/"), p.getInt("port", DEFAULT_PORT), p.getBoolean("insecure", false),
                 p.getBoolean("debug", false),
                 p.getString("device_name", Build.MODEL == null ? "Android" : Build.MODEL), p.getBoolean("use_device_name_as_title", true),
                 p.getString("auto_stop", "0"), p.getString("certificate", ""), p.getString("key", ""), "");

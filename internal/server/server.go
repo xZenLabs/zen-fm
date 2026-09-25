@@ -32,6 +32,7 @@ type Config struct {
 	Store              *state.Store
 	Files              *zenfiles.Root
 	PeerFiles          *zenfiles.Root
+	PeerReceiveFiles   *zenfiles.Root
 	StaticFS           fs.FS
 	Version            string
 	HTMLTitle          string
@@ -189,19 +190,25 @@ func New(cfg Config) (*Server, error) {
 		if peerFiles == nil {
 			peerFiles = cfg.Files
 		}
+		peerReceiveFiles := cfg.PeerReceiveFiles
+		if peerReceiveFiles == nil {
+			peerReceiveFiles = cfg.Files
+		}
+		peerInternalPath := filepath.Join(peerReceiveFiles.Name(), peerInternalDir)
 		peerExclusions := append([]string{}, publicExclusions...)
-		peerExclusions = append(peerExclusions, s.cfg.UploadDir, filepath.Join(cfg.Files.Name(), peerInternalDir))
+		peerExclusions = append(peerExclusions, s.cfg.UploadDir, peerInternalPath)
 		s.peerFiles, err = peerFiles.Restricted(peerExclusions...)
 		if err != nil {
 			s.uploads.close()
 			return nil, fmt.Errorf("protect private state from peer sends: %w", err)
 		}
-		s.peer, err = newPeerManager(s)
+		s.peer, err = newPeerManager(s, peerReceiveFiles)
 		if err != nil {
 			s.peerFiles.Close()
 			s.uploads.close()
 			return nil, fmt.Errorf("initialize peer sharing: %w", err)
 		}
+		publicExclusions = append(publicExclusions, peerInternalPath)
 	}
 	s.publicFiles, err = cfg.Files.Restricted(publicExclusions...)
 	if err != nil {
