@@ -10,6 +10,7 @@ import KeyboardArrowLeftRounded from '@mui/icons-material/KeyboardArrowLeftRound
 import KeyboardArrowRightRounded from '@mui/icons-material/KeyboardArrowRightRounded'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import DownloadIcon from '@mui/icons-material/Download'
+import VerticalAlignBottomRounded from '@mui/icons-material/VerticalAlignBottomRounded'
 import EditDocumentIcon from '@mui/icons-material/EditDocument'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
@@ -95,6 +96,8 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
   const raw = entry ? api.files.rawUrl(entry.path) : ''
   const previewUrl = entry ? api.files.previewUrl(entry.path) : ''
   const csv = useMemo(() => ext === 'csv' && text.data ? parseCsv(text.data) : null, [ext, text.data])
+  const longText = (text.data?.split('\n', 501).length ?? 0) > 500
+  const viewerRef = useRef<HTMLDivElement>(null)
   const findButtonRef = useRef<HTMLButtonElement>(null)
   const findInputRef = useRef<HTMLInputElement>(null)
   const [localFullScreen, setLocalFullScreen] = useState(false)
@@ -221,8 +224,9 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
         </Box>}
         <Tooltip title={t('files.closeFile')}><IconButton aria-label={t('common.close')} onClick={onClose}><CloseRounded /></IconButton></Tooltip>
       </DialogTitle>
-      <DialogContent dividers style={{ backgroundColor: contentSurface }} className={fullScreen ? 'file-viewer-content fullscreen-viewer' : undefined} sx={{ minHeight: fullScreen && needsText ? 0 : 240, p: fullScreen && needsText ? 0 : undefined, flex: fullScreen && needsText ? 1 : undefined }}>{preview}</DialogContent>
+      <DialogContent ref={viewerRef} dividers style={{ backgroundColor: contentSurface }} className={fullScreen ? 'file-viewer-content fullscreen-viewer' : undefined} sx={{ minHeight: fullScreen && needsText ? 0 : 240, p: fullScreen && needsText ? 0 : undefined, flex: fullScreen && needsText ? 1 : undefined }}>{preview}</DialogContent>
       <DialogActions style={{ backgroundColor: surface }}>
+        {fullScreen && longText && <><Button startIcon={<VerticalAlignBottomRounded />} onClick={() => { const scroller = viewerRef.current?.querySelector<HTMLElement>('.cm-scroller'); if (scroller) scroller.scrollTop = scroller.scrollHeight }}>{t('files.scrollToBottom')}</Button><Box flex={1} /></>}
         {entry && <Button component="a" href={raw} download startIcon={<DownloadIcon />}>{t('files.download')}</Button>}
         {entry && onEdit && canEdit(entry) && <Button startIcon={<EditDocumentIcon />} onClick={onEdit}>{t('files.edit')}</Button>}
         {entry && !fullScreen && <Button variant="contained" startIcon={<OpenInNewIcon />} onClick={() => onFullScreen ? onFullScreen() : setLocalFullScreen(true)}>{t('files.preview')}</Button>}

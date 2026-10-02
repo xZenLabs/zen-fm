@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: bg\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 ден"
 
@@ -23,6 +29,9 @@ msgstr "30 дни"
 
 msgid "About {{eta}} remaining"
 msgstr "Остават около {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Разширеният root режим е активен. Системните файлове, пътищата на устройството и ZenFM тайните са видими и могат да бъдат променени или изтрити."
@@ -53,6 +62,9 @@ msgstr "Изчислява се общият размер..."
 
 msgid "Cancel"
 msgstr "Отмени"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Промени парола"
@@ -102,6 +114,9 @@ msgstr "Копиране на токена"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Копиране на {{copied}} от {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Резултатът от придружителя на Android не можа да се прочете"
 
@@ -128,6 +143,9 @@ msgstr "Тъмна"
 
 msgid "Date modified"
 msgstr "Последна промяна"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Изтрий"
@@ -204,6 +222,9 @@ msgstr "Време за изчакване на неактивност (мину
 msgid "Inactivity timeout: %d min"
 msgstr "Време за изчакване на неактивност: %d мин"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Инсталиране на ZenFM актуализация..."
 
@@ -243,6 +264,9 @@ msgstr "Зареждане ..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Нулиране на входа. Използвайте koreader123456789 и изберете нова парола."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Премести"
 
@@ -272,6 +296,9 @@ msgstr "Няма съвпадения"
 
 msgid "No shared links"
 msgstr "Няма споделени връзки"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "не е конфигуриран"
@@ -315,6 +342,9 @@ msgstr "За този файл не е наличен преглед."
 msgid "Previous match"
 msgstr "Предишен мач"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Опресняване"
 
@@ -344,6 +374,9 @@ msgstr "Рестартирайте сега"
 
 msgid "Restarting…"
 msgstr "Рестартира се..."
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Отмени"
@@ -377,6 +410,12 @@ msgstr "Резултати от търсенето"
 
 msgid "Search this folder"
 msgstr "Търсене ..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Настройки"
@@ -452,6 +491,9 @@ msgstr "Текстов редактор"
 
 msgid "The password is incorrect."
 msgstr "Паролата е неправилна."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Тема"
@@ -531,6 +573,9 @@ msgstr "Вашите файлове, лесно достъпни."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM работи."
 
@@ -542,6 +587,15 @@ msgstr "ZenFM порт"
 
 msgid "ZenFM request pending…"
 msgstr "Изчакваща заявка за ZenFM..."
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM започна."

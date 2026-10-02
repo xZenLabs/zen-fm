@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: fr\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 jour"
 
@@ -23,6 +29,9 @@ msgstr "30 jours"
 
 msgid "About {{eta}} remaining"
 msgstr "Environ {{eta}} restants"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Le mode racine avancé est actif. Les fichiers système, les chemins d'accès aux appareils et les secrets ZenFM sont visibles et peuvent être modifiés ou supprimés."
@@ -53,6 +62,9 @@ msgstr "Calcul de la taille totale…"
 
 msgid "Cancel"
 msgstr "Annuler"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Modifier le mot de passe"
@@ -102,6 +114,9 @@ msgstr "Copier le jeton"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Copie de {{copied}} de {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Impossible de lire le résultat du compagnon Android"
 
@@ -128,6 +143,9 @@ msgstr "Sombre"
 
 msgid "Date modified"
 msgstr "Dernière modification"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Supprimer"
@@ -204,6 +222,9 @@ msgstr "Délai d'inactivité (minutes)"
 msgid "Inactivity timeout: %d min"
 msgstr "Délai d'inactivité : %d min"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Installation de la mise à jour ZenFM…"
 
@@ -243,6 +264,9 @@ msgstr "Chargement..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Réinitialisation de la connexion. Utilisez koreader123456789 et choisissez un nouveau mot de passe."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Déplacer"
 
@@ -272,6 +296,9 @@ msgstr "Aucune correspondance"
 
 msgid "No shared links"
 msgstr "Aucun lien partagé"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "non configuré"
@@ -315,6 +342,9 @@ msgstr "L'aperçu n'est pas disponible pour ce fichier."
 msgid "Previous match"
 msgstr "Match précédent"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Rafraîchir"
 
@@ -344,6 +374,9 @@ msgstr "Redémarrer maintenant"
 
 msgid "Restarting…"
 msgstr "Redémarrage…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Révoquer"
@@ -377,6 +410,12 @@ msgstr "Résultats de la recherche"
 
 msgid "Search this folder"
 msgstr "Recherche en cours..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Paramètres"
@@ -452,6 +491,9 @@ msgstr "Editer comme Texte"
 
 msgid "The password is incorrect."
 msgstr "Le mot de passe est incorrect."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Thème"
@@ -531,6 +573,9 @@ msgstr "Vos fichiers, facilement accessibles."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM est en cours d'exécution."
 
@@ -542,6 +587,15 @@ msgstr "Port ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Demande ZenFM en attente…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM a démarré."

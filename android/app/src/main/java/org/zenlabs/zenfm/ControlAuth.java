@@ -35,7 +35,8 @@ final class ControlAuth {
     }
 
     static boolean requiresUserConfirmation(String action) {
-        return "start".equals(action) || "reset".equals(action) || "update".equals(action);
+        return "start".equals(action) || "reset".equals(action) || "update".equals(action)
+            || "peer-send".equals(action) || "peer-accept".equals(action);
     }
 
     // 0 rejects, 1 accepts an existing pairing, and 2 requires explicit user

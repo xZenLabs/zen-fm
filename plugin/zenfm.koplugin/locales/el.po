@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: el\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 ημέρα"
 
@@ -23,6 +29,9 @@ msgstr "30 ημέρες"
 
 msgid "About {{eta}} remaining"
 msgstr "Απομένει περίπου {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Η προηγμένη λειτουργία root είναι ενεργή. Τα αρχεία συστήματος, οι διαδρομές της συσκευής και τα μυστικά ZenFM είναι ορατά και ενδέχεται να αλλάξουν ή να διαγραφούν."
@@ -53,6 +62,9 @@ msgstr "Υπολογισμός συνολικού μεγέθους…"
 
 msgid "Cancel"
 msgstr "Ακύρωση"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Αλλαγή κωδικού πρόσβασης"
@@ -102,6 +114,9 @@ msgstr "Αντιγραφή διακριτικού"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Αντιγραφή {{copied}} από {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Δεν ήταν δυνατή η ανάγνωση του αποτελέσματος του συνοδευτικού Android"
 
@@ -128,6 +143,9 @@ msgstr "Σκοτεινό"
 
 msgid "Date modified"
 msgstr "Τελευταία τροποποίηση"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Διαγραφή"
@@ -204,6 +222,9 @@ msgstr "Λήξη χρονικού ορίου αδράνειας (λεπτά)"
 msgid "Inactivity timeout: %d min"
 msgstr "Χρονικό όριο αδράνειας: %d λεπτά"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Εγκατάσταση ενημέρωσης ZenFM…"
 
@@ -243,6 +264,9 @@ msgstr "Φορτώνει…"
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Επαναφορά σύνδεσης. Χρησιμοποιήστε το koreader123456789 και επιλέξτε νέο κωδικό πρόσβασης."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Μετακίνηση"
 
@@ -272,6 +296,9 @@ msgstr "Χωρίς αγώνες"
 
 msgid "No shared links"
 msgstr "Δεν υπάρχουν κοινόχρηστοι σύνδεσμοι"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "δεν έχει ρυθμιστεί"
@@ -315,6 +342,9 @@ msgstr "Η προεπισκόπηση δεν είναι διαθέσιμη γι�
 msgid "Previous match"
 msgstr "Προηγούμενο ματς"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Φρεσκάρω"
 
@@ -344,6 +374,9 @@ msgstr "Κάντε επανεκκίνηση τώρα"
 
 msgid "Restarting…"
 msgstr "Επανεκκίνηση…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Ανακαλώ"
@@ -377,6 +410,12 @@ msgstr "Αποτελέσματα αναζήτησης"
 
 msgid "Search this folder"
 msgstr "Αναζήτηση…"
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Ρυθμίσεις"
@@ -452,6 +491,9 @@ msgstr "Επεξεργαστής κειμένου"
 
 msgid "The password is incorrect."
 msgstr "Ο κωδικός πρόσβασης είναι λανθασμένος."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Μοτίβο"
@@ -531,6 +573,9 @@ msgstr "Τα αρχεία σας, εύκολα προσβάσιμα."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "Το ZenFM εκτελείται."
 
@@ -542,6 +587,15 @@ msgstr "Θύρα ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Αίτημα ZenFM σε εκκρεμότητα…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "Το ZenFM ξεκίνησε."

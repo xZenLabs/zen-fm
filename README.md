@@ -20,6 +20,8 @@ TypeScript/React/MUI frontend and revocable server-side sessions implemented in 
 - One owner account, opaque browser sessions, CSRF protection, and separate
   expiring personal API tokens.
 - HTTPS by default with a per-device certificate.
+- Securely send files or folders to another active ZenFM device on the same
+  IPv4 LAN from KOReader's tap-and-hold menu.
 - Plain HTTP requests on the HTTPS port redirect to the same URL over HTTPS.
 - Optional, customizable server auto-stop and an explicit HTTP fallback.
 - Advanced `/` mode for owners who intentionally need the entire device
@@ -142,6 +144,28 @@ packages.
 The API contract is under `docs/api/`; architecture and security decisions are
 documented under `docs/` and in [SECURITY.md](SECURITY.md).
 
+### ZenFM Send
+
+Tap and hold a file or folder in KOReader and choose **ZenFM Send**. ZenFM
+discovers HTTPS receivers on UDP port `54321`; choose a device, then accept or
+decline the offer on its active KOReader screen. Accepted content is placed in
+the receiver's configured peer receive folder, which defaults to KOReader Home;
+the plugin can instead create and use a `ZenFM Received` folder or choose
+another directory. Numbered names are used instead of overwriting a collision.
+The sender may select content anywhere
+under its platform device-storage root, independently of its web Home.
+
+Both devices must have completed owner setup, use HTTPS, remain on the same
+IPv4 broadcast network, and keep KOReader awake while approving the offer.
+ZenFM Send is ZenFM-only and does not interoperate with LocalSend. See the
+[peer protocol](docs/api/peer-v1.md) for wire and trust-boundary details.
+
+For discovery troubleshooting, enable KOReader debug logging and retry once.
+The log reports the UDP listener, every broadcast target, receiver responses,
+discovered devices, and the final device count. Send validation additionally
+logs the selected local path plus its source and Home roots; transfer
+capabilities are never logged.
+
 
 ### Runtime defaults
 
@@ -155,6 +179,7 @@ documented under `docs/` and in [SECURITY.md](SECURITY.md).
 | Upload and download | No total limit; 30 seconds without progress |
 | Server auto-stop | 30 minutes on Android; off elsewhere; configurable up to 12 hours |
 | HTTPS and explicit HTTP port | 54321 by default, shared by both modes |
+| ZenFM peer discovery | UDP 54321; HTTPS-only |
 
 The `serve` command exposes `--session-idle` and `--session-absolute` for
 controlled deployments and qualification tests; KOReader uses the defaults.

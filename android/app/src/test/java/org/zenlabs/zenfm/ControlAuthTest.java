@@ -14,6 +14,8 @@ public final class ControlAuthTest {
         assertEquals(0, ControlAuth.authorizePairing(null, "stop", TOKEN));
         assertEquals(0, ControlAuth.authorizePairing(null, "status", TOKEN));
         assertEquals(0, ControlAuth.authorizePairing(null, "update", TOKEN));
+        assertEquals(0, ControlAuth.authorizePairing(null, "peer-send", TOKEN));
+        assertEquals(0, ControlAuth.authorizePairing(null, "peer-accept", TOKEN));
     }
 
     @Test public void pairedTokenMustMatchInConstantTimePath() {
@@ -26,7 +28,12 @@ public final class ControlAuthTest {
         assertEquals(true, ControlAuth.requiresUserConfirmation("start"));
         assertEquals(true, ControlAuth.requiresUserConfirmation("reset"));
         assertEquals(true, ControlAuth.requiresUserConfirmation("update"));
+        assertEquals(true, ControlAuth.requiresUserConfirmation("peer-send"));
+        assertEquals(true, ControlAuth.requiresUserConfirmation("peer-accept"));
         assertEquals(false, ControlAuth.requiresUserConfirmation("stop"));
         assertEquals(false, ControlAuth.requiresUserConfirmation("status"));
+        assertEquals(false, ControlAuth.requiresUserConfirmation("peer-discover"));
+        assertEquals(false, ControlAuth.requiresUserConfirmation("peer-decline"));
+        assertEquals(false, ControlAuth.requiresUserConfirmation("peer-cancel"));
     }
 }

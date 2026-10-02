@@ -70,12 +70,14 @@ type Owner struct {
 }
 
 type Settings struct {
-	Theme                string            `json:"theme"`
-	Locale               string            `json:"locale"`
-	ShowHidden           bool              `json:"showHidden"`
-	ClientTimeoutSeconds int               `json:"clientTimeoutSeconds"`
-	Favorites            []string          `json:"favorites,omitempty"`
-	FavoriteLabels       map[string]string `json:"favoriteLabels,omitempty"`
+	Theme                       string            `json:"theme"`
+	Locale                      string            `json:"locale"`
+	ShowHidden                  bool              `json:"showHidden"`
+	ClientTimeoutSeconds        int               `json:"clientTimeoutSeconds"`
+	StartupDirectory            string            `json:"startupDirectory"`
+	StartupDirectoryInitialized bool              `json:"startupDirectoryInitialized,omitempty"`
+	Favorites                   []string          `json:"favorites,omitempty"`
+	FavoriteLabels              map[string]string `json:"favoriteLabels,omitempty"`
 }
 
 type Session struct {

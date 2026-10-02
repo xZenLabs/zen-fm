@@ -229,10 +229,11 @@ if [ "$kindle" -eq 1 ]; then
         # this point because it does not own the runtime lock.
         firewall_open=1
         remove_firewall
-        "$iptables_bin" -N "$firewall_chain"
-        "$iptables_bin" -A "$firewall_chain" -p tcp --dport "$port" -j ACCEPT
-        "$iptables_bin" -I INPUT -j "$firewall_chain"
-        echo "Supervisor opened the Kindle firewall for TCP port $port."
+		"$iptables_bin" -N "$firewall_chain"
+		"$iptables_bin" -A "$firewall_chain" -p tcp --dport "$port" -j ACCEPT
+		"$iptables_bin" -A "$firewall_chain" -p udp --dport 54321 -j ACCEPT
+		"$iptables_bin" -I INPUT -j "$firewall_chain"
+		echo "Supervisor opened the Kindle firewall for TCP port $port and UDP port 54321."
     else
         echo "warning: iptables is unavailable; the Kindle firewall may block TCP port $port." >&2
     fi

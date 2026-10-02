@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: cs\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 den"
 
@@ -23,6 +29,9 @@ msgstr "30 dní"
 
 msgid "About {{eta}} remaining"
 msgstr "Zbývá přibližně {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Rozšířený režim root je aktivní. Systémové soubory, cesty zařízení a tajné klíče ZenFM jsou viditelné a lze je změnit nebo odstranit."
@@ -53,6 +62,9 @@ msgstr "Výpočet celkové velikosti…"
 
 msgid "Cancel"
 msgstr "Zrušit"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Změnit heslo"
@@ -102,6 +114,9 @@ msgstr "Kopírovat token"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Kopírování {{copied}} z {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Výsledek doprovodné reklamy pro Android nelze přečíst"
 
@@ -128,6 +143,9 @@ msgstr "Tmavý"
 
 msgid "Date modified"
 msgstr "Naposledy změněno"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Smazat"
@@ -204,6 +222,9 @@ msgstr "Časový limit nečinnosti (minuty)"
 msgid "Inactivity timeout: %d min"
 msgstr "Časový limit nečinnosti: %d min"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Instalace aktualizace ZenFM…"
 
@@ -243,6 +264,9 @@ msgstr "Načítání..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Obnovení přihlášení. Použijte koreder123456789 a zvolte si nové heslo."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Přesunout"
 
@@ -272,6 +296,9 @@ msgstr "Žádné zápasy"
 
 msgid "No shared links"
 msgstr "Žádné sdílené odkazy"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "není nakonfigurováno"
@@ -315,6 +342,9 @@ msgstr "Náhled pro tento soubor není k dispozici."
 msgid "Previous match"
 msgstr "Předchozí zápas"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Obnovit"
 
@@ -344,6 +374,9 @@ msgstr "Restartujte nyní"
 
 msgid "Restarting…"
 msgstr "Restartování…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Zrušit"
@@ -377,6 +410,12 @@ msgstr "Výsledky vyhledávání"
 
 msgid "Search this folder"
 msgstr "Hledat..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Nastavení"
@@ -452,6 +491,9 @@ msgstr "Textový editor"
 
 msgid "The password is incorrect."
 msgstr "Heslo je nesprávné."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Motiv"
@@ -531,6 +573,9 @@ msgstr "Vaše soubory, snadno dostupné."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM běží."
 
@@ -542,6 +587,15 @@ msgstr "port ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Žádost ZenFM čeká…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM začal."

@@ -64,7 +64,10 @@ local function ffi_request(path, command, timeout)
 end
 
 function Control.request(path, command, timeout)
-    if command ~= "status" and command ~= "stop" then return nil, "unsupported control command" end
+    local peer = command:match("^peer%-%S+") ~= nil and #command <= 8191
+    if command ~= "status" and command ~= "stop" and not peer then
+        return nil, "unsupported control command"
+    end
     local response, err = luasocket_request(path, command, timeout)
     if response then return response end
     local ffi_response, ffi_err = ffi_request(path, command, timeout)

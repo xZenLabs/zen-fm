@@ -228,6 +228,8 @@ type settingsResponse struct {
 }
 
 func (s *Server) settingsResponse(settings state.Settings) settingsResponse {
+	settings.StartupDirectory = s.startupDirectory()
+	settings.StartupDirectoryInitialized = false
 	response := settingsResponse{Settings: settings, AdvancedMode: s.cfg.Files.Advanced(), Root: s.cfg.Files.Name(), SecureTransport: s.cfg.SecureTransport, Version: s.cfg.Version}
 	response.FavoriteTypes = make(map[string]string, len(settings.Favorites))
 	for _, favorite := range settings.Favorites {
@@ -253,6 +255,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 		Locale               *string            `json:"locale"`
 		ShowHidden           *bool              `json:"showHidden"`
 		ClientTimeoutSeconds *int               `json:"clientTimeoutSeconds"`
+		StartupDirectory     *string            `json:"startupDirectory"`
 		Favorites            *[]string          `json:"favorites"`
 		FavoriteLabels       *map[string]string `json:"favoriteLabels"`
 	}
@@ -291,6 +294,24 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		settings.ClientTimeoutSeconds = *request.ClientTimeoutSeconds
+	}
+	if request.StartupDirectory != nil {
+		if s.cfg.Files.Advanced() || !strings.HasPrefix(*request.StartupDirectory, "/") {
+			problem(w, r, http.StatusBadRequest, "Invalid Request", "startup directory is invalid")
+			return
+		}
+		clean, err := zenfiles.Normalize(*request.StartupDirectory)
+		if err != nil {
+			problem(w, r, http.StatusBadRequest, "Invalid Request", "startup directory is invalid")
+			return
+		}
+		directory := zenfiles.PublicPath(clean)
+		entry, err := s.cfg.Files.Entry(directory)
+		if err != nil || !entry.Directory {
+			problem(w, r, http.StatusBadRequest, "Invalid Request", "startup directory must be an accessible folder")
+			return
+		}
+		settings.StartupDirectory = directory
 	}
 	if request.Favorites != nil {
 		favorites := make([]string, 0, len(*request.Favorites))
@@ -336,6 +357,9 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.cfg.Store.SaveSettings(settings); err != nil {
 		internalError(w, r, err)
 		return
+	}
+	if request.StartupDirectory != nil {
+		s.startupDir.Store(settings.StartupDirectory)
 	}
 	writeJSON(w, http.StatusOK, s.settingsResponse(settings))
 }

@@ -24,7 +24,7 @@ export function LoginPage() {
     try {
       const session = await login(password)
       if (!session.setupRequired) await offerToSavePassword(password)
-      const destination = postAuthenticationLocation(location.state, session.defaultDirectory)
+      const destination = postAuthenticationLocation(location.state, session.startupDirectory)
       void navigate(session.setupRequired ? '/setup' : destination, {
         replace: true,
         state: session.setupRequired ? { returnTo: destination } : undefined,

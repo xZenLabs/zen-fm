@@ -27,7 +27,7 @@ export function SetupPage() {
     try {
       const session = await completeSetup(password)
       await offerToSavePassword(password)
-      void navigate(postAuthenticationLocation(location.state, session.defaultDirectory), { replace: true })
+      void navigate(postAuthenticationLocation(location.state, session.startupDirectory), { replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('common.error'))
     } finally {

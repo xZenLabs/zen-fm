@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ja\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1日"
 
@@ -23,6 +29,9 @@ msgstr "30日"
 
 msgid "About {{eta}} remaining"
 msgstr "残り約 {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "アドバンストルートモードがアクティブです。システム ファイル、デバイス パス、ZenFM シークレットが表示され、変更または削除される可能性があります。"
@@ -53,6 +62,9 @@ msgstr "合計サイズを計算しています…"
 
 msgid "Cancel"
 msgstr "キャンセル"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "パスワードの変更"
@@ -102,6 +114,9 @@ msgstr "トークンをコピーする"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "{{total}} の {{copied}} をコピーしています — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Android コンパニオンの結果を読み取れませんでした"
 
@@ -128,6 +143,9 @@ msgstr "ダーク"
 
 msgid "Date modified"
 msgstr "更新日時"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "削除"
@@ -204,6 +222,9 @@ msgstr "非アクティブタイムアウト (分)"
 msgid "Inactivity timeout: %d min"
 msgstr "非アクティブタイムアウト: %d 分"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "ZenFM アップデートをインストールしています…"
 
@@ -243,6 +264,9 @@ msgstr "読み込み中…"
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "ログインリセット。 koreader123456789 を使用して、新しいパスワードを選択します。"
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "移動"
 
@@ -272,6 +296,9 @@ msgstr "一致しません"
 
 msgid "No shared links"
 msgstr "共有リンクはありません"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "設定されていません"
@@ -315,6 +342,9 @@ msgstr "プレビューはこのファイルでは利用できません"
 msgid "Previous match"
 msgstr "前回の試合"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "リフレッシュ"
 
@@ -344,6 +374,9 @@ msgstr "今すぐ再起動してください"
 
 msgid "Restarting…"
 msgstr "再起動中…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "取り消す"
@@ -377,6 +410,12 @@ msgstr "検索結果"
 
 msgid "Search this folder"
 msgstr "検索"
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "設定"
@@ -452,6 +491,9 @@ msgstr "テキストエディタ"
 
 msgid "The password is incorrect."
 msgstr "パスワードが間違っています。"
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "テーマ"
@@ -531,6 +573,9 @@ msgstr "ファイルに簡単にアクセスできます。"
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFMが動作しています。"
 
@@ -542,6 +587,15 @@ msgstr "ZenFMポート"
 
 msgid "ZenFM request pending…"
 msgstr "ZenFM リクエストは保留中です…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM始めました。"

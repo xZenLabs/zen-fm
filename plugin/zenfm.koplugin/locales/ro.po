@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ro\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 zi"
 
@@ -23,6 +29,9 @@ msgstr "30 de zile"
 
 msgid "About {{eta}} remaining"
 msgstr "Aproximativ {{eta}} rămas"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Modul rădăcină avansat este activ. Fișierele de sistem, căile dispozitivului și secretele ZenFM sunt vizibile și pot fi modificate sau șterse."
@@ -53,6 +62,9 @@ msgstr "Se calculează dimensiunea totală..."
 
 msgid "Cancel"
 msgstr "Anulează"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Schimbă parola"
@@ -102,6 +114,9 @@ msgstr "Token de copiere"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Se copiează {{copied}} din {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Nu s-a putut citi rezultatul însoțitor Android"
 
@@ -128,6 +143,9 @@ msgstr "Întuneric"
 
 msgid "Date modified"
 msgstr "Ultima modificare"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Șterge"
@@ -204,6 +222,9 @@ msgstr "Timeout inactivitate (minute)"
 msgid "Inactivity timeout: %d min"
 msgstr "Timeout inactivitate: %d min"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Se instalează actualizarea ZenFM..."
 
@@ -243,6 +264,9 @@ msgstr "Se încarcă..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Resetare autentificare. Folosiți koreader123456789 și alegeți o nouă parolă."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Mută"
 
@@ -272,6 +296,9 @@ msgstr "Fără meciuri"
 
 msgid "No shared links"
 msgstr "Nu există linkuri partajate"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "neconfigurat"
@@ -315,6 +342,9 @@ msgstr "Previzualizarea nu este disponibilă pentru acest fișier."
 msgid "Previous match"
 msgstr "Meciul anterior"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Reîmprospăta"
 
@@ -344,6 +374,9 @@ msgstr "Reporniți acum"
 
 msgid "Restarting…"
 msgstr "Se repornește…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Revoca"
@@ -377,6 +410,12 @@ msgstr "Rezultatele căutării"
 
 msgid "Search this folder"
 msgstr "Caută..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Setări"
@@ -452,6 +491,9 @@ msgstr "Editor de text"
 
 msgid "The password is incorrect."
 msgstr "Parola este incorectă."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Temă"
@@ -531,6 +573,9 @@ msgstr "Fișierele dvs., ușor accesibile."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM rulează."
 
@@ -542,6 +587,15 @@ msgstr "Port ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Solicitare ZenFM în așteptare..."
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM a început."

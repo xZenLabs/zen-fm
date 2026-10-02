@@ -2,7 +2,8 @@
 
 ## Assets
 
-- Files reachable below the configured root.
+- Files reachable below the configured web root, plus KOReader-selected peer
+  send sources below the platform device-storage root.
 - Owner password hash, session and API-token hashes, share capabilities, and
   TLS private key.
 - Integrity of the ZenFM binary, KOReader plugin, updater, and Android APK.
@@ -33,6 +34,7 @@
 | Upload/archive exhaustion | Streaming I/O, declared-length enforcement, quotas, entry/count/depth limits, cancellation. |
 | Share escalation | High-entropy hashed capabilities, body-based password exchange, scoped public sessions, expiry. |
 | Local lifecycle abuse | Mode-0700 native runtime directory plus mode-0600 control socket, exact process identity checks, and an Android pairing secret established only after a native, overlay-resistant first-start confirmation. Sensitive Android commands require confirmation because KOReader state can reside on shared storage. |
+| Peer impersonation or unauthorized transfer | HTTPS-only peer routes, bidirectional public-key pinning, source-IP-bound random capabilities, sender selection plus receiver approval, bounded metadata, device-storage-rooted source manifests, and atomic no-overwrite publication beneath the receiver's configured peer receive root. |
 | Malicious update | Trusted GitHub release URLs, bounded downloads, redirect validation, and GitHub-recorded SHA-256. Plugin trees activate atomically with rollback; APK replacements are journaled, package/version/signature revalidated, and health-gated through Android's Package Installer. |
 
 ## Accepted risks
@@ -41,6 +43,13 @@
   change. A hostile peer can race the legitimate owner on
   first start.
 - Explicit HTTP mode provides no confidentiality or peer authentication.
+- Peer display names are convenient labels rather than out-of-band identities.
+  A hostile LAN participant can advertise aliases or its own certificates; the
+  picker therefore shows a fingerprint suffix. Pinning detects certificate
+  substitution after selection but cannot prove who owns a newly seen name.
+- ZenFM v1 discovery requires one IPv4 broadcast domain. Incoming approval is
+  intentionally available only while KOReader is awake; sleeping or closed
+  receivers let offers expire rather than waking in the background.
 - The ZenFM settings directory is intentionally visible when it lies below the
   configured file root. It contains password hashes, tokens, logs, the backend,
   and TLS keys. Reading, editing, or deleting them can disclose secrets, corrupt

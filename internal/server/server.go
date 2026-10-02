@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,8 +31,11 @@ const sessionCookie = "zenfm_session"
 type Config struct {
 	Store              *state.Store
 	Files              *zenfiles.Root
+	PeerFiles          *zenfiles.Root
+	PeerReceiveFiles   *zenfiles.Root
 	StaticFS           fs.FS
 	Version            string
+	HTMLTitle          string
 	DefaultDirectory   string
 	SecureTransport    bool
 	SessionIdle        time.Duration
@@ -44,12 +49,20 @@ type Config struct {
 	HeavyConcurrency   int
 	ModeLessFilesystem bool
 	PublicExclusions   []string
+	PeerName           string
+	PeerFingerprint    string
+	PeerAddress        string
+	PeerEvents         string
+	PeerDiscoveryPort  int
+	PeerNotification   func(bool)
+	Logger             *log.Logger
 	Now                func() time.Time
 }
 
 type Server struct {
 	cfg          Config
 	publicFiles  *zenfiles.Root
+	peerFiles    *zenfiles.Root
 	mux          *http.ServeMux
 	authSlots    chan struct{}
 	loginLimiter *attemptLimiter
@@ -58,6 +71,8 @@ type Server struct {
 	heavySlots   chan struct{}
 	archiveMu    sync.Mutex
 	archiveLinks map[string]archiveTicket
+	peer         *peerManager
+	startupDir   atomic.Value
 	lastActivity atomic.Int64
 	lastPrune    atomic.Int64
 }
@@ -102,6 +117,42 @@ func New(cfg Config) (*Server, error) {
 	if !defaultEntry.Directory {
 		return nil, errors.New("default directory is not a directory")
 	}
+	if !cfg.Files.Advanced() {
+		settings, err := cfg.Store.Settings()
+		if err != nil {
+			return nil, fmt.Errorf("load startup directory: %w", err)
+		}
+		changed := false
+		if settings.StartupDirectory == "" || (!settings.StartupDirectoryInitialized && settings.StartupDirectory == "/") {
+			settings.StartupDirectory = cfg.DefaultDirectory
+			changed = true
+		}
+		if !settings.StartupDirectoryInitialized {
+			settings.StartupDirectoryInitialized = true
+			changed = true
+		}
+		stored, normalizeErr := zenfiles.Normalize(settings.StartupDirectory)
+		if normalizeErr == nil {
+			storedPath := zenfiles.PublicPath(stored)
+			storedEntry, entryErr := cfg.Files.Entry(storedPath)
+			if entryErr == nil && storedEntry.Directory {
+				cfg.DefaultDirectory = storedPath
+			} else if entryErr == nil {
+				normalizeErr = errors.New("startup directory is not a directory")
+			} else {
+				normalizeErr = entryErr
+			}
+		}
+		if normalizeErr != nil {
+			settings.StartupDirectory = cfg.DefaultDirectory
+			changed = true
+		}
+		if changed {
+			if err := cfg.Store.SaveSettings(settings); err != nil {
+				return nil, fmt.Errorf("save startup directory: %w", err)
+			}
+		}
+	}
 	if cfg.SessionIdle <= 0 {
 		cfg.SessionIdle = 2 * time.Hour
 	}
@@ -121,23 +172,55 @@ func New(cfg Config) (*Server, error) {
 		cfg.HeavyConcurrency = 8
 	}
 	publicExclusions := append([]string{cfg.Store.DataDir()}, cfg.PublicExclusions...)
-	publicFiles, err := cfg.Files.Restricted(publicExclusions...)
-	if err != nil {
-		return nil, fmt.Errorf("protect private state from public shares: %w", err)
-	}
 	s := &Server{
-		cfg: cfg, publicFiles: publicFiles, mux: http.NewServeMux(), authSlots: make(chan struct{}, 2),
+		cfg: cfg, mux: http.NewServeMux(), authSlots: make(chan struct{}, 2),
 		loginLimiter: newAttemptLimiter(5, time.Minute, cfg.Now),
 		shareLimiter: newAttemptLimiter(8, time.Minute, cfg.Now),
 		heavySlots:   make(chan struct{}, cfg.HeavyConcurrency),
 		archiveLinks: make(map[string]archiveTicket),
 	}
+	s.startupDir.Store(cfg.DefaultDirectory)
 	uploads, err := newUploadManager(s, cfg.UploadDir, cfg.MaxUploadBytes, cfg.UploadExpiry, cfg.UploadConcurrency, cfg.MaxActiveUploads)
 	if err != nil {
-		_ = publicFiles.Close()
 		return nil, fmt.Errorf("initialize uploads: %w", err)
 	}
 	s.uploads = uploads
+	if cfg.SecureTransport && cfg.PeerFingerprint != "" {
+		peerFiles := cfg.PeerFiles
+		if peerFiles == nil {
+			peerFiles = cfg.Files
+		}
+		peerReceiveFiles := cfg.PeerReceiveFiles
+		if peerReceiveFiles == nil {
+			peerReceiveFiles = cfg.Files
+		}
+		peerInternalPath := filepath.Join(peerReceiveFiles.Name(), peerInternalDir)
+		peerExclusions := append([]string{}, publicExclusions...)
+		peerExclusions = append(peerExclusions, s.cfg.UploadDir, peerInternalPath)
+		s.peerFiles, err = peerFiles.Restricted(peerExclusions...)
+		if err != nil {
+			s.uploads.close()
+			return nil, fmt.Errorf("protect private state from peer sends: %w", err)
+		}
+		s.peer, err = newPeerManager(s, peerReceiveFiles)
+		if err != nil {
+			s.peerFiles.Close()
+			s.uploads.close()
+			return nil, fmt.Errorf("initialize peer sharing: %w", err)
+		}
+		publicExclusions = append(publicExclusions, peerInternalPath)
+	}
+	s.publicFiles, err = cfg.Files.Restricted(publicExclusions...)
+	if err != nil {
+		if s.peer != nil {
+			s.peer.close()
+		}
+		if s.peerFiles != nil {
+			s.peerFiles.Close()
+		}
+		s.uploads.close()
+		return nil, fmt.Errorf("protect private state from public shares: %w", err)
+	}
 	s.lastActivity.Store(cfg.Now().UnixNano())
 	s.lastPrune.Store(cfg.Now().UnixNano())
 	s.routes()
@@ -146,7 +229,15 @@ func New(cfg Config) (*Server, error) {
 
 func (s *Server) Handler() http.Handler { return s.securityHeaders(s.mux) }
 
+func (s *Server) startupDirectory() string { return s.startupDir.Load().(string) }
+
 func (s *Server) Close() {
+	if s.peer != nil {
+		s.peer.close()
+	}
+	if s.peerFiles != nil {
+		_ = s.peerFiles.Close()
+	}
 	s.uploads.close()
 	_ = s.publicFiles.Close()
 }
@@ -172,6 +263,9 @@ func (s *Server) releaseHeavy() { <-s.heavySlots }
 
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /health", s.health)
+	if s.peer != nil {
+		s.peer.routes(s.mux)
+	}
 	s.mux.HandleFunc("POST /api/v1/session", s.login)
 	s.mux.Handle("GET /api/v1/session", s.require(false, false, http.HandlerFunc(s.getSession)))
 	s.mux.Handle("DELETE /api/v1/session", s.require(false, true, http.HandlerFunc(s.logout)))
@@ -531,7 +625,7 @@ func sessionCookieName(secure bool) string {
 func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
 		"authenticated": true, "setupRequired": setup,
-		"defaultDirectory": s.cfg.DefaultDirectory,
+		"startupDirectory": s.startupDirectory(),
 		"csrfToken":        v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }

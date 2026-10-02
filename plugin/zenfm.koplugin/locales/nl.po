@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: nl\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 dag"
 
@@ -23,6 +29,9 @@ msgstr "30 dagen"
 
 msgid "About {{eta}} remaining"
 msgstr "Er zijn nog ongeveer {{eta}} over"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Geavanceerde rootmodus is actief. Systeembestanden, apparaatpaden en ZenFM-geheimen zijn zichtbaar en kunnen worden gewijzigd of verwijderd."
@@ -53,6 +62,9 @@ msgstr "Totale grootte berekenen…"
 
 msgid "Cancel"
 msgstr "Annuleren"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Wachtwoord wijzigen"
@@ -102,6 +114,9 @@ msgstr "Kopieer token"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Kopiëren van {{copied}} van {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Kan het Android-begeleidende resultaat niet lezen"
 
@@ -128,6 +143,9 @@ msgstr "Donker"
 
 msgid "Date modified"
 msgstr "Laatst aangepast"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Verwijderen"
@@ -204,6 +222,9 @@ msgstr "Time-out bij inactiviteit (minuten)"
 msgid "Inactivity timeout: %d min"
 msgstr "Time-out bij inactiviteit: %d min"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "ZenFM-update installeren…"
 
@@ -243,6 +264,9 @@ msgstr "Laden..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Inloggen opnieuw instellen. Gebruik koreader123456789 en kies een nieuw wachtwoord."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Verplaatsen"
 
@@ -272,6 +296,9 @@ msgstr "Geen overeenkomsten"
 
 msgid "No shared links"
 msgstr "Geen gedeelde links"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "niet geconfigureerd"
@@ -315,6 +342,9 @@ msgstr "Geen voorbeeld beschikbaar voor dit bestand."
 msgid "Previous match"
 msgstr "Vorige wedstrijd"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Vernieuwen"
 
@@ -344,6 +374,9 @@ msgstr "Start nu opnieuw op"
 
 msgid "Restarting…"
 msgstr "Opnieuw opstarten…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Herroepen"
@@ -377,6 +410,12 @@ msgstr "Zoekresultaten"
 
 msgid "Search this folder"
 msgstr "Zoeken..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Instellingen"
@@ -452,6 +491,9 @@ msgstr "Als tekst bewerken"
 
 msgid "The password is incorrect."
 msgstr "Het wachtwoord is onjuist."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Thema"
@@ -531,6 +573,9 @@ msgstr "Uw bestanden, gemakkelijk toegankelijk."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM is actief."
 
@@ -542,6 +587,15 @@ msgstr "ZenFM-poort"
 
 msgid "ZenFM request pending…"
 msgstr "ZenFM-verzoek in behandeling…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM is gestart."

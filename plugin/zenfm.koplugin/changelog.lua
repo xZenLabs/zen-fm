@@ -17,7 +17,7 @@ return {
     },
     ["1.0.2"] = {
         "Remember the current location across sign-in",
-        "Choose Home and a default directory",
+        "Choose Home and a startup directory",
         "Restart a running server after plugin updates",
         "Reduce routine logging and follow KOReader's debug setting",
         "Prevent duplicate inactivity-stop notifications",
@@ -44,9 +44,20 @@ return {
     },
     ["1.1.0"] = {
         "Add favorites/bookmarks",
+        "Add secure ZenFM device-to-device file and folder sending",
+        "Fix ZenFM Send discovery polling and improve discovery diagnostics",
         "Faster copy/upload to device",
         "Fix image thumbnails not all showing",
         "Queue multiple uploads",
+    },
+    ["1.2.0"] = {
+        "Direct p2p sharing over https locally (like localsend)",
+        "Add scroll to bottom button for long files",
+        "Allow changing device name",
+        "Show device name in browser tab",
+        "Move startup directory to web ui settings",
+        "Default startup directory and peer receives to KOReader Home",
+        "Allow choosing a peer receive folder",
     },
 
 }

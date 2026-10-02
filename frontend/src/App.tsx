@@ -45,7 +45,7 @@ export default function App() {
         <>
           <Route path="/setup" element={<SetupPage />} />
           <Route path="*" element={<Navigate to="/setup" replace state={{
-            returnTo: currentPrivateLocation(location) ?? postAuthenticationLocation(location.state, session.defaultDirectory),
+            returnTo: currentPrivateLocation(location) ?? postAuthenticationLocation(location.state, session.startupDirectory),
           }} />} />
         </>
       ) : (
@@ -53,7 +53,7 @@ export default function App() {
           <Route path="/files/*" element={<FilesPage />} />
           <Route path="/shares" element={<SharesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to={postAuthenticationLocation(location.state, session?.defaultDirectory)} replace />} />
+          <Route path="*" element={<Navigate to={postAuthenticationLocation(location.state, session?.startupDirectory)} replace />} />
         </Route>
       )}
     </Routes></Suspense><VersionFooter /></>

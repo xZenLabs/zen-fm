@@ -18,6 +18,15 @@ under `/tmp`, with the socket itself mode 0600; this works when persistent
 storage is FAT and stays below Unix socket path limits. The LAN listener serves
 the browser API and static application.
 
+The ZenFM v1 peer service uses bounded UDP discovery on port 54321 and the
+existing HTTPS listener for offers and streaming. Both sides pin the other
+service's TLS public-key fingerprint before an offer is displayed or sent.
+KOReader supplies approval and reads a versioned metadata-only event file;
+capability tokens remain in Go memory and HTTPS messages.
+Peer sends read only from a separate platform device-storage root, so a narrow
+web Home does not block a KOReader-selected source. Peer receives use a separate
+root that defaults to KOReader Home and can be changed in plugin settings.
+
 Android uses the same Go service as a native executable inside a foreground
 service. The KOReader plugin sends in-process, explicit-component authenticated
 intents to the companion. Native, overlay-resistant confirmation protects sensitive
@@ -25,6 +34,11 @@ commands because KOReader state may be shared storage; the APK contains no
 WebView UI. The persistent, owner-requested local server declares Android's
 `specialUse` foreground-service type rather than the time-limited `dataSync`
 type. Android may still stop it under OS resource or background policy.
+
+The Android peer event file deliberately crosses into KOReader-accessible
+shared storage and is treated as untrusted. Send and accept commands are
+revalidated against live backend state and receive an additional protected
+native confirmation; discovery, decline, status, and cancellation do not.
 
 Plugin-tree updates use application-level atomic replacement and rollback. APK
 updates instead use a durable journal around Android's Package Installer,

@@ -270,6 +270,10 @@ type fakeActivity struct{ value atomic.Int64 }
 
 func (f *fakeActivity) LastActivity() time.Time { return time.Unix(0, f.value.Load()) }
 
+type activityFunc func() time.Time
+
+func (f activityFunc) LastActivity() time.Time { return f() }
+
 func TestWatchIdleStops(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -308,5 +312,23 @@ func TestWatchIdleStaysAliveWhileProgressContinues(t *testing.T) {
 	case <-stopped:
 	case <-time.After(300 * time.Millisecond):
 		t.Fatal("idle watcher did not stop after progress ended")
+	}
+}
+
+func TestWatchIdleDoesNotPollBeforeDeadline(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	seen := make(chan struct{}, 1)
+	activity := activityFunc(func() time.Time { seen <- struct{}{}; return time.Now() })
+	go watchIdle(ctx, func() { t.Error("idle watcher stopped before its deadline") }, activity, 200*time.Millisecond)
+	select {
+	case <-seen:
+	case <-time.After(time.Second):
+		t.Fatal("idle watcher did not inspect activity")
+	}
+	select {
+	case <-seen:
+		t.Fatal("idle watcher polled before its deadline")
+	case <-time.After(80 * time.Millisecond):
 	}
 }

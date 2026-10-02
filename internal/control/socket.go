@@ -1,5 +1,5 @@
 // Package control implements the owner-only local lifecycle socket used by the
-// KOReader plugin. It intentionally supports only status and stop.
+// KOReader plugin.
 package control
 
 import (
@@ -26,6 +26,7 @@ type Server struct {
 	URL                string
 	Fingerprint        string
 	Stop               func()
+	Command            func(string) error
 	ModeLessFilesystem bool
 	Logger             *log.Logger
 
@@ -95,18 +96,24 @@ func (s *Server) secureSocket() error {
 func (s *Server) handle(connection *net.UnixConn) {
 	defer connection.Close()
 	_ = connection.SetDeadline(time.Now().Add(2 * time.Second))
-	reader := bufio.NewReader(io.LimitReader(connection, 129))
+	reader := bufio.NewReader(io.LimitReader(connection, 8193))
 	line, err := reader.ReadString('\n')
-	if err != nil || len(line) > 128 {
+	if err != nil || len(line) > 8192 {
 		_, _ = io.WriteString(connection, "error invalid-command\n")
 		return
 	}
 	command := strings.TrimSpace(line)
+	action := command
+	if separator := strings.IndexByte(action, ' '); separator >= 0 {
+		action = action[:separator]
+	}
 	if s.Logger != nil {
-		switch command {
-		case "stop":
-			s.Logger.Printf("control request received: command=%s", command)
-		case "status":
+		switch {
+		case command == "stop":
+			s.Logger.Printf("control request received: command=stop")
+		case command == "status":
+		case strings.HasPrefix(action, "peer-"):
+			s.Logger.Printf("control request received: command=%s", action)
 		default:
 			s.Logger.Printf("control request received: invalid command")
 		}
@@ -122,7 +129,27 @@ func (s *Server) handle(connection *net.UnixConn) {
 		_, _ = io.WriteString(connection, "ok stopping\n")
 		s.Stop()
 	default:
-		_, _ = io.WriteString(connection, "error unknown-command\n")
+		if !strings.HasPrefix(command, "peer-") {
+			_, _ = io.WriteString(connection, "error unknown-command\n")
+		} else {
+			var err error
+			if s.Command == nil {
+				err = errors.New("peer command handler is unavailable")
+			} else {
+				err = s.Command(command)
+			}
+			if err == nil {
+				_, _ = io.WriteString(connection, "ok\n")
+				if s.Logger != nil {
+					s.Logger.Printf("control request completed: command=%s", action)
+				}
+			} else {
+				_, _ = io.WriteString(connection, "error rejected\n")
+				if s.Logger != nil {
+					s.Logger.Printf("control request rejected: command=%s error=%v", action, err)
+				}
+			}
+		}
 	}
 }
 

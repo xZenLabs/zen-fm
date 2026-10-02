@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: vi\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 ngày"
 
@@ -23,6 +29,9 @@ msgstr "30 ngày"
 
 msgid "About {{eta}} remaining"
 msgstr "Còn lại khoảng {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Chế độ root nâng cao đang hoạt động. Các tệp hệ thống, đường dẫn thiết bị và bí mật ZenFM đều hiển thị và có thể bị thay đổi hoặc xóa."
@@ -53,6 +62,9 @@ msgstr "Đang tính tổng kích thước…"
 
 msgid "Cancel"
 msgstr "Hủy"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Đổi mật khẩu"
@@ -102,6 +114,9 @@ msgstr "Sao chép mã thông báo"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Đang sao chép {{copied}} của {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Không thể đọc kết quả đồng hành của Android"
 
@@ -128,6 +143,9 @@ msgstr "Tối"
 
 msgid "Date modified"
 msgstr "Sửa đổi lần cuối"
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Xóa"
@@ -204,6 +222,9 @@ msgstr "Thời gian chờ không hoạt động (phút)"
 msgid "Inactivity timeout: %d min"
 msgstr "Thời gian chờ không hoạt động: %d phút"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Đang cài đặt bản cập nhật ZenFM…"
 
@@ -243,6 +264,9 @@ msgstr "Đang tải..."
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Đăng nhập lại. Sử dụng koreader123456789 và chọn mật khẩu mới."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Di chuyển"
 
@@ -272,6 +296,9 @@ msgstr "Không có kết quả phù hợp"
 
 msgid "No shared links"
 msgstr "Không có liên kết được chia sẻ"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "không được cấu hình"
@@ -315,6 +342,9 @@ msgstr "Không có bản xem trước cho tập tin này."
 msgid "Previous match"
 msgstr "Trận đấu trước"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Làm cho khỏe lại"
 
@@ -344,6 +374,9 @@ msgstr "Khởi động lại ngay bây giờ"
 
 msgid "Restarting…"
 msgstr "Đang khởi động lại…"
+
+msgid "Retry"
+msgstr ""
 
 msgid "Revoke"
 msgstr "Thu hồi"
@@ -377,6 +410,12 @@ msgstr "Kết quả tìm kiếm"
 
 msgid "Search this folder"
 msgstr "Tìm kiếm..."
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Cài đặt"
@@ -452,6 +491,9 @@ msgstr "Trình soạn thảo văn bản"
 
 msgid "The password is incorrect."
 msgstr "Mật khẩu không đúng."
+
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
 
 msgid "Theme"
 msgstr "Chủ đề"
@@ -531,6 +573,9 @@ msgstr "Các tập tin của bạn, có thể truy cập dễ dàng."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM đang chạy."
 
@@ -542,6 +587,15 @@ msgstr "cổng ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Yêu cầu ZenFM đang chờ xử lý…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM đã bắt đầu."

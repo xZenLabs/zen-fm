@@ -24,6 +24,11 @@ function Util.url_encode(value)
     end))
 end
 
+function Util.base64url(value)
+    local encoded = require("ffi/sha2").bin_to_base64(tostring(value or ""))
+    return encoded:gsub("%+", "-"):gsub("/", "_"):gsub("=+$", "")
+end
+
 function Util.path_exists(path)
     if ok_lfs and lfs.attributes(path) then return true end
     local file = io.open(path, "rb")

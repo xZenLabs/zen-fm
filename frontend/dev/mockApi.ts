@@ -39,6 +39,7 @@ interface MockSettings {
   locale: string
   showHidden: boolean
   clientTimeoutSeconds: number
+  startupDirectory: string
   favorites: string[]
   favoriteLabels: Record<string, string>
   advancedMode: boolean
@@ -150,11 +151,12 @@ function authenticated(request: IncomingMessage) {
   return request.headers.cookie?.split(';').some((part) => part.trim() === SESSION_COOKIE) ?? false
 }
 
-function session() {
+function session(startupDirectory = '/') {
   const time = Date.now()
   return {
     authenticated: true,
     setupRequired: false,
+    startupDirectory,
     csrfToken: CSRF_TOKEN,
     idleExpiresAt: new Date(time + 2 * 60 * 60 * 1000).toISOString(),
     absoluteExpiresAt: new Date(time + 12 * 60 * 60 * 1000).toISOString(),
@@ -213,7 +215,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
   const unlockedShares = new Set<string>()
   let settings: MockSettings = {
     theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30, favorites: [], favoriteLabels: {},
-    advancedMode: false, root: '/mock-storage', secureTransport: false,
+    startupDirectory: '/Books', advancedMode: false, root: '/mock-storage', secureTransport: false,
   }
   let nextID = 2
   const settingsResponse = () => ({
@@ -231,7 +233,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
       if (path === '/api/v1/session' && method === 'POST') {
         const credentials = await readJSON<{ password?: string }>(request)
         if (credentials.password !== ownerPassword) return sendProblem(response, 401, 'Invalid password.')
-        return sendJSON(response, 200, session(), { 'Set-Cookie': `${SESSION_COOKIE}; Path=/; HttpOnly; SameSite=Strict` })
+        return sendJSON(response, 200, session(settings.startupDirectory), { 'Set-Cookie': `${SESSION_COOKIE}; Path=/; HttpOnly; SameSite=Strict` })
       }
 
       const publicMatch = path.match(/^\/api\/v1\/public\/shares\/([^/]+)(\/raw)?$/)
@@ -265,7 +267,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
       }
 
       if (path === '/api/v1/session') {
-        if (method === 'GET') return sendJSON(response, 200, session())
+        if (method === 'GET') return sendJSON(response, 200, session(settings.startupDirectory))
         if (method === 'DELETE') return sendEmpty(response, 204, { 'Set-Cookie': 'zenfm_mock_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0' })
       }
 
@@ -275,13 +277,18 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
         if (input.currentPassword !== ownerPassword) return sendProblem(response, 401, 'Current password is incorrect.')
         if (Array.from(input.newPassword ?? '').length < 7) return sendProblem(response, 422, 'New password must contain at least 7 characters.')
         ownerPassword = input.newPassword || ownerPassword
-        return sendJSON(response, 200, session())
+        return sendJSON(response, 200, session(settings.startupDirectory))
       }
 
       if (path === '/api/v1/settings') {
         if (method === 'GET') return sendJSON(response, 200, settingsResponse())
         if (method === 'PUT') {
           const input = await readJSON<Partial<MockSettings>>(request)
+          if (input.startupDirectory !== undefined) {
+            if (!input.startupDirectory.startsWith('/')) return sendProblem(response, 400, 'Startup directory is invalid.')
+            input.startupDirectory = normalizePath(input.startupDirectory)
+            if (files.get(input.startupDirectory)?.type !== 'directory') return sendProblem(response, 400, 'Startup directory is invalid.')
+          }
           const favorites = input.favorites ?? settings.favorites
           const favoriteLabels: Record<string, string> = {}
           if (input.favoriteLabels != null && (typeof input.favoriteLabels !== 'object' || Array.isArray(input.favoriteLabels))) return sendProblem(response, 400, 'Favorite labels are invalid.')

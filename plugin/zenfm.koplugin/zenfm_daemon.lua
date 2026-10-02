@@ -60,6 +60,10 @@ function Daemon:new(options)
     object.state_dir = options.state_dir or object:default_state_dir()
     object.settings = options.settings
         or Settings:new(object.state_dir, object:platform() == "android" and 30 or 0)
+    if not options.settings and object.settings.values.default_directory == "/" then
+        local startup_directory = object:koreader_startup_directory()
+        if startup_directory ~= "/" then object.settings:set("default_directory", startup_directory) end
+    end
     return object
 end
 
@@ -268,6 +272,56 @@ function Daemon:device_root()
     return self.settings:device_root(self:platform(), self:android_storage())
 end
 
+function Daemon:koreader_home_directory()
+    local reader_settings = rawget(_G, "G_reader_settings")
+    local home
+    if reader_settings and type(reader_settings.readSetting) == "function" then
+        local ok, value = pcall(reader_settings.readSetting, reader_settings, "home_dir")
+        if ok then home = value end
+    end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then
+        local ok, device = pcall(require, "device")
+        if ok and type(device) == "table" then home = device.home_dir end
+    end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then home = self:device_root() end
+    if type(home) ~= "string" or home:sub(1, 1) ~= "/" then return nil end
+    home = home:gsub("/+$", "")
+    return self:peer_source_path(home == "" and "/" or home)
+end
+
+function Daemon:peer_receive_root()
+    local configured = self.settings.values.peer_receive_directory
+    if type(configured) == "string" and configured ~= "" then return self:peer_source_path(configured) end
+    return self:koreader_home_directory() or self:device_root() or self:root()
+end
+
+function Daemon:zenfm_receive_root()
+    local home = self:koreader_home_directory()
+    if not home then return nil end
+    return home == "/" and "/ZenFM Received" or home .. "/ZenFM Received"
+end
+
+function Daemon:koreader_startup_directory()
+    local home = self:koreader_home_directory()
+    local root = self:root()
+    if type(root) ~= "string" or type(home) ~= "string" then return "/" end
+    root, home = root:gsub("/+$", ""), home:gsub("/+$", "")
+    if root == "" then root = "/" end
+    if home == "" then home = "/" end
+    if home == root then return "/" end
+    if root == "/" then return home end
+    if home:sub(1, #root + 1) == root .. "/" then return home:sub(#root + 1) end
+    return "/"
+end
+
+function Daemon:peer_source_path(path)
+    if self:platform() == "kindle" and type(path) == "string"
+        and (path == "/mnt/base-us" or path:sub(1, 13) == "/mnt/base-us/") then
+        return "/mnt/us" .. path:sub(13)
+    end
+    return path
+end
+
 local function auto_stop_duration(minutes)
     return minutes > 0 and tostring(minutes) .. "m" or "0"
 end
@@ -278,19 +332,31 @@ function Daemon:debug_logging_enabled()
         and reader_settings:isTrue("debug") == true
 end
 
+function Daemon:peer_name()
+    local configured = self.settings.values.device_name
+    if type(configured) == "string" and configured ~= "" then return configured end
+    local ok, device = pcall(require, "device")
+    return ok and type(device.model) == "string" and device.model or "ZenFM Device"
+end
+
 function Daemon:serve_arguments()
     local values = self.settings.values
     local default_directory = values.advanced_root and "/" or values.default_directory
     local arguments = {
         "serve",
         "--root", self:root(),
+        "--peer-source-root", self:device_root() or self:root(),
+        "--peer-receive-root", self:peer_receive_root(),
         "--default-directory", default_directory,
         "--data-dir", self.state_dir,
         "--listen", "0.0.0.0:" .. tostring(values.port),
         "--control-socket", self:control_socket(),
+        "--peer-name", self:peer_name(),
+        "--peer-events", self:peer_events_path(),
         "--auto-stop", auto_stop_duration(values.auto_stop_minutes),
     }
     if self:debug_logging_enabled() then table.insert(arguments, "--debug") end
+    if values.use_device_name_as_title then table.insert(arguments, "--use-device-name-as-title") end
     if self:platform() == "kobo" then table.insert(arguments, "--show-hidden-by-default") end
     if self:is_pocketbook() then table.insert(arguments, "--mode-less-filesystem") end
     if values.insecure_http then
@@ -302,6 +368,10 @@ function Daemon:serve_arguments()
         table.insert(arguments, values.tls_key)
     end
     return arguments
+end
+
+function Daemon:peer_events_path()
+    return self.state_dir .. "/peer-events.json"
 end
 
 function Daemon:serve_command(backend, use_exec)
@@ -332,7 +402,7 @@ function Daemon:supervisor_command()
     return table.concat(command, " ")
 end
 
-function Daemon:android_uri(action, request_id)
+function Daemon:android_uri(action, request_id, fields)
     local token, err = self:ensure_control_token()
     if not token then return nil, err end
     request_id = request_id or Util.random_hex(16)
@@ -348,24 +418,32 @@ function Daemon:android_uri(action, request_id)
         local values = self.settings.values
         local fields = {
             root = self:root(),
+            peer_source_root = self:device_root() or self:root(),
+            peer_receive_root = self:peer_receive_root(),
             default_directory = values.default_directory,
             port = tostring(values.port),
             insecure = values.insecure_http and "1" or "0",
+            debug = self:debug_logging_enabled() and "1" or "0",
+            device_name = self:peer_name(),
+            use_device_name_as_title = values.use_device_name_as_title and "1" or "0",
             auto_stop = auto_stop_duration(values.auto_stop_minutes),
             tls_cert = values.tls_cert,
             tls_key = values.tls_key,
         }
-        for _, key in ipairs({ "root", "default_directory", "port", "insecure", "auto_stop", "tls_cert", "tls_key" }) do
+        for _, key in ipairs({ "root", "peer_source_root", "peer_receive_root", "default_directory", "port", "insecure", "debug", "device_name", "use_device_name_as_title", "auto_stop", "tls_cert", "tls_key" }) do
             table.insert(query, key .. "=" .. Util.url_encode(fields[key]))
         end
     elseif action == "update" and self.settings.values.beta_updates then
         table.insert(query, "beta=1")
     end
+    for key, value in pairs(fields or {}) do
+        table.insert(query, key .. "=" .. Util.url_encode(value))
+    end
     return "zenfm://" .. action .. "?" .. table.concat(query, "&"), request_id
 end
 
-function Daemon:begin_android(action)
-    local uri, request_id = self:android_uri(action)
+function Daemon:begin_android(action, fields)
+    local uri, request_id = self:android_uri(action, nil, fields)
     if not uri then return false, request_id end
     -- Launch in-process with an explicit component. Shell ActivityManager calls
     -- fail under newer Android UID checks, while an implicit custom-scheme intent
@@ -375,6 +453,12 @@ function Daemon:begin_android(action)
         return false, "ZenFM could not open its Android companion; confirm ZenFM Backend is installed and enabled"
     end
     return true, request_id
+end
+
+function Daemon:peer_command(command)
+    if self:is_android() then return false, "Android peer commands require the companion bridge" end
+    local response, err = self.control_request(self:control_socket(), command, 2)
+    return response == "ok", response or err
 end
 
 function Daemon:check_android_result(action, request_id)
@@ -390,12 +474,14 @@ function Daemon:check_android_result(action, request_id)
     if action == "status" and (status:match("^ok running ") or status:match("^stopped ")) then
         return true, true, status
     end
+    if action:match("^peer%-") and status:match("^ok ") then return true, true, status end
+    if action:match("^peer%-") and status:match("^error ") then return true, false, status end
     return false
 end
 
 function Daemon:cached_android_status()
     local status = Util.trim(Util.read_all(self.state_dir .. "/android-companion.status", 1024) or "")
-    if status:match("^ok running ") then return true, status end
+    if status:match("^ok running ") or status:match("^ok peer ") then return true, status end
     return false, status ~= "" and status or "stopped"
 end
 
@@ -426,10 +512,14 @@ function Daemon:start()
     if type(root) ~= "string" or root:sub(1, 1) ~= "/" then
         return false, "could not determine a safe storage root; configure an absolute custom root"
     end
+    local peer_receive_root = self:peer_receive_root()
+    if type(peer_receive_root) ~= "string" or peer_receive_root:sub(1, 1) ~= "/" then
+        return false, "could not determine a safe peer receive folder"
+    end
     local default_path = root .. values.default_directory
     if not values.advanced_root and values.default_directory ~= "/" and not Util.is_directory(default_path)
         and not self.settings:set("default_directory", "/") then
-        return false, "could not reset the missing default directory to Home"
+        return false, "could not reset the missing startup directory to Home"
     end
     if not values.insecure_http and ((values.tls_cert == "") ~= (values.tls_key == "")) then
         return false, "custom TLS requires both a certificate and private-key path"

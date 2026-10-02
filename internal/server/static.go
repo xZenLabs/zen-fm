@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"html"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -49,6 +50,9 @@ func (s *Server) static(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if name == "index.html" {
+		if s.cfg.HTMLTitle != "" {
+			data = []byte(strings.Replace(string(data), "<title>ZenFM</title>", "<title>"+html.EscapeString(s.cfg.HTMLTitle)+"</title>", 1))
+		}
 		nonce, err := auth.RandomToken("", 128)
 		if err != nil {
 			internalError(w, r, err)

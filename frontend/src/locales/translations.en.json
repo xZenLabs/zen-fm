@@ -54,6 +54,7 @@
     "findPrevious": "Previous match",
     "clearFind": "Clear find",
     "closeFile": "Close file",
+    "scrollToBottom": "Scroll to bottom",
     "findMatchCount": "{{current}} of {{total}}",
     "noFindMatches": "No matches",
     "rename": "Rename",

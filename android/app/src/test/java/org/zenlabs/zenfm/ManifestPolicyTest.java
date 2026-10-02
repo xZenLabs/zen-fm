@@ -20,6 +20,7 @@ public final class ManifestPolicyTest {
         String manifest = new String(Files.readAllBytes(source("src/main/AndroidManifest.xml")),
             StandardCharsets.UTF_8);
         assertTrue(manifest.contains("android.permission.FOREGROUND_SERVICE_SPECIAL_USE"));
+        assertTrue(manifest.contains("android.permission.CHANGE_WIFI_MULTICAST_STATE"));
         assertTrue(manifest.contains("android:foregroundServiceType=\"specialUse\""));
         assertTrue(manifest.contains("android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"));
         assertTrue(manifest.contains("Owner-requested local KOReader file server"));
@@ -51,6 +52,7 @@ public final class ManifestPolicyTest {
         assertTrue(service.contains("Config saved = config == null ? Config.load(this) : config"));
         assertTrue(service.contains("CommandRequest.status(\"idle_stopped\""));
         assertTrue(service.contains("android.os.Process.killProcess(android.os.Process.myPid())"));
+        assertTrue(service.contains("createMulticastLock(\"ZenFM-peer-discovery\")"));
 
         String activity = new String(Files.readAllBytes(source(
             "src/main/java/org/zenlabs/zenfm/ZenFMActivity.java")), StandardCharsets.UTF_8);

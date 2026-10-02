@@ -128,6 +128,30 @@ func (r *Root) Name() string         { return r.name }
 func (r *Root) Advanced() bool       { return r.advanced }
 func (r *Root) MaxWriteBytes() int64 { return r.maxWriteBytes }
 
+// PublicPathFromAbsolute converts a platform path selected by KOReader into a
+// rooted ZenFM path. The returned path is still validated by every later Root
+// operation, including descriptor-confined symlink checks.
+func (r *Root) PublicPathFromAbsolute(name string) (string, error) {
+	abs, err := filepath.Abs(name)
+	if err != nil {
+		return "", ErrInvalidPath
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(abs))
+	if err != nil {
+		return "", ErrInvalidPath
+	}
+	abs = filepath.Join(parent, filepath.Base(abs))
+	relative, err := filepath.Rel(r.name, abs)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return "", ErrInvalidPath
+	}
+	clean, err := r.clean(filepath.ToSlash(relative))
+	if err != nil || clean == "." {
+		return "", ErrInvalidPath
+	}
+	return PublicPath(clean), nil
+}
+
 func (r *Root) Pseudo(name string) bool {
 	clean, err := r.clean(name)
 	return err == nil && r.pseudoTarget(clean)
@@ -382,6 +406,11 @@ func PublicPath(name string) string {
 
 func (r *Root) List(name string, includeHidden bool) (Listing, error) {
 	return r.list(name, includeHidden, true)
+}
+
+// ListStrict returns an error instead of silently omitting an unreadable entry.
+func (r *Root) ListStrict(name string, includeHidden bool) (Listing, error) {
+	return r.list(name, includeHidden, false)
 }
 
 func (r *Root) list(name string, includeHidden, skipUnreadable bool) (Listing, error) {
@@ -1008,6 +1037,56 @@ func (r *Root) PublishTemporary(sourceRoot *os.Root, source, destination string,
 		return false, err
 	}
 	return true, nil
+}
+
+// PublishTemporaryDirectory atomically moves a complete staged directory from
+// a private Root into the served tree. Peer transfers never overwrite.
+func (r *Root) PublishTemporaryDirectory(sourceRoot *os.Root, source, destination string) error {
+	if sourceRoot == nil || source == "" || source == "." || strings.Contains(source, "/") || strings.Contains(source, "\\") {
+		return ErrInvalidPath
+	}
+	clean, err := r.clean(destination)
+	if err != nil || clean == "." || r.pseudoTarget(clean) {
+		return ErrInvalidPath
+	}
+	info, err := sourceRoot.Lstat(source)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&fs.ModeSymlink != 0 || !info.IsDir() {
+		return ErrNotRegular
+	}
+	parent, base, err := r.openParent(clean)
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+	if parentInfo, statErr := parent.Stat("."); statErr != nil || r.pseudoInfo(parentInfo) {
+		if statErr != nil {
+			return statErr
+		}
+		return ErrPseudoFile
+	}
+	r.publishMu.Lock()
+	defer r.publishMu.Unlock()
+	if _, err := parent.Lstat(base); err == nil {
+		return ErrConflict
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	err = r.renameForMove(sourceRoot, source, parent, base, false)
+	if errors.Is(err, errRenameNoReplaceUnsupported) {
+		if _, statErr := parent.Lstat(base); statErr == nil {
+			return ErrConflict
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
+			return statErr
+		}
+		err = renameReplace(sourceRoot, source, parent, base)
+	}
+	if errors.Is(err, fs.ErrExist) {
+		return ErrConflict
+	}
+	return err
 }
 
 func (r *Root) Mkdir(name string) (Entry, error) {

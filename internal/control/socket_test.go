@@ -27,7 +27,13 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	defer cancel()
 	var once sync.Once
 	var logs bytes.Buffer
-	server := &Server{Path: path, URL: "https://127.0.0.1:8443", Fingerprint: "AABB", Stop: func() { once.Do(cancel) }, Logger: log.New(&logs, "", 0)}
+	server := &Server{Path: path, URL: "https://127.0.0.1:8443", Fingerprint: "AABB", Stop: func() { once.Do(cancel) },
+		Command: func(value string) error {
+			if value == "peer-status" {
+				return nil
+			}
+			return errors.New("rejected")
+		}, Logger: log.New(&logs, "", 0)}
 	done := make(chan error, 1)
 	go func() { done <- server.Run(ctx) }()
 	for deadline := time.Now().Add(time.Second); ; {
@@ -63,6 +69,15 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	if got := command(t, path, "unknown\n"); got != "error unknown-command\n" {
 		t.Fatalf("unknown = %q", got)
 	}
+	if got := command(t, path, "peer-status\n"); got != "ok\n" {
+		t.Fatalf("peer status = %q", got)
+	}
+	if got := command(t, path, "peer-send secret-path\n"); got != "error rejected\n" {
+		t.Fatalf("rejected peer command = %q", got)
+	}
+	if got := command(t, path, strings.Repeat("x", 8192)+"\n"); got != "error invalid-command\n" {
+		t.Fatalf("oversized command = %q", got)
+	}
 	if got := command(t, path, "stop\n"); got != "ok stopping\n" {
 		t.Fatalf("stop = %q", got)
 	}
@@ -77,13 +92,17 @@ func TestControlProtocolAndCleanup(t *testing.T) {
 	if _, err := os.Lstat(path); !os.IsNotExist(err) {
 		t.Fatalf("socket was not cleaned: %v", err)
 	}
-	for _, expected := range []string{"control socket ready", "invalid command", "command=stop"} {
+	for _, expected := range []string{"control socket ready", "invalid command", "command=stop",
+		"control request completed: command=peer-status", "control request rejected: command=peer-send error=rejected"} {
 		if !strings.Contains(logs.String(), expected) {
 			t.Errorf("control diagnostics %q missing %q", logs.String(), expected)
 		}
 	}
 	if strings.Contains(logs.String(), "unknown") {
 		t.Fatalf("control diagnostics included untrusted command text: %q", logs.String())
+	}
+	if strings.Contains(logs.String(), "secret-path") {
+		t.Fatalf("control diagnostics included peer command fields: %q", logs.String())
 	}
 	if strings.Contains(logs.String(), "command=status") {
 		t.Fatalf("control status polling produced diagnostics: %q", logs.String())

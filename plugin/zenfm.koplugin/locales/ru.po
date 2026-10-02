@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ru\n"
 
+msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
+msgstr ""
+
+msgid "%s — %d%%"
+msgstr ""
+
 msgid "1 day"
 msgstr "1 день"
 
@@ -26,6 +32,9 @@ msgstr "Для применения изменений требуется пер
 
 msgid "About {{eta}} remaining"
 msgstr "Осталось около {{eta}}"
+
+msgid "Accept"
+msgstr ""
 
 msgid "Advanced root mode is active. System files, device paths, and ZenFM secrets are visible and may be changed or deleted."
 msgstr "Расширенный корневой режим активен. Системные файлы, пути к устройствам и секреты ZenFM видны и могут быть изменены или удалены."
@@ -62,6 +71,9 @@ msgstr "Расчет общего размера…"
 
 msgid "Cancel"
 msgstr "Отмена"
+
+msgid "Cancel transfer"
+msgstr ""
 
 msgid "Change password"
 msgstr "Изменение пароля"
@@ -117,6 +129,9 @@ msgstr "Копировать токен"
 msgid "Copying {{copied}} of {{total}} — {{progress}}%"
 msgstr "Копирование {{copied}} из {{total}} — {{progress}}%"
 
+msgid "Could not create a secure ZenFM Send request."
+msgstr ""
+
 msgid "Could not read the Android companion result"
 msgstr "Не удалось прочитать результат работы Android-компаньона."
 
@@ -143,6 +158,9 @@ msgstr "Дата изменения"
 
 msgid "Default directory: "
 msgstr "Папка по умолчанию: "
+
+msgid "Decline"
+msgstr ""
 
 msgid "Delete"
 msgstr "Удалить"
@@ -234,6 +252,9 @@ msgstr "Установить позже"
 msgid "Install now"
 msgstr "Установить сейчас"
 
+msgid "Incoming ZenFM transfer ended."
+msgstr ""
+
 msgid "Installing ZenFM update…"
 msgstr "Установка обновления ZenFM…"
 
@@ -270,6 +291,9 @@ msgstr "Загрузка…"
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Вход сброшен. Используйте koreader123456789 и выберите новый пароль."
 
+msgid "Looking for ZenFM devices…"
+msgstr ""
+
 msgid "Move"
 msgstr "Переместить"
 
@@ -299,6 +323,9 @@ msgstr "Нет совпадений"
 
 msgid "No shared links"
 msgstr "Нет общих ссылок"
+
+msgid "No ZenFM devices found"
+msgstr ""
 
 msgid "not configured"
 msgstr "не настроено"
@@ -345,6 +372,9 @@ msgstr "Предварительный просмотр для этого фай
 msgid "Previous match"
 msgstr "Предыдущее совпадение"
 
+msgid "Received %s in %s"
+msgstr ""
+
 msgid "Refresh"
 msgstr "Обновить"
 
@@ -378,6 +408,9 @@ msgstr "Перезапустить сейчас"
 msgid "Restarting…"
 msgstr "Перезапуск…"
 
+msgid "Retry"
+msgstr ""
+
 msgid "Revoke"
 msgstr "Отозвать"
 
@@ -410,6 +443,12 @@ msgstr "Результаты поиска"
 
 msgid "Search this folder"
 msgstr "Поиск в этой папке"
+
+msgid "Send with ZenFM"
+msgstr ""
+
+msgid "Sent %s to %s"
+msgstr ""
 
 msgid "Settings"
 msgstr "Настройки"
@@ -489,6 +528,9 @@ msgstr "Текстовый редактор"
 msgid "The password is incorrect."
 msgstr "Пароль неверен."
 
+msgid "The receiver declined the ZenFM transfer."
+msgstr ""
+
 msgid "Theme"
 msgstr "Тема"
 
@@ -561,6 +603,9 @@ msgstr "Ваши файлы легко доступны."
 msgid "ZenFM"
 msgstr "ZenFM"
 
+msgid "ZenFM device discovery failed."
+msgstr ""
+
 msgid "ZenFM is running."
 msgstr "ZenFM запущен."
 
@@ -572,6 +617,15 @@ msgstr "Порт ZenFM"
 
 msgid "ZenFM request pending…"
 msgstr "Запрос ZenFM ожидает обработки…"
+
+msgid "ZenFM Send"
+msgstr ""
+
+msgid "ZenFM Send failed."
+msgstr ""
+
+msgid "ZenFM Send requires HTTPS."
+msgstr ""
 
 msgid "ZenFM started."
 msgstr "ZenFM запущен."
