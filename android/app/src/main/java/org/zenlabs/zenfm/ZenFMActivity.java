@@ -438,7 +438,11 @@ public final class ZenFMActivity extends Activity {
     }
 
     private static String display(String value) {
-        if (value == null || value.length() > 200 || value.matches(".*[\\x00-\\x1f\\x7f].*")) return "";
+        if (value == null || value.length() > 200) return "";
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c <= 0x1f || c == 0x7f) return "";
+        }
         return value;
     }
 

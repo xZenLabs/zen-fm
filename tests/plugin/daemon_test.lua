@@ -2608,7 +2608,7 @@ test("ZenFM Send registers the hold menu and gates discovery, approval, and canc
     }, { __index = ZenFM })
     owner:register_peer_send()
     assert(type(rows.zenfm_send) == "function")
-    equal(rows.zenfm_send("/books/book.epub")[1].text, "ZenFM Send")
+    equal(rows.zenfm_send("/books/book.epub")[1].text, string.char(0xF3, 0xB0, 0x92, 0x8A) .. "  ZenFM Send")
 
     owner.show_peer_picker = function() end
     owner:begin_peer_send("/books/book.epub")

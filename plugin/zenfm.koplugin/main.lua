@@ -242,7 +242,7 @@ function ZenFM:register_peer_send()
     self.peer_enabled = true
     FileManager:addFileDialogButtons("zenfm_send", function(file)
         return {{
-            text = _("ZenFM Send"),
+            text = "󰒊  " .. _("ZenFM Send"), -- U+F048A
             callback = function()
                 if self.ui and self.ui.file_dialog then UIManager:close(self.ui.file_dialog) end
                 self:begin_peer_send(file)
