@@ -38,6 +38,7 @@ interface MockSettings {
   theme: 'light' | 'dark' | 'system'
   locale: string
   showHidden: boolean
+  autoOverwriteUploads: boolean
   clientTimeoutSeconds: number
   startupDirectory: string
   favorites: string[]
@@ -214,7 +215,7 @@ export function createMockApiMiddleware(): Connect.NextHandleFunction {
   const tokens: MockToken[] = [{ id: 'token-1', name: 'Demo phone', createdAt, expiresAt: new Date(Date.now() + 30 * 86_400_000).toISOString() }]
   const unlockedShares = new Set<string>()
   let settings: MockSettings = {
-    theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30, favorites: [], favoriteLabels: {},
+    theme: 'system', locale: 'en', showHidden: false, autoOverwriteUploads: false, clientTimeoutSeconds: 30, favorites: [], favoriteLabels: {},
     startupDirectory: '/Books', advancedMode: false, root: '/mock-storage', secureTransport: false,
   }
   let nextID = 2

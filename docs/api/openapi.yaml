@@ -1302,6 +1302,10 @@ components:
           maxLength: 32
         showHidden:
           type: boolean
+        autoOverwriteUploads:
+          type: boolean
+          default: false
+          description: Automatically overwrite existing files without confirmation when uploading through the web UI.
         clientTimeoutSeconds:
           type: integer
           minimum: 0
@@ -1324,7 +1328,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/PreferenceUpdate'
         - type: object
-          required: [theme, locale, showHidden, clientTimeoutSeconds, startupDirectory, advancedMode, root, secureTransport]
+          required: [theme, locale, showHidden, autoOverwriteUploads, clientTimeoutSeconds, startupDirectory, advancedMode, root, secureTransport]
           properties:
             favoriteTypes:
               type: object

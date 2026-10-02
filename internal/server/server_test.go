@@ -139,6 +139,40 @@ func TestHealthIsRedactedAndHardened(t *testing.T) {
 	}
 }
 
+func TestAutoOverwriteUploadsSetting(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	r := a.request(http.MethodGet, "/api/v1/settings", nil, cookie, "", "")
+	if got := decodeMap(t, r)["autoOverwriteUploads"]; got != false {
+		t.Fatalf("default autoOverwriteUploads = %#v", got)
+	}
+	for _, update := range []struct {
+		body string
+		want bool
+	}{
+		{`{"autoOverwriteUploads":true}`, true},
+		{`{"theme":"dark"}`, true},
+		{`{"autoOverwriteUploads":false}`, false},
+	} {
+		r = a.request(http.MethodPut, "/api/v1/settings", strings.NewReader(update.body), cookie, csrf, "")
+		if r.Code != http.StatusOK || decodeMap(t, r)["autoOverwriteUploads"] != update.want {
+			t.Fatalf("update %s: %d %s", update.body, r.Code, r.Body.String())
+		}
+		settings, err := a.store.Settings()
+		if err != nil || settings.AutoOverwriteUploads != update.want {
+			t.Fatalf("saved autoOverwriteUploads = %t, %v", settings.AutoOverwriteUploads, err)
+		}
+		r = a.request(http.MethodGet, "/api/v1/settings", nil, cookie, "", "")
+		if got := decodeMap(t, r)["autoOverwriteUploads"]; got != update.want {
+			t.Fatalf("restored autoOverwriteUploads = %#v", got)
+		}
+	}
+	r = a.request(http.MethodPut, "/api/v1/settings", strings.NewReader(`{"autoOverwriteUploads":"true"}`), cookie, csrf, "")
+	if r.Code != http.StatusBadRequest {
+		t.Fatalf("accepted non-boolean preference: %d %s", r.Code, r.Body.String())
+	}
+}
+
 func TestWebSettingChangesStartupDirectory(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf := a.finishSetup()

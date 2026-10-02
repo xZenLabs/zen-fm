@@ -506,7 +506,7 @@ export function FilesPage() {
 
   const uploadFiles = async (upload: UploadBatch, destinationPath: string, controller: AbortController) => {
     const { signal } = controller
-    let conflictPolicy: ConflictPolicy = 'ask'
+    let conflictPolicy: ConflictPolicy = preferences.data?.autoOverwriteUploads ? 'replace' : 'ask'
     const totalBytes = upload.files.reduce((total, item) => total + item.file.size, 0)
     const totalFiles = upload.files.length
     const pendingFiles = upload.files.map((_, index) => index).sort((left, right) => upload.files[right]!.file.size - upload.files[left]!.file.size)

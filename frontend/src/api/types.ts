@@ -16,6 +16,7 @@ export interface Settings {
   theme: ThemePreference
   locale: string
   showHidden: boolean
+  autoOverwriteUploads: boolean
   clientTimeoutSeconds: number
   startupDirectory: string
   favorites?: string[]

@@ -59,5 +59,8 @@ return {
         "Default startup directory and peer receives to KOReader Home",
         "Allow choosing a peer receive folder",
     },
+    ["1.2.1"] = {
+        "Add setting in Web UI to overwrite files without confirmation"
+    },
 
 }

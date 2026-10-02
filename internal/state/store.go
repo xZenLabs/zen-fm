@@ -73,6 +73,7 @@ type Settings struct {
 	Theme                       string            `json:"theme"`
 	Locale                      string            `json:"locale"`
 	ShowHidden                  bool              `json:"showHidden"`
+	AutoOverwriteUploads        bool              `json:"autoOverwriteUploads"`
 	ClientTimeoutSeconds        int               `json:"clientTimeoutSeconds"`
 	StartupDirectory            string            `json:"startupDirectory"`
 	StartupDirectoryInitialized bool              `json:"startupDirectoryInitialized,omitempty"`

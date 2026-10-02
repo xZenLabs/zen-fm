@@ -9,6 +9,7 @@
   "light": "Light",
   "dark": "Dark",
   "showHidden": "Show hidden files",
+  "autoOverwriteUploads": "Overwrite files without confirmation when uploading",
   "startupDirectory": "Startup directory",
   "startupDirectoryHint": "Folder opened after sign-in.",
   "chooseStartupDirectory": "Choose startup directory",
