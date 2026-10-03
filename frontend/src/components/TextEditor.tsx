@@ -28,6 +28,7 @@ const legacyLanguages = {
 }
 
 const editorSecurity = cspNonce ? [EditorView.cspNonce.of(cspNonce)] : []
+const editorFocus = EditorView.contentAttributes.of({ tabindex: '0' })
 
 type FindHighlight = { query: string; current?: { from: number; to: number } }
 
@@ -89,7 +90,7 @@ function languageForName(name: string) {
   return null
 }
 
-export default function TextEditor({ name, value, onChange, readOnly = false, fullHeight = false, find }: { name: string; value: string; onChange?: (value: string) => void; readOnly?: boolean; fullHeight?: boolean; find?: FindHighlight }) {
+export default function TextEditor({ name, value, onChange, readOnly = false, fullHeight = false, find, onCreateEditor }: { name: string; value: string; onChange?: (value: string) => void; readOnly?: boolean; fullHeight?: boolean; find?: FindHighlight; onCreateEditor?: (view: EditorView) => void }) {
   const theme = useTheme()
   const viewRef = useRef<EditorView | null>(null)
   const findQuery = find?.query ?? ''
@@ -107,7 +108,7 @@ export default function TextEditor({ name, value, onChange, readOnly = false, fu
     current: currentFindFrom === undefined || currentFindTo === undefined ? undefined : { from: currentFindFrom, to: currentFindTo },
   }), [currentFindFrom, currentFindTo, findQuery, hasFind])
   const extensions = useMemo(() => {
-    const configured = language ? [...editorSecurity, language, surfaceTheme] : [...editorSecurity, surfaceTheme]
+    const configured = language ? [...editorSecurity, editorFocus, language, surfaceTheme] : [...editorSecurity, editorFocus, surfaceTheme]
     return findExtension ? [...configured, findExtension] : configured
   }, [findExtension, language, surfaceTheme])
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function TextEditor({ name, value, onChange, readOnly = false, fu
       editable={!readOnly}
       readOnly={readOnly}
       onChange={onChange}
-      onCreateEditor={(view) => { viewRef.current = view }}
+      onCreateEditor={(view) => { viewRef.current = view; onCreateEditor?.(view) }}
       basicSetup={{
         lineNumbers: true,
         foldGutter: false,
