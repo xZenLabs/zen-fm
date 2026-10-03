@@ -53,7 +53,7 @@ export function SettingsPage() {
   useEffect(() => { if (settings.data) setForm(settings.data) }, [settings.data])
 
   const save = useMutation({
-    mutationFn: () => api.settings.update({ theme: form.theme, locale: form.locale, showHidden: form.showHidden, clientTimeoutSeconds: form.clientTimeoutSeconds, startupDirectory: settings.data?.advancedMode ? undefined : form.startupDirectory }),
+    mutationFn: () => api.settings.update({ theme: form.theme, locale: form.locale, showHidden: form.showHidden, autoOverwriteUploads: form.autoOverwriteUploads, clientTimeoutSeconds: form.clientTimeoutSeconds, startupDirectory: settings.data?.advancedMode ? undefined : form.startupDirectory }),
     onSuccess: (next) => {
       queryClient.setQueryData(['settings'], next)
       setPreference(next.theme); setClientTimeout(next.clientTimeoutSeconds); void i18n.changeLanguage(next.locale); setNotice(t('settings.saved', { lng: next.locale }))
@@ -88,6 +88,7 @@ export function SettingsPage() {
             <TextField select fullWidth label={t('settings.language')} value={form.locale ?? 'en'} onChange={(event) => setForm((old) => ({ ...old, locale: event.target.value }))}>{supportedLocales.map((locale) => <MenuItem key={locale} value={locale}>{new Intl.DisplayNames([i18n.language], { type: 'language' }).of(locale) ?? locale}</MenuItem>)}</TextField>
           </Stack>
           <FormControlLabel control={<Switch checked={form.showHidden ?? false} onChange={(event) => setForm((old) => ({ ...old, showHidden: event.target.checked }))} />} label={t('settings.showHidden')} />
+          <FormControlLabel control={<Switch checked={form.autoOverwriteUploads ?? false} onChange={(event) => setForm((old) => ({ ...old, autoOverwriteUploads: event.target.checked }))} />} label={t('settings.autoOverwriteUploads')} />
           <Box><Typography variant="body2" color="text.secondary" mb={0.5}>{t('settings.startupDirectory')}</Typography><Button fullWidth variant="outlined" color="inherit" startIcon={<FolderRounded color="primary" />} disabled={settings.data.advancedMode} aria-label={t('settings.chooseStartupDirectory')} onClick={chooseStartupDirectory} sx={{ justifyContent: 'flex-start', textTransform: 'none' }}><Box component="span" className="file-name">{startupDirectoryFullPath}</Box></Button><Typography variant="caption" color="text.secondary">{t('settings.startupDirectoryHint')}</Typography></Box>
           <TextField type="number" label={t('settings.timeout')} value={form.clientTimeoutSeconds ?? 30} onChange={(event) => setForm((old) => ({ ...old, clientTimeoutSeconds: Number(event.target.value) }))} inputProps={{ min: 0, max: 86400 }} helperText={t('settings.timeoutHint')} sx={{ maxWidth: 280 }} />
           {save.error && <ErrorPane error={save.error} />}<Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending} sx={{ alignSelf: 'flex-start' }}>{t('settings.save')}</Button>

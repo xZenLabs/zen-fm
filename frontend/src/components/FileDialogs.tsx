@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import DOMPurify from 'dompurify'
+import type { EditorView } from '@uiw/react-codemirror'
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, LinearProgress,
   MenuItem, Stack, TextField, Tooltip, Typography, useTheme,
@@ -96,8 +97,13 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
   const raw = entry ? api.files.rawUrl(entry.path) : ''
   const previewUrl = entry ? api.files.previewUrl(entry.path) : ''
   const csv = useMemo(() => ext === 'csv' && text.data ? parseCsv(text.data) : null, [ext, text.data])
+  const renderedHtml = useMemo(() => {
+    if (['html', 'htm'].includes(ext)) return { __html: DOMPurify.sanitize(text.data ?? '', { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'img', 'link', 'meta', 'base'], FORBID_ATTR: ['style'] }) }
+    if (['md', 'markdown'].includes(ext)) return { __html: renderMarkdown(text.data ?? '') }
+  }, [ext, text.data])
   const longText = (text.data?.split('\n', 501).length ?? 0) > 500
   const viewerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<EditorView | null>(null)
   const findButtonRef = useRef<HTMLButtonElement>(null)
   const findInputRef = useRef<HTMLInputElement>(null)
   const [localFullScreen, setLocalFullScreen] = useState(false)
@@ -106,7 +112,12 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
   const [findQuery, setFindQuery] = useState('')
   const [findIndex, setFindIndex] = useState(-1)
   const [findStart, setFindStart] = useState(-1)
-  const searchableText = useMemo(() => (text.data ?? '').toLocaleLowerCase(), [text.data])
+  const richPreview = !fullScreen && ['html', 'htm', 'md', 'markdown', 'csv'].includes(ext)
+  const [renderedText, setRenderedText] = useState('')
+  useEffect(() => {
+    if (richPreview) setRenderedText(viewerRef.current?.textContent ?? '')
+  }, [richPreview, text.data])
+  const searchableText = useMemo(() => (richPreview ? renderedText : text.data ?? '').toLocaleLowerCase(), [renderedText, richPreview, text.data])
   const activeFindQuery = findOpen ? findQuery : ''
   const normalizedFindQuery = activeFindQuery.toLocaleLowerCase()
   const findSummary = useMemo(
@@ -120,7 +131,7 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
 
   const showFind = useCallback(() => {
     setFindOpen(true)
-    window.requestAnimationFrame(() => findInputRef.current?.select())
+    window.requestAnimationFrame(() => { findInputRef.current?.focus(); findInputRef.current?.select() })
   }, [])
 
   useEffect(() => {
@@ -130,20 +141,75 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
   }, [entry?.path])
 
   useEffect(() => {
-    if (!fullScreen || !needsText) return
-    const handleFindShortcut = (event: globalThis.KeyboardEvent) => {
-      if (event.key.toLocaleLowerCase() !== 'f' || (!event.ctrlKey && !event.metaKey)) return
-      event.preventDefault()
-      showFind()
+    if (!needsText) return
+    const handleShortcut = (event: globalThis.KeyboardEvent) => {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      const dialog = viewerRef.current?.closest('[role="dialog"]')
+      if (target?.closest('[role="dialog"]') && !dialog?.contains(target)) return
+      const key = event.key.toLocaleLowerCase()
+      if (key === 'f') {
+        event.preventDefault()
+        showFind()
+      } else if (key === 'a' && !target?.closest('input, textarea, [contenteditable="true"]')) {
+        const content = viewerRef.current
+        if (!content) return
+        event.preventDefault()
+        const editor = editorRef.current
+        if (editor && content.contains(editor.dom)) {
+          editor.dispatch({ selection: { anchor: 0, head: editor.state.doc.length }, userEvent: 'select' })
+          editor.focus()
+        } else {
+          const range = document.createRange()
+          range.selectNodeContents(content)
+          const selection = window.getSelection()
+          selection?.removeAllRanges()
+          selection?.addRange(range)
+        }
+      }
     }
-    document.addEventListener('keydown', handleFindShortcut)
-    return () => document.removeEventListener('keydown', handleFindShortcut)
-  }, [fullScreen, needsText, showFind])
+    document.addEventListener('keydown', handleShortcut, true)
+    return () => document.removeEventListener('keydown', handleShortcut, true)
+  }, [needsText, showFind])
 
   useEffect(() => {
     setFindIndex(findSummary.count > 0 ? 0 : -1)
     setFindStart(findSummary.first)
   }, [findSummary.count, findSummary.first, normalizedFindQuery, searchableText])
+
+  useEffect(() => {
+    const content = viewerRef.current
+    if (!richPreview || !content || !normalizedFindQuery) return
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT)
+    const nodes: Text[] = []
+    while (walker.nextNode()) nodes.push(walker.currentNode as Text)
+    let offset = 0
+    let match = searchableText.indexOf(normalizedFindQuery)
+    for (const node of nodes) {
+      const end = offset + node.length
+      let rest = node
+      let consumed = 0
+      while (match !== -1 && match < end) {
+        const from = Math.max(0, match - offset)
+        const to = Math.min(end, match + normalizedFindQuery.length) - offset
+        const highlighted = rest.splitText(from - consumed)
+        rest = highlighted.splitText(to - from)
+        const mark = document.createElement('mark')
+        mark.className = `cm-zen-find-match${match === findStart ? ' cm-zen-find-current' : ''}`
+        highlighted.replaceWith(mark)
+        mark.append(highlighted)
+        consumed = to
+        if (match + normalizedFindQuery.length > end) break
+        match = searchableText.indexOf(normalizedFindQuery, match + normalizedFindQuery.length)
+      }
+      offset = end
+    }
+    content.querySelector('.cm-zen-find-current')?.scrollIntoView?.({ block: 'center' })
+    return () => {
+      content.querySelectorAll('.cm-zen-find-match').forEach((mark) => mark.replaceWith(...mark.childNodes))
+      content.normalize()
+    }
+  }, [findStart, normalizedFindQuery, richPreview, searchableText])
 
   const moveFind = (direction: number) => {
     if (findSummary.count === 0 || !normalizedFindQuery) return
@@ -191,18 +257,18 @@ export function FilePreviewDialog({ entry, onClose, onEdit, fullScreen: fullScre
   } else if (needsText) {
     if (text.isPending) preview = <LoadingPane />
     else if (text.error) preview = <ErrorPane error={text.error} />
-    else if (fullScreen) preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly fullHeight find={{ query: activeFindQuery, current: currentFindMatch }} /></Suspense>
-    else if (['html', 'htm'].includes(ext)) preview = <Box className="html-preview" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text.data ?? '', { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'img', 'link', 'meta', 'base'], FORBID_ATTR: ['style'] }) }} />
-    else if (['md', 'markdown'].includes(ext)) preview = <Box className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(text.data ?? '') }} />
+    else if (fullScreen) preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly fullHeight find={{ query: activeFindQuery, current: currentFindMatch }} onCreateEditor={(view) => { editorRef.current = view }} /></Suspense>
+    else if (['html', 'htm'].includes(ext)) preview = <Box className="html-preview" dangerouslySetInnerHTML={renderedHtml} />
+    else if (['md', 'markdown'].includes(ext)) preview = <Box className="markdown-preview" dangerouslySetInnerHTML={renderedHtml} />
     else if (ext === 'csv' && csv) preview = <Box className="csv-preview" sx={{ overflow: 'auto' }}><table><thead>{csv.rows[0] && <tr>{csv.rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr>}</thead><tbody>{csv.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table>{csv.truncated && <Typography variant="caption" color="text.secondary">Preview truncated.</Typography>}</Box>
-    else preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly /></Suspense>
+    else preview = <Suspense fallback={<LoadingPane />}><TextEditor name={entry?.name ?? ''} value={text.data ?? ''} readOnly find={{ query: activeFindQuery, current: currentFindMatch }} onCreateEditor={(view) => { editorRef.current = view }} /></Suspense>
   }
 
   return (
     <Dialog open={Boolean(entry)} onClose={onClose} maxWidth="lg" fullWidth fullScreen={fullScreen} slotProps={{ paper: { style: { backgroundColor: surface } } }}>
       <DialogTitle style={{ backgroundColor: surface }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box component="span" className="file-name" flex={1} minWidth={0}>{entry?.name}</Box>
-        {fullScreen && needsText && <Box className={`file-find-control${findOpen ? ' open' : ''}`} role="search">
+        {needsText && <Box className={`file-find-control${findOpen ? ' open' : ''}`} role="search">
           <TextField
             fullWidth
             inputRef={findInputRef}

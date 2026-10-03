@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, createTheme } from '@mui/material'
+import { EditorView } from '@uiw/react-codemirror'
 import { http, HttpResponse } from 'msw'
 import { canEdit, FileEditorDialog, FilePreviewDialog, PathActionDialog } from '../components/FileDialogs'
 import TextEditor from '../components/TextEditor'
@@ -168,16 +169,15 @@ it('shows a text preview with Open as the primary action and keeps Edit explicit
   expect(onEdit).toHaveBeenCalledOnce()
 })
 
-it('finds and highlights text in the fullscreen viewer while keeping the search input focused', async () => {
+it.each([false, true])('finds and highlights text while keeping the search input focused (fullscreen: %s)', async (fullScreen) => {
   const source = 'Alpha beta alpha'
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse(source, { headers: { 'Content-Type': 'text/plain' } })))
   const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const user = userEvent.setup()
-  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} fullScreen={fullScreen} onClose={() => undefined} /></QueryClientProvider>)
 
   await screen.findByText(source)
-  await user.click(screen.getByRole('button', { name: 'Open' }))
   await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent(source))
 
   const closeFile = screen.getByRole('button', { name: 'Close' })
@@ -186,7 +186,7 @@ it('finds and highlights text in the fullscreen viewer while keeping the search 
   await user.unhover(closeFile)
   await waitFor(() => expect(screen.queryByRole('tooltip', { name: 'Close file' })).not.toBeInTheDocument())
 
-  fireEvent.keyDown(document, { key: 'f', ctrlKey: true })
+  fireEvent.keyDown(document, { key: 'f', ctrlKey: !fullScreen, metaKey: fullScreen })
   const findInput = await screen.findByRole('textbox', { name: 'Find in file' })
   expect(findInput.closest('.file-find-control')).toHaveClass('open')
   expect(findInput.closest('.MuiDialogTitle-root')).toBeInTheDocument()
@@ -224,6 +224,85 @@ it('finds and highlights text in the fullscreen viewer while keeping the search 
   await user.click(next)
   expect(await screen.findByText('2 of 2')).toBeInTheDocument()
   await waitFor(() => expect(document.querySelector('.cm-zen-find-current')).toHaveTextContent('alpha'))
+})
+
+it.each([false, true])('selects the entire text file with Ctrl/Cmd+A (fullscreen: %s)', async (fullScreen) => {
+  const source = Array.from({ length: 5_000 }, (_, index) => `Line ${index + 1}`).join('\n')
+  server.use(http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text(source)))
+  const entry: FileEntry = { name: 'long.txt', path: '/long.txt', type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} fullScreen={fullScreen} onClose={() => undefined} /></QueryClientProvider>)
+
+  await waitFor(() => expect(document.querySelector('.cm-content')).toBeInTheDocument())
+  const content = document.querySelector<HTMLElement>('.cm-content')!
+  const editor = EditorView.findFromDOM(content)!
+  expect(content).toHaveAttribute('tabindex', '0')
+
+  for (const modifier of ['ctrlKey', 'metaKey']) {
+    act(() => editor.dispatch({ selection: { anchor: 0 } }))
+    const close = screen.getByRole('button', { name: 'Close' })
+    close.focus()
+    expect(fireEvent.keyDown(close, { key: 'a', [modifier]: true })).toBe(false)
+    expect(editor.state.selection.main.from).toBe(0)
+    expect(editor.state.selection.main.to).toBe(source.length)
+    expect(content).toHaveFocus()
+    expect(editor.state.doc.toString()).toBe(source)
+  }
+
+  await user.click(screen.getByRole('button', { name: 'Find in file' }))
+  const findInput = screen.getByRole('textbox', { name: 'Find in file' })
+  await user.type(findInput, 'Line')
+  act(() => editor.dispatch({ selection: { anchor: 0 } }))
+  expect(fireEvent.keyDown(findInput, { key: 'a', ctrlKey: true })).toBe(true)
+  expect(editor.state.selection.main.empty).toBe(true)
+  expect(findInput).toHaveFocus()
+})
+
+it.each([
+  ['notes.md', 'Al**pha** beta alpha'],
+  ['index.html', '<p>Al<strong>pha</strong> beta alpha</p><script>alpha</script>'],
+  ['data.csv', 'name,value\nAlpha,beta alpha'],
+])('finds and selects rendered text in a %s preview', async (name, source) => {
+  server.use(http.get('http://localhost/api/v1/files/preview', () => HttpResponse.text(source)))
+  const entry: FileEntry = { name, path: `/${name}`, type: 'file', size: source.length, modifiedAt: '2026-01-01T00:00:00Z' }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const user = userEvent.setup()
+  render(<QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} /></QueryClientProvider>)
+
+  await screen.findByText('beta alpha', { exact: false })
+  const content = document.querySelector<HTMLElement>('.MuiDialogContent-root')!
+  const rendered = content.textContent
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Close' }), { key: 'a', metaKey: true })
+  expect(window.getSelection()?.toString()).toBe(rendered)
+  window.getSelection()?.removeAllRanges()
+
+  fireEvent.keyDown(document, { key: 'f', metaKey: true })
+  const findInput = screen.getByRole('textbox', { name: 'Find in file' })
+  await waitFor(() => expect(findInput).toHaveFocus())
+  await user.type(findInput, 'alpha')
+  expect(await screen.findByText('1 of 2')).toBeInTheDocument()
+  await waitFor(() => expect(Array.from(content.querySelectorAll('.cm-zen-find-current'), (mark) => mark.textContent).join('')).toBe('Alpha'))
+  expect(findInput).toHaveFocus()
+  expect(document.querySelector('.cm-editor')).not.toBeInTheDocument()
+
+  await user.keyboard('{Enter}')
+  expect(await screen.findByText('2 of 2')).toBeInTheDocument()
+  expect(content.querySelector('.cm-zen-find-current')).toHaveTextContent('alpha')
+  await user.keyboard('{Enter}')
+  expect(await screen.findByText('1 of 2')).toBeInTheDocument()
+  await user.keyboard('{Shift>}{Enter}{/Shift}')
+  expect(await screen.findByText('2 of 2')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Clear find' }))
+  expect(content.querySelector('.cm-zen-find-match')).not.toBeInTheDocument()
+  expect(content.textContent).toBe(rendered)
+  if (name !== 'data.csv') expect(content.querySelector('strong')).toHaveTextContent('pha')
+  await user.type(findInput, 'missing')
+  expect(await screen.findByText('No matches')).toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  expect(findInput.closest('.file-find-control')).not.toHaveClass('open')
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
 })
 
 it('shows JSON source in the viewer when the server labels it application/json', async () => {

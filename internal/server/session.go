@@ -254,6 +254,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 		Theme                *string            `json:"theme"`
 		Locale               *string            `json:"locale"`
 		ShowHidden           *bool              `json:"showHidden"`
+		AutoOverwriteUploads *bool              `json:"autoOverwriteUploads"`
 		ClientTimeoutSeconds *int               `json:"clientTimeoutSeconds"`
 		StartupDirectory     *string            `json:"startupDirectory"`
 		Favorites            *[]string          `json:"favorites"`
@@ -287,6 +288,9 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if request.ShowHidden != nil {
 		settings.ShowHidden = *request.ShowHidden
+	}
+	if request.AutoOverwriteUploads != nil {
+		settings.AutoOverwriteUploads = *request.AutoOverwriteUploads
 	}
 	if request.ClientTimeoutSeconds != nil {
 		if *request.ClientTimeoutSeconds < 0 || *request.ClientTimeoutSeconds > 86400 {

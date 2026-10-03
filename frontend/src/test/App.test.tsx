@@ -331,4 +331,35 @@ describe('responsive and accessible shell', () => {
 
     await waitFor(() => expect(saved).toEqual(expect.objectContaining({ startupDirectory: '/Books' })))
   })
+
+  it('defaults automatic upload overwrites to off and saves both toggle values', async () => {
+    const settings = {
+      theme: 'system', locale: 'en', showHidden: false, autoOverwriteUploads: false, clientTimeoutSeconds: 30,
+      startupDirectory: '/', advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend',
+    }
+    const saved: boolean[] = []
+    server.use(
+      http.get('http://localhost/api/v1/settings', () => HttpResponse.json(settings)),
+      http.put('http://localhost/api/v1/settings', async ({ request }) => {
+        Object.assign(settings, await request.json())
+        saved.push(settings.autoOverwriteUploads)
+        return HttpResponse.json(settings)
+      }),
+    )
+    const user = userEvent.setup()
+    const view = renderApp('/settings')
+    const toggle = await screen.findByRole('switch', { name: 'Overwrite files without confirmation when uploading' })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => expect(saved).toEqual([true]))
+
+    view.unmount()
+    renderApp('/settings')
+    const restored = await screen.findByRole('switch', { name: 'Overwrite files without confirmation when uploading' })
+    await waitFor(() => expect(restored).toBeChecked())
+    await user.click(restored)
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => expect(saved).toEqual([true, false]))
+  })
 })

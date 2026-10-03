@@ -1133,6 +1133,35 @@ describe('file browser', () => {
     expect(screen.getByRole('navigation', { name: 'Breadcrumb', hidden: true })).toHaveTextContent('Books')
   })
 
+  it.each(['direct', 'resumable'])('automatically overwrites %s uploads when enabled', async (transport) => {
+    server.use(http.get('http://localhost/api/v1/settings', () => HttpResponse.json({
+      theme: 'system', locale: 'en', showHidden: false, autoOverwriteUploads: true, clientTimeoutSeconds: 30,
+      startupDirectory: '/', advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend',
+    })))
+    const direct = vi.spyOn(api.files, 'uploadWithProgress').mockResolvedValue()
+    const resumable = vi.spyOn(apiClient, 'uploadResumable').mockImplementation((_path, _file, callbacks) => {
+      callbacks.onSuccess()
+      return undefined as never
+    })
+    const user = userEvent.setup()
+    renderApp('/files')
+    await screen.findByText('Nothing here yet')
+
+    const file = new File(['replacement'], 'existing.txt')
+    if (transport === 'resumable') Object.defineProperty(file, 'size', { value: 64 * 1024 * 1024 })
+    await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, file)
+
+    if (transport === 'direct') {
+      await waitFor(() => expect(direct).toHaveBeenCalledWith('/existing.txt', file, true, expect.any(Function), expect.any(AbortSignal)))
+      expect(resumable).not.toHaveBeenCalled()
+    } else {
+      await waitFor(() => expect(resumable).toHaveBeenCalledWith('/existing.txt', file, expect.any(Object), true, expect.any(AbortSignal)))
+      expect(direct).not.toHaveBeenCalled()
+    }
+    await waitFor(() => expect(screen.queryByRole('progressbar', { name: 'Total upload progress' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('applies replace all to the current conflict and every remaining upload', async () => {
     const requests: string[] = []
     server.use(http.put('*/api/v1/files/content', ({ request }) => {

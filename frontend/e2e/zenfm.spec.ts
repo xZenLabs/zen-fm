@@ -307,8 +307,24 @@ test.describe('ZenFM real binary', () => {
     await expect(page.getByText('Before edit', { exact: true })).toBeVisible()
     const previewDialog = page.getByRole('dialog')
     await expectLineNumbersAligned(previewDialog)
+    for (const modifier of ['Control', 'Meta']) {
+      await previewDialog.getByRole('button', { name: 'Close' }).press(`${modifier}+a`)
+      await expect(previewDialog.locator('.cm-content')).toBeFocused()
+      expect(await page.evaluate<string>('window.getSelection().toString()')).toBe('Before edit')
+    }
+    await page.keyboard.press('Meta+f')
+    const previewFindInput = previewDialog.getByRole('textbox', { name: 'Find in file' })
+    await expect(previewFindInput).toBeFocused()
+    await previewFindInput.pressSequentially('Before')
+    await expect(previewDialog.getByText('1 of 1')).toBeVisible()
+    await expect(previewDialog.locator('.cm-zen-find-current')).toHaveText('Before')
+    await previewFindInput.press('ControlOrMeta+a')
+    expect(await previewFindInput.evaluate((input) => [Number(Reflect.get(input, 'selectionStart')), Number(Reflect.get(input, 'selectionEnd'))])).toEqual([0, 6])
     await previewDialog.getByRole('button', { name: 'Open' }).click()
     await expect(previewDialog).toHaveClass(/MuiDialog-paperFullScreen/)
+    await previewDialog.getByRole('button', { name: 'Close' }).press('Control+a')
+    await expect(previewDialog.locator('.cm-content')).toBeFocused()
+    expect(await page.evaluate<string>('window.getSelection().toString()')).toBe('Before edit')
     await page.keyboard.press('Control+f')
     const findInput = previewDialog.getByRole('textbox', { name: 'Find in file' })
     await expect(previewDialog.locator('.file-find-control')).toHaveClass(/open/)
@@ -352,6 +368,36 @@ test.describe('ZenFM real binary', () => {
     await expect(page.getByText('renamed-flow.txt', { exact: true })).toHaveCount(0)
     await page.getByRole('link', { name: 'Home' }).click()
     await expect(page.getByText('renamed-flow.txt', { exact: true })).toBeVisible()
+  })
+
+  test('finds text in rendered Markdown, HTML, and CSV previews', async ({ page }) => {
+    await login(page)
+    const files = [
+      { name: 'find-preview.md', mimeType: 'text/markdown', buffer: Buffer.from('Al**pha** beta alpha') },
+      { name: 'find-preview.html', mimeType: 'text/html', buffer: Buffer.from('<p>Al<strong>pha</strong> beta alpha</p>') },
+      { name: 'find-preview.csv', mimeType: 'text/csv', buffer: Buffer.from('name,value\nAlpha,beta alpha') },
+    ]
+    await page.locator('input[type="file"]').setInputFiles(files)
+    for (const file of files) {
+      await page.getByText(file.name, { exact: true }).dblclick()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog.getByText('beta alpha', { exact: false })).toBeVisible()
+      await dialog.getByRole('button', { name: 'Close' }).press('Control+a')
+      expect(await page.evaluate<string>('window.getSelection().toString()')).toContain('Alpha')
+      await page.keyboard.press('Control+f')
+      const findInput = dialog.getByRole('textbox', { name: 'Find in file' })
+      await expect(findInput).toBeFocused()
+      await findInput.pressSequentially('alpha')
+      await expect(dialog.getByText('1 of 2')).toBeVisible()
+      expect((await dialog.locator('.cm-zen-find-current').allTextContents()).join('')).toBe('Alpha')
+      await findInput.press('Enter')
+      await expect(dialog.getByText('2 of 2')).toBeVisible()
+      await expect(dialog.locator('.cm-zen-find-current')).toHaveText('alpha')
+      await expect(findInput).toBeFocused()
+      await dialog.getByRole('button', { name: 'Clear find' }).click()
+      await expect(dialog.locator('.cm-zen-find-match')).toHaveCount(0)
+      await dialog.getByRole('button', { name: 'Close' }).click()
+    }
   })
 
   test('uses bounded media and SVG previews', async ({ page }) => {

@@ -4,7 +4,7 @@ import { setupServer } from 'msw/node'
 export const handlers = [
   http.get('http://localhost/health', () => HttpResponse.json({ status: 'ok', version: 'test-backend' })),
   http.get('http://localhost/api/v1/session', () => HttpResponse.json({ authenticated: true, setupRequired: false, startupDirectory: '/', csrfToken: 'a'.repeat(32) })),
-  http.get('http://localhost/api/v1/settings', () => HttpResponse.json({ theme: 'system', locale: 'en', showHidden: false, clientTimeoutSeconds: 30, startupDirectory: '/', advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend' })),
+  http.get('http://localhost/api/v1/settings', () => HttpResponse.json({ theme: 'system', locale: 'en', showHidden: false, autoOverwriteUploads: false, clientTimeoutSeconds: 30, startupDirectory: '/', advancedMode: false, root: '/mnt/us', secureTransport: true, version: 'test-backend' })),
   http.get('http://localhost/api/v1/tokens', () => HttpResponse.json([])),
   http.get('http://localhost/api/v1/shares', () => HttpResponse.json([])),
   http.get('http://localhost/api/v1/files', () => HttpResponse.json({ path: '/', advancedMode: false, entries: [] })),
