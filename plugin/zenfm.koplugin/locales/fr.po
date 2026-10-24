@@ -12,7 +12,7 @@ msgstr ""
 "X-Generator: Poedit 3.4.2\n"
 
 msgid "%s wants to send %s\n\nType: %s\nFiles: %d\nSize: %s\nFingerprint: …%s"
-msgstr "souhaite envoyer %s\n\nType : %s\nFichiers : %d\nTaille : %s\nEmpreinte : …%s"
+msgstr "%s souhaite envoyer %s\n\nType : %s\nFichiers : %d\nTaille : %s\nEmpreinte : …%s"
 
 msgid "%s — %d%%"
 msgstr "%s — %d%%"
@@ -597,7 +597,7 @@ msgid "ZenFM Send"
 msgstr "Envoi ZenFM"
 
 msgid "ZenFM Send failed."
-msgstr "Échec de l'envoi ZenFM"
+msgstr "Échec de l'envoi ZenFM."
 
 msgid "ZenFM Send requires HTTPS."
 msgstr "L'envoi ZenFM nécessite HTTPS."
