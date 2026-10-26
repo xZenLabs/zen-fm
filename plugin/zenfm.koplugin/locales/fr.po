@@ -76,10 +76,10 @@ msgid "Checksum"
 msgstr "Somme de contrôle"
 
 msgid "Clear find"
-msgstr "Effacer la recherche"
+msgstr "Effacer le résultat"
 
 msgid "Clear search"
-msgstr "Effacer"
+msgstr "Effacer la recherche"
 
 msgid "Client timeout"
 msgstr "Délai d'expiration du client"
@@ -142,7 +142,7 @@ msgid "Dark"
 msgstr "Sombre"
 
 msgid "Date modified"
-msgstr "Dernière modification"
+msgstr "Date de modification"
 
 msgid "Decline"
 msgstr "Baisse"
@@ -160,7 +160,7 @@ msgid "Destination path"
 msgstr "Chemin de destination"
 
 msgid "Discard"
-msgstr "Jeter"
+msgstr "Rejeter"
 
 msgid "Download"
 msgstr "Télécharger"
@@ -226,7 +226,7 @@ msgid "Incoming ZenFM transfer ended."
 msgstr "Le transfert entrant de ZenFM est terminé."
 
 msgid "Installing ZenFM update…"
-msgstr "Installation de la mise à jour ZenFM…"
+msgstr "Installation de la mise à jour de ZenFM…"
 
 msgid "Invalid value."
 msgstr "Valeur invalide."
@@ -259,7 +259,7 @@ msgid "Listening port:"
 msgstr "Port d'écoute :"
 
 msgid "Loading…"
-msgstr "Chargement..."
+msgstr "Chargement…"
 
 msgid "Login reset. Use koreader123456789 and choose a new password."
 msgstr "Réinitialisation de la connexion. Utilisez koreader123456789 et choisissez un nouveau mot de passe."
@@ -385,19 +385,19 @@ msgid "Root"
 msgstr "Racine"
 
 msgid "Root: "
-msgstr "Racine : "
+msgstr "Racine: "
 
 msgid "Save"
 msgstr "Enregistrer"
 
 msgid "Save and close"
-msgstr "Enregistrer et fermer"
+msgstr "Sauvegarder et fermer"
 
 msgid "Save changes"
 msgstr "Enregistrer les changements"
 
 msgid "Save changes before closing?"
-msgstr "Enregistrer les modifications avant de fermer ?"
+msgstr "Sauvegarder les modifications avant de fermer ?"
 
 msgid "Save settings"
 msgstr "Enregistrer les paramètres"
@@ -421,7 +421,7 @@ msgid "Settings"
 msgstr "Paramètres"
 
 msgid "Settings saved"
-msgstr "Paramètres enregistrés"
+msgstr "Paramètres sauvegardés"
 
 msgid "Share"
 msgstr "Partager"
@@ -436,7 +436,7 @@ msgid "Shared with ZenFM"
 msgstr "Partagé avec ZenFM"
 
 msgid "Shares"
-msgstr "Actions"
+msgstr "Partages"
 
 msgid "Show hidden files"
 msgstr "Afficher les fichiers cachés"
@@ -469,7 +469,7 @@ msgid "Status and address"
 msgstr "Statut et adresse"
 
 msgid "Stop waiting for ordinary server requests after this many seconds."
-msgstr "Arrêtez d'attendre les requêtes ordinaires du serveur après autant de secondes."
+msgstr "Cessez d'attendre les requêtes ordinaires du serveur au bout de ce nombre de secondes."
 
 msgid "Stop ZenFM"
 msgstr "Arrêtez ZenFM"
@@ -478,7 +478,7 @@ msgid "Switch to dark mode"
 msgstr "Passer en mode sombre"
 
 msgid "Switch to light mode"
-msgstr "Passer en mode lumière"
+msgstr "Passer en mode clair"
 
 msgid "System"
 msgstr "Système"
@@ -502,7 +502,7 @@ msgid "This connection is using HTTP. Credentials and file contents may be visib
 msgstr "Cette connexion utilise HTTP. Les informations d'identification et le contenu des fichiers peuvent être visibles sur le réseau."
 
 msgid "This file has unsaved changes."
-msgstr "Ce fichier comporte des modifications non enregistrées."
+msgstr "Ce fichier comporte des modifications non sauvegardées."
 
 msgid "This file is too large or unsupported for safe editing."
 msgstr "Ce fichier est trop volumineux ou n'est pas pris en charge pour une modification sûre."
@@ -523,13 +523,13 @@ msgid "Total upload progress"
 msgstr "Progression totale de l'import"
 
 msgid "Unlock"
-msgstr "Ouvrir"
+msgstr "Déverrouiller"
 
 msgid "Update"
 msgstr "Mise à jour"
 
 msgid "Upload"
-msgstr "Importer"
+msgstr "Téléverser"
 
 msgid "Upload a file or create one."
 msgstr "Importer un fichier ou créez-en un."
