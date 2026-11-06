@@ -66,6 +66,7 @@ return {
     },
     ["1.2.2"] = {
         "Open unknown filetypes as text files (i.e .conf, no extension etc)",
+        "Update French translations",
         "Bug fixes"
     },
 
