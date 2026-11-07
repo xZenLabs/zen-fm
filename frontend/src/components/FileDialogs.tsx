@@ -37,7 +37,11 @@ function extension(path: string) {
 }
 
 function isTextEntry(entry: FileEntry) {
-  return entry.type === 'file' && (entry.mimeType?.startsWith('text/') || !entry.name.includes('.') || textExtensions.has(extension(entry.name)))
+  const ext = extension(entry.name)
+  return entry.type === 'file' && (
+    entry.mimeType?.startsWith('text/') || !entry.name.includes('.') || textExtensions.has(ext)
+    || ((!entry.mimeType || entry.mimeType === 'application/octet-stream') && !imageExtensions.has(ext) && !['pdf', 'epub', 'mp3', 'm4a', 'ogg', 'wav', 'flac', 'mp4', 'webm', 'mkv', 'mov'].includes(ext))
+  )
 }
 
 export function canEdit(entry: FileEntry) {

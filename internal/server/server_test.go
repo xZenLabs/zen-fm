@@ -499,6 +499,35 @@ func TestHeavyOperationCeilingRejectsExcessWork(t *testing.T) {
 	}
 }
 
+func TestSessionResponsesIncludeServerTime(t *testing.T) {
+	a := newTestAPI(t)
+	var cookie *http.Cookie
+	var csrf string
+	for _, request := range []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{http.MethodPost, "/api/v1/session", `{"password":"` + state.SetupPassword + `"}`},
+		{http.MethodGet, "/api/v1/session", ""},
+		{http.MethodPut, "/api/v1/owner/password", `{"newPassword":"a secure owner password"}`},
+	} {
+		*a.now = a.now.Add(time.Second)
+		response := a.request(request.method, request.path, strings.NewReader(request.body), cookie, csrf, "")
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s %s: %d %s", request.method, request.path, response.Code, response.Body.String())
+		}
+		payload := decodeMap(t, response)
+		if got := payload["serverTime"]; got != a.now.UTC().Format(time.RFC3339Nano) {
+			t.Fatalf("%s %s serverTime = %v, want %s", request.method, request.path, got, a.now.UTC().Format(time.RFC3339Nano))
+		}
+		if request.method != http.MethodGet {
+			cookie = responseCookie(t, response, sessionCookieName(a.server.cfg.SecureTransport))
+		}
+		csrf = payload["csrfToken"].(string)
+	}
+}
+
 func TestSetupGatePasswordRotationAndSessionExpiry(t *testing.T) {
 	a := newTestAPI(t)
 	cookie, csrf, _ := a.login(state.SetupPassword)
@@ -737,6 +766,44 @@ func TestHiddenOverrideAndExactTextSource(t *testing.T) {
 	response = a.request(http.MethodGet, "/api/v1/files/content?path=%2Finvalid.txt", nil, cookie, "", "")
 	if response.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("invalid UTF-8 source accepted: %d", response.Code)
+	}
+}
+
+func TestUnknownFileTypesCanPreviewEditAndSaveText(t *testing.T) {
+	a := newTestAPI(t)
+	cookie, csrf := a.finishSetup()
+	for _, name := range []string{"settings.conf", "notes.zenfm-unknown", ".gitignore", "data.bin"} {
+		t.Run(name, func(t *testing.T) {
+			const original = "enabled = true\n# café\n"
+			if _, err := a.files.Write(name, strings.NewReader(original), false); err != nil {
+				t.Fatal(err)
+			}
+			query := url.Values{"path": {"/" + name}}.Encode()
+			for _, endpoint := range []string{"preview", "content"} {
+				response := a.request(http.MethodGet, "/api/v1/files/"+endpoint+"?"+query, nil, cookie, "", "")
+				if response.Code != http.StatusOK || response.Body.String() != original || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+					t.Fatalf("%s: %d %q %#v", endpoint, response.Code, response.Body.String(), response.Header())
+				}
+			}
+			const edited = "enabled = false\n# café\n"
+			response := a.request(http.MethodPut, "/api/v1/files/content?"+query, strings.NewReader(edited), cookie, csrf, "")
+			if response.Code != http.StatusNoContent {
+				t.Fatalf("save: %d %s", response.Code, response.Body.String())
+			}
+			response = a.request(http.MethodGet, "/api/v1/files/content?"+query, nil, cookie, "", "")
+			if response.Code != http.StatusOK || response.Body.String() != edited {
+				t.Fatalf("saved source: %d %q", response.Code, response.Body.String())
+			}
+		})
+	}
+	if _, err := a.files.Write("invalid.zenfm-unknown", bytes.NewReader([]byte{0xff, 0xfe}), false); err != nil {
+		t.Fatal(err)
+	}
+	for _, endpoint := range []string{"preview", "content"} {
+		response := a.request(http.MethodGet, "/api/v1/files/"+endpoint+"?path=%2Finvalid.zenfm-unknown", nil, cookie, "", "")
+		if response.Code != http.StatusUnsupportedMediaType {
+			t.Fatalf("%s accepted invalid UTF-8: %d", endpoint, response.Code)
+		}
 	}
 }
 

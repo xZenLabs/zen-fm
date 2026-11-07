@@ -626,6 +626,7 @@ func (s *Server) sessionPayload(v state.Session, setup bool) map[string]any {
 	return map[string]any{
 		"authenticated": true, "setupRequired": setup,
 		"startupDirectory": s.startupDirectory(),
+		"serverTime":       s.cfg.Now().UTC(),
 		"csrfToken":        v.CSRFToken, "idleExpiresAt": time.Unix(v.IdleUntil, 0).UTC(), "absoluteExpiresAt": time.Unix(v.AbsoluteEnd, 0).UTC(),
 	}
 }

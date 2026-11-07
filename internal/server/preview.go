@@ -242,8 +242,10 @@ func isTextPreview(extension, contentType string) bool {
 	switch extension {
 	case ".txt", ".md", ".markdown", ".csv", ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".log", ".html", ".htm", ".xhtml", ".css", ".js", ".ts", ".tsx", ".jsx", ".go", ".lua", ".sh":
 		return true
+	case ".svg", ".pdf", ".epub", ".mp3", ".m4a", ".ogg", ".wav", ".flac", ".mp4", ".webm", ".mkv", ".mov":
+		return false
 	}
-	return false
+	return (contentType == "" || contentType == "application/octet-stream") && !isRasterExtension(extension)
 }
 
 func boundedDimension(value string, fallback int) int {

@@ -60,11 +60,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (status !== 'authenticated' || !session) return
     const idleDeadline = session.idleExpiresAt ? Date.parse(session.idleExpiresAt) : Number.NaN
     const absoluteDeadline = session.absoluteExpiresAt ? Date.parse(session.absoluteExpiresAt) : Number.NaN
+    // Anchor expiry to server time so browser clock skew and clock changes cannot invalidate a session.
+    const serverTime = session.serverTime ? Date.parse(session.serverTime) : Date.now()
+    const started = performance.now()
     const timers: number[] = []
     const schedule = (deadline: number, callback: () => void) => {
       if (!Number.isFinite(deadline)) return
       const tick = () => {
-        const remaining = deadline - Date.now()
+        const remaining = deadline - serverTime - (performance.now() - started)
         if (remaining <= 0) callback()
         else timers.push(window.setTimeout(tick, Math.min(remaining, 2_147_483_647)))
       }

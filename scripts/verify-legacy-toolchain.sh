@@ -3,11 +3,21 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 LEGACY="$ROOT/toolchains/legacy"
-EXPECTED_VERSION=go1.26.6
+GO_MOD_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\)$/\1/p' "$ROOT/go.mod")
+case "$GO_MOD_VERSION" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *) echo "go.mod must pin an exact Go patch release (go X.Y.Z); found '$GO_MOD_VERSION'" >&2; exit 1 ;;
+esac
+EXPECTED_VERSION="go$GO_MOD_VERSION"
+FRONTEND_GO_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\)$/\1/p' "$ROOT/frontend/go.mod")
+[ "$FRONTEND_GO_VERSION" = "$GO_MOD_VERSION" ] || {
+    echo "frontend/go.mod ($FRONTEND_GO_VERSION) must match go.mod ($GO_MOD_VERSION)" >&2
+    exit 1
+}
 
 VERSION=$(sed -n '1p' "$LEGACY/VERSION")
 [ "$VERSION" = "$EXPECTED_VERSION" ] || {
-    echo "legacy compiler must remain pinned to $EXPECTED_VERSION; found $VERSION" >&2
+    echo "legacy compiler must match go.mod ($EXPECTED_VERSION); found $VERSION" >&2
     exit 1
 }
 
@@ -33,6 +43,7 @@ grep -q 'SetNonblock(fd, true)' "$PATCH"
 grep -q 'ZENFM_PATCH_LEVEL' "$LEGACY/bootstrap.sh"
 grep -q 'ZenFM Linux/ARM old-kernel patch 2' "$LEGACY/bootstrap.sh"
 grep -q 'ZenFM Linux/ARM old-kernel patch 2' "$ROOT/build.sh"
-grep -q "$EXPECTED_VERSION-kindle-p2" "$ROOT/build.sh"
+grep -q 'toolchains/legacy/VERSION' "$ROOT/build.sh"
+grep -q '$LEGACY_GO_VERSION-kindle-p2' "$ROOT/build.sh"
 
 echo "ok - pinned $EXPECTED_VERSION source and reviewed Linux/ARM epoll/accept patch metadata"

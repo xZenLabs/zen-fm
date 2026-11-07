@@ -29,10 +29,13 @@ test.describe('ZenFM real binary', () => {
   test.skip(unavailable, 'ZENFM_E2E_UNAVAILABLE=1 explicitly disables real-binary browser tests')
 
   test('forces setup-only sessions to replace the temporary password', async ({ page }) => {
+    await page.clock.setSystemTime(new Date(Date.now() + 12 * 60 * 60 * 1_000))
     await page.goto(`${setupURL}/login`)
     await page.locator('input[name="password"]').fill('koreader123456789')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(`${setupURL}/setup`)
+    await expect(page.getByRole('heading', { name: 'New Password' })).toBeVisible()
+    await page.reload()
     await expect(page.getByRole('heading', { name: 'New Password' })).toBeVisible()
 
     const locked = await page.request.get(`${setupURL}/api/v1/files?path=/`)
@@ -225,6 +228,7 @@ test.describe('ZenFM real binary', () => {
   })
 
   test('expires a browser session at the server absolute deadline', async ({ page }) => {
+    await page.clock.setSystemTime(new Date(Date.now() + 12 * 60 * 60 * 1_000))
     await login(page, expiryURL)
     await expect(page).toHaveURL(/\/files(?:\/|$)/)
     await expect(page).toHaveURL(`${expiryURL}/login`, { timeout: 8_000 })

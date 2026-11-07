@@ -5,6 +5,8 @@ set -eu
 COMMIT=$1
 DIR=$2
 command -v jq >/dev/null 2>&1 || { echo "jq is required" >&2; exit 2; }
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+TOOLCHAIN="$(sed -n '1p' "$ROOT/toolchains/legacy/VERSION")-kindle"
 
 ACTUAL=$(find "$DIR" -maxdepth 1 -type f -print | sed 's!.*/!!' | sort)
 EXPECTED=$(printf '%s\n' kindle4.json kindle5.json old-kernel-qemu.json paperwhite1.json | sort)
@@ -16,9 +18,9 @@ EXPECTED=$(printf '%s\n' kindle4.json kindle5.json old-kernel-qemu.json paperwhi
 
 QEMU="$DIR/old-kernel-qemu.json"
 [ -f "$QEMU" ] || { echo "old-kernel QEMU evidence is missing" >&2; exit 1; }
-jq -e --arg commit "$COMMIT" '
+jq -e --arg commit "$COMMIT" --arg toolchain "$TOOLCHAIN" '
   .schema == "zenfm-old-kernel-qemu-v2" and .commit == $commit and .result == "pass" and
-  .toolchain == "go1.26.6-kindle" and .patchLevel == "ZenFM Linux/ARM old-kernel patch 2" and
+  .toolchain == $toolchain and .patchLevel == "ZenFM Linux/ARM old-kernel patch 2" and
   (.kernelRelease | test("^2\\.6\\.")) and
   (.builds.hardFloatSHA256 | type == "string" and test("^[0-9a-f]{64}$")) and
   (.builds.softFloatSHA256 | type == "string" and test("^[0-9a-f]{64}$")) and

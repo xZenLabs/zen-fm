@@ -159,6 +159,7 @@ function session(startupDirectory = '/') {
     setupRequired: false,
     startupDirectory,
     csrfToken: CSRF_TOKEN,
+    serverTime: new Date(time).toISOString(),
     idleExpiresAt: new Date(time + 2 * 60 * 60 * 1000).toISOString(),
     absoluteExpiresAt: new Date(time + 12 * 60 * 60 * 1000).toISOString(),
   }

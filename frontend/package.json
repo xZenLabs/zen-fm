@@ -60,6 +60,12 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.11"
   },
+  "overrides": {
+    "source-map-js": "^1.2.2",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
+    }
+  },
   "engines": {
     "node": ">=20.19.0"
   }

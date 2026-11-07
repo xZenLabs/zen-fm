@@ -110,7 +110,7 @@ go test ./...
 go test -race ./...
 ```
 
-Frontend checks (using Node 24 and Go 1.26.6 to match CI):
+Frontend checks (using Node 24 and the Go version pinned in `go.mod` to match CI):
 
 ```sh
 cd frontend

@@ -143,16 +143,19 @@ if [ ! -r "/proc/$$/stat" ] && ! ps -p "$$" -o lstart= >/dev/null 2>&1; then
 fi
 
 ZENFM_BACKEND_SLEEP=30 ZENFM_BACKEND_LOG="$TMP/backend-crash.log" ZENFM_IPTABLES="$TMP/iptables" ZENFM_FIREWALL_LOG="$TMP/firewall-crash.log" \
+    ZENFM_USLEEP_LOG="$TMP/usleep.log" PATH="$TMP:$PATH" \
     "$ROOT/plugin/zenfm.koplugin/supervisor.sh" \
     --pid-file "$TMP/server.pid" --socket-file "$TMP/server.sock" --port 9443 --kindle -- "$TMP/backend" &
 crashed=$!
 attempt=0
 while [ ! -s "$TMP/server.pid" ] && [ "$attempt" -lt 50 ]; do sleep 0.02; attempt=$((attempt + 1)); done
 [ -s "$TMP/server.pid" ]
+# child.exe is written last; without /proc, recovery needs it to verify the orphan.
 attempt=0
-while [ ! -s "$TMP/server.pid.lock/child.pid" ] && [ "$attempt" -lt 50 ]; do sleep 0.02; attempt=$((attempt + 1)); done
+while [ ! -s "$TMP/server.pid.lock/child.exe" ] && [ "$attempt" -lt 250 ]; do sleep 0.02; attempt=$((attempt + 1)); done
 [ -s "$TMP/server.pid.lock/child.pid" ]
 [ -s "$TMP/server.pid.lock/child.start" ]
+[ -s "$TMP/server.pid.lock/child.exe" ]
 old_child=$(sed -n '1p' "$TMP/server.pid.lock/child.pid")
 kill -0 "$old_child"
 kill -9 "$crashed"

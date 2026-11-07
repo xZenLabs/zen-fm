@@ -8,6 +8,7 @@ export interface Session {
   setupRequired: boolean
   startupDirectory?: string
   csrfToken?: string
+  serverTime?: string
   idleExpiresAt?: string
   absoluteExpiresAt?: string
 }

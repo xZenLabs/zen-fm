@@ -1250,6 +1250,10 @@ components:
         csrfToken:
           type: string
           description: Kept only in browser memory by the official client.
+        serverTime:
+          type: string
+          format: date-time
+          description: Server time when the response was generated; use as the reference for session expiry to tolerate browser clock skew.
         idleExpiresAt:
           type: string
           format: date-time

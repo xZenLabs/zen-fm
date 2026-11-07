@@ -11,8 +11,9 @@ function Probe() {
 describe('session deadline', () => {
   afterEach(() => vi.useRealTimers())
 
-  it('validates at idle expiry and reschedules when the server reports recent activity', async () => {
+  it.each([0, 12, -12])('validates idle expiry with a %i hour browser clock offset and reschedules recent activity', async (offsetHours) => {
     const start = new Date('2026-01-01T00:00:00Z')
+    const offset = offsetHours * 60 * 60 * 1_000
     let validations = 0
     server.use(http.get('http://localhost/api/v1/session', () => {
       validations += 1
@@ -22,15 +23,17 @@ describe('session deadline', () => {
         authenticated: true,
         setupRequired: false,
         csrfToken: 'deadline-csrf-token-value-123456789',
+        serverTime: new Date(Date.now() - offset).toISOString(),
         idleExpiresAt: new Date(start.valueOf() + idleMilliseconds).toISOString(),
         absoluteExpiresAt: new Date(start.valueOf() + 10_000).toISOString(),
       })
     }))
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    vi.setSystemTime(start)
+    vi.setSystemTime(start.valueOf() + offset)
     render(<AuthProvider><Probe /></AuthProvider>)
 
     expect(await screen.findByText('authenticated')).toBeInTheDocument()
+    expect(validations).toBe(1)
     await act(() => vi.advanceTimersByTimeAsync(1_001))
     await waitFor(() => expect(validations).toBe(2))
     expect(screen.getByText('authenticated')).toBeInTheDocument()
@@ -38,21 +41,25 @@ describe('session deadline', () => {
     await waitFor(() => expect(screen.getByText('anonymous')).toBeInTheDocument())
   })
 
-  it('expires at the absolute deadline when it comes first', async () => {
+  it.each([0, 12, -12])('expires at the absolute deadline with a %i hour browser clock offset and later clock changes', async (offsetHours) => {
     const start = new Date('2026-01-01T00:00:00Z')
     server.use(http.get('http://localhost/api/v1/session', () => HttpResponse.json({
       authenticated: true,
       setupRequired: false,
       csrfToken: 'absolute-csrf-token-value-1234567',
+      serverTime: start.toISOString(),
       idleExpiresAt: new Date(start.valueOf() + 10_000).toISOString(),
       absoluteExpiresAt: new Date(start.valueOf() + 750).toISOString(),
     })))
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    vi.setSystemTime(start)
+    vi.setSystemTime(start.valueOf() + offsetHours * 60 * 60 * 1_000)
     render(<AuthProvider><Probe /></AuthProvider>)
 
     expect(await screen.findByText('authenticated')).toBeInTheDocument()
-    await act(() => vi.advanceTimersByTimeAsync(751))
+    await act(() => vi.advanceTimersByTimeAsync(500))
+    expect(screen.getByText('authenticated')).toBeInTheDocument()
+    vi.setSystemTime(start.valueOf() - 24 * 60 * 60 * 1_000)
+    await act(() => vi.advanceTimersByTimeAsync(251))
     await waitFor(() => expect(screen.getByText('anonymous')).toBeInTheDocument())
   })
 

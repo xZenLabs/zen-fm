@@ -140,9 +140,15 @@ it('scrolls fullscreen text files over 500 lines to the bottom', async () => {
   expect(button.closest('.MuiDialogActions-root')?.firstElementChild).toBe(button)
 })
 
-it('shows a text preview with Open as the primary action and keeps Edit explicit', async () => {
+it.each([
+  { name: 'notes.txt', mimeType: 'text/plain' },
+  { name: 'settings.conf' },
+  { name: 'notes.zenfm-unknown' },
+  { name: '.gitignore' },
+  { name: 'data.bin', mimeType: 'application/octet-stream' },
+])('shows a text preview with Open and Edit for $name', async ({ name, ...metadata }) => {
   server.use(http.get('http://localhost/api/v1/files/preview', () => new HttpResponse('Readable text', { headers: { 'Content-Type': 'text/plain' } })))
-  const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const entry: FileEntry = { name, path: `/${name}`, type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', ...metadata }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onEdit = vi.fn()
   render(<ThemeProvider theme={createTheme({ palette: { mode: 'light', background: { default: '#f5f5f1', paper: '#ffffff' } } })}><QueryClientProvider client={client}><FilePreviewDialog entry={entry} onClose={() => undefined} onEdit={onEdit} /></QueryClientProvider></ThemeProvider>)
@@ -153,7 +159,7 @@ it('shows a text preview with Open as the primary action and keeps Edit explicit
   expect(editor?.closest('.cm-theme-light')).toBeInTheDocument()
   expect(scroller?.querySelector('.cm-lineNumbers')).toBeInTheDocument()
   expect(scroller?.querySelector('.cm-content')).toHaveAttribute('contenteditable', 'false')
-  const dialog = screen.getByRole('dialog', { name: 'notes.txt' })
+  const dialog = screen.getByRole('dialog', { name })
   expect(getComputedStyle(dialog).backgroundColor).toBe('rgb(255, 255, 255)')
   expect(getComputedStyle(dialog.querySelector('.MuiDialogTitle-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
   expect(getComputedStyle(dialog.querySelector('.MuiDialogContent-root')!).backgroundColor).toBe('rgb(255, 255, 255)')
@@ -367,18 +373,25 @@ it('loads editable text through the bounded exact-source endpoint', async () => 
   expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
 })
 
-it('prompts to save unsaved edits when browser navigation requests the editor to close', async () => {
+it.each([
+  { name: 'notes.txt', mimeType: 'text/plain' },
+  { name: 'settings.conf' },
+  { name: 'notes.zenfm-unknown' },
+  { name: '.gitignore' },
+  { name: 'data.bin', mimeType: 'application/octet-stream' },
+])('saves unsaved edits to $name when browser navigation requests the editor to close', async ({ name, ...metadata }) => {
   let saved = ''
   server.use(
     http.get('http://localhost/api/v1/files/content', () => HttpResponse.text('Original text')),
     http.put('http://localhost/api/v1/files/content', async ({ request }) => {
+      expect(new URL(request.url).searchParams.get('path')).toBe(`/${name}`)
       saved = await request.text()
       return new HttpResponse(null, { status: 204 })
     }),
   )
   window.history.replaceState({ idx: 20 }, '', window.location.href)
   vi.spyOn(window.history, 'go').mockImplementation(() => undefined)
-  const entry: FileEntry = { name: 'notes.txt', path: '/notes.txt', type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+  const entry: FileEntry = { name, path: `/${name}`, type: 'file', size: 13, modifiedAt: '2026-01-01T00:00:00Z', ...metadata }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onClose = vi.fn()
   const onSaved = vi.fn()
@@ -402,8 +415,8 @@ it('prompts to save unsaved edits when browser navigation requests the editor to
   expect(onClose).toHaveBeenCalledOnce()
 })
 
-it('refuses to load oversized files into the text editor', () => {
-  const entry: FileEntry = { name: 'huge.txt', path: '/huge.txt', type: 'file', size: 4 * 1024 * 1024 + 1, modifiedAt: '2026-01-01T00:00:00Z', mimeType: 'text/plain' }
+it.each(['huge.txt', 'huge.conf'])('refuses to load oversized %s into the text editor', (name) => {
+  const entry: FileEntry = { name, path: `/${name}`, type: 'file', size: 4 * 1024 * 1024 + 1, modifiedAt: '2026-01-01T00:00:00Z' }
   expect(canEdit(entry)).toBe(false)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<QueryClientProvider client={client}><FileEditorDialog entry={entry} onClose={() => undefined} onSaved={() => undefined} /></QueryClientProvider>)
@@ -414,6 +427,11 @@ it('refuses to load oversized files into the text editor', () => {
 it('keeps extensionless text files editable after their directory entry is refreshed', () => {
   const entry: FileEntry = { name: 'README', path: '/README', type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }
   expect(canEdit(entry)).toBe(true)
+})
+
+it.each(['png', 'svg', 'tiff', 'pdf', 'epub', 'mp3', 'flac', 'mp4', 'mkv'])('keeps known .%s media out of the text editor when MIME metadata is missing', (extension) => {
+  const entry: FileEntry = { name: `file.${extension}`, path: `/file.${extension}`, type: 'file', size: 12, modifiedAt: '2026-01-01T00:00:00Z' }
+  expect(canEdit(entry)).toBe(false)
 })
 
 it('offers an explicit replacement after a copy destination conflict', async () => {
