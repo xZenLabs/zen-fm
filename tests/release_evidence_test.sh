@@ -7,6 +7,7 @@ command -v jq >/dev/null 2>&1 || { echo "jq is required for release evidence tes
 work=$(mktemp -d "${TMPDIR:-/tmp}/zenfm-evidence.XXXXXX")
 cleanup() { rm -rf "$work"; }
 trap cleanup EXIT INT TERM
+toolchain="$(sed -n '1p' "$ROOT/toolchains/legacy/VERSION")-kindle"
 
 printf 'qualified hard float\n' > "$work/zenfm-hf"
 printf 'qualified soft float\n' > "$work/zenfm-sf"
@@ -24,7 +25,7 @@ printf '%s\n' \
   'done' \
   'jq -n --arg commit "$commit" '\''{' \
   '  schema:"zenfm-old-kernel-qemu-v1", commit:$commit, result:"pass",' \
-  '  toolchain:"go1.26.9-kindle", patchLevel:"ZenFM Linux/ARM old-kernel patch 2",' \
+  '  toolchain:"'"$toolchain"'", patchLevel:"ZenFM Linux/ARM old-kernel patch 2",' \
   '  kernelRelease:"2.6.35", checks:{hardFloat:"pass",softFloat:"pass",start:"pass",health:"pass",stop:"pass"}' \
   '}'\'' > "$output"' > "$work/qemu-harness"
 chmod 700 "$work/qemu-harness"

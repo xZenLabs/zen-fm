@@ -51,7 +51,8 @@ builds the exact source commit that passed CI.
 ## Legacy compiler qualification
 
 The e-reader ARM binaries are compiled from the source release pinned in
-`toolchains/legacy/VERSION` and `SHA256`. It must remain `go1.26.9`; the
+`toolchains/legacy/VERSION` and `SHA256`. It must match the `go` directive in
+`go.mod` (`scripts/verify-legacy-toolchain.sh` enforces this); the
 bootstrap verifies the official source archive before applying the reviewed
 Linux/ARM old-kernel compatibility patch. Stable builds bootstrap into a
 fresh runner directory and never substitute an unpatched or end-of-life Go

@@ -16,6 +16,8 @@ OUTPUT=$4
 [ -x "$HARD_FLOAT" ] || { echo "hard-float backend is missing" >&2; exit 2; }
 [ -x "$SOFT_FLOAT" ] || { echo "soft-float backend is missing" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || { echo "jq is required on the qualification runner" >&2; exit 2; }
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+TOOLCHAIN="$(sed -n '1p' "$ROOT/toolchains/legacy/VERSION")-kindle"
 
 sha256_file() {
     if command -v sha256sum >/dev/null 2>&1; then
@@ -31,11 +33,11 @@ sha256_file() {
     --commit "$COMMIT" \
     --output "$OUTPUT"
 
-jq -e --arg commit "$COMMIT" '
+jq -e --arg commit "$COMMIT" --arg toolchain "$TOOLCHAIN" '
   .schema == "zenfm-old-kernel-qemu-v1" and
   .commit == $commit and
   .result == "pass" and
-  .toolchain == "go1.26.9-kindle" and
+  .toolchain == $toolchain and
   .patchLevel == "ZenFM Linux/ARM old-kernel patch 2" and
   (.kernelRelease | type == "string" and test("^2\\.6\\.")) and
   .checks.hardFloat == "pass" and

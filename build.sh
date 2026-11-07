@@ -129,7 +129,8 @@ if [ -z "$PACKAGE_ONLY" ]; then
     GOFLAGS='-trimpath -buildvcs=false'
     LDFLAGS="-s -w -buildid= -X main.version=$VERSION"
     LEGACY_PATCH_LEVEL='ZenFM Linux/ARM old-kernel patch 2'
-    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/go1.26.9-kindle-p2/bin/go}
+    LEGACY_GO_VERSION=$(sed -n '1p' "$SCRIPT_DIR/toolchains/legacy/VERSION")
+    LEGACY_GO=${ZENFM_LEGACY_GO:-$SCRIPT_DIR/.toolchains/$LEGACY_GO_VERSION-kindle-p2/bin/go}
     if [ ! -x "$LEGACY_GO" ] && [ -z "${ZENFM_LEGACY_GO:-}" ]; then
         "$SCRIPT_DIR/toolchains/legacy/bootstrap.sh"
     fi
